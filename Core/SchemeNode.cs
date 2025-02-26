@@ -1,8 +1,9 @@
-using Microsoft.Extensions.Logging;
+using ExcelToJsonAddin.Logging;
 using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Diagnostics;
 
 namespace ExcelToJsonAddin.Core
@@ -18,7 +19,7 @@ namespace ExcelToJsonAddin.Core
             ARRAY,
             IGNORE
         }
-        
+
         // 노드 타입 구분을 위한 상수
         private const string TYPE_MAP = "{}";
         private const string TYPE_ARRAY = "[]";
@@ -27,19 +28,7 @@ namespace ExcelToJsonAddin.Core
         private const string TYPE_IGNORE = "^";
 
         // 로깅 방식 변경
-        private static readonly ILogger<SchemeNode> Logger = CreateLogger();
-
-        private static ILogger<SchemeNode> CreateLogger()
-        {
-            // 간단한 로거 팩토리 생성
-            var loggerFactory = LoggerFactory.Create(builder => 
-            {
-                // AddConsole 대신 디버그 로깅만 사용
-                builder.SetMinimumLevel(LogLevel.Debug);
-            });
-            
-            return loggerFactory.CreateLogger<SchemeNode>();
-        }
+        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<SchemeNode>();
 
         private string key = "";
         private SchemeNodeType type = SchemeNodeType.PROPERTY;
@@ -54,18 +43,20 @@ namespace ExcelToJsonAddin.Core
             this.sheet = sheet;
             this.schemeRowNum = rowNum;
             this.schemeCellNum = cellNum;
-            
-            Logger.LogDebug("SchemeNode 생성: 이름={Name}, 행={Row}, 열={Cell}", schemeName, rowNum, cellNum);
+
+            Logger.Debug("SchemeNode 생성: 이름=" + schemeName + ", 행=" + rowNum + ", 열=" + cellNum);
 
             if (!schemeName.Contains("$"))
             {
                 this.key = schemeName;
                 this.type = SchemeNodeType.PROPERTY;
-                Logger.LogDebug("PROPERTY 노드 생성: {Name}", key);
+                Logger.Debug("PROPERTY 노드 생성: " + key);
             }
             else
             {
+                // 원본 CS 코드와 동일하게 구현
                 string[] splitted = schemeName.Split(new char[] { '$' }, StringSplitOptions.RemoveEmptyEntries);
+                
                 // 키와 타입을 분리
                 if (splitted.Length > 0)
                 {
@@ -75,43 +66,60 @@ namespace ExcelToJsonAddin.Core
                 {
                     this.key = "";
                 }
-                
-                string typeString = splitted.Length > 0 ? splitted[splitted.Length - 1] : "";
 
-                switch (typeString)
+                // ARRAY 타입($[])인 경우 특별 처리
+                if (schemeName.Contains("$[]"))
                 {
-                    case TYPE_MAP:
-                        this.type = SchemeNodeType.MAP;
-                        // 루트 MAP 노드에 대한 처리
-                        if (string.IsNullOrEmpty(key) || this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
-                        {
-                            this.key = "";  // 명시적으로 빈 문자열 설정
-                        }
-                        Logger.LogDebug("MAP 노드 생성: {Name}", key);
-                        break;
-                    case TYPE_ARRAY:
-                        this.type = SchemeNodeType.ARRAY;
-                        // 루트 ARRAY 노드에 대한 처리
-                        if (string.IsNullOrEmpty(key) || this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
-                        {
-                            this.key = "";  // 명시적으로 빈 문자열 설정
-                        }
-                        Logger.LogDebug("ARRAY 노드 생성: {Name}", key);
-                        break;
-                    case TYPE_KEY:
-                        this.type = SchemeNodeType.KEY;
-                        Logger.LogDebug("KEY 노드 생성: {Name}", key);
-                        break;
-                    case TYPE_VALUE:
-                        this.type = SchemeNodeType.VALUE;
-                        Logger.LogDebug("VALUE 노드 생성: {Name}", key);
-                        break;
-                    case TYPE_IGNORE:
-                        this.type = SchemeNodeType.IGNORE;
-                        Logger.LogDebug("IGNORE 노드 생성: {Name}", key);
-                        break;
-                    default:
-                        throw new InvalidOperationException($"알 수 없는 노드 유형: {typeString}");
+                    Logger.Debug("ARRAY 형식 감지: " + schemeName);
+                    this.type = SchemeNodeType.ARRAY;
+                    if (string.IsNullOrEmpty(key) || this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
+                    {
+                        this.key = "";  // 명시적으로 빈 문자열 설정
+                    }
+                    Logger.Debug("ARRAY 노드 생성: " + key);
+                }
+                else
+                {
+                    // 타입 문자열 추출 - 원본 CS 코드처럼 마지막 요소 사용
+                    string typeString = splitted.Length > 0 ? splitted[splitted.Length - 1] : "";
+                    
+                    Logger.Debug("스키마 문자열 분석: 원본='" + schemeName + "', 키='" + key + "', 타입 문자열='" + typeString + "'");
+
+                    switch (typeString)
+                    {
+                        case TYPE_MAP:
+                            this.type = SchemeNodeType.MAP;
+                            // 루트 MAP 노드에 대한 처리
+                            if (string.IsNullOrEmpty(key) || this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
+                            {
+                                this.key = "";  // 명시적으로 빈 문자열 설정
+                            }
+                            Logger.Debug("MAP 노드 생성: " + key);
+                            break;
+                        case TYPE_ARRAY:
+                            this.type = SchemeNodeType.ARRAY;
+                            // 루트 ARRAY 노드에 대한 처리
+                            if (string.IsNullOrEmpty(key) || this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
+                            {
+                                this.key = "";  // 명시적으로 빈 문자열 설정
+                            }
+                            Logger.Debug("ARRAY 노드 생성: " + key);
+                            break;
+                        case TYPE_KEY:
+                            this.type = SchemeNodeType.KEY;
+                            Logger.Debug("KEY 노드 생성: " + key);
+                            break;
+                        case TYPE_VALUE:
+                            this.type = SchemeNodeType.VALUE;
+                            Logger.Debug("VALUE 노드 생성: " + key);
+                            break;
+                        case TYPE_IGNORE:
+                            this.type = SchemeNodeType.IGNORE;
+                            Logger.Debug("IGNORE 노드 생성: " + key);
+                            break;
+                        default:
+                            throw new InvalidOperationException("알 수 없는 노드 유형: " + typeString);
+                    }
                 }
             }
         }
@@ -119,7 +127,7 @@ namespace ExcelToJsonAddin.Core
         public void SetParent(SchemeNode parent)
         {
             string parentKey = parent != null ? parent.key : "null";
-            Logger.LogDebug("부모 설정: {ChildName} -> {ParentName}", this.key, parentKey);
+            Logger.Debug("부모 설정: " + this.key + " -> " + parentKey);
             this.parent = parent;
         }
 
@@ -127,7 +135,7 @@ namespace ExcelToJsonAddin.Core
         {
             if (child == null)
             {
-                Logger.LogWarning("null 자식 추가 시도 무시");
+                Logger.Warning("null 자식 추가 시도 무시");
                 return;
             }
             
@@ -138,18 +146,18 @@ namespace ExcelToJsonAddin.Core
                 case SchemeNodeType.PROPERTY:
                     if (child.NodeType == SchemeNodeType.KEY || child.NodeType == SchemeNodeType.PROPERTY)
                     {
-                        Logger.LogWarning("PROPERTY 또는 KEY 노드에 다른 PROPERTY 또는 KEY 노드 추가 시도 무시: {Parent} -> {Child}", this.key, child.key);
+                        Logger.Warning("PROPERTY 또는 KEY 노드에 다른 PROPERTY 또는 KEY 노드 추가 시도 무시: " + this.key + " -> " + child.key);
                         return;
                     }
                     break;
                 case SchemeNodeType.IGNORE:
-                    Logger.LogWarning("IGNORE 노드에 자식 추가 시도 무시: {Child}", child.key);
+                    Logger.Warning("IGNORE 노드에 자식 추가 시도 무시: " + child.key);
                     return;
             }
             
             child.SetParent(this);
             children.AddLast(child);
-            Logger.LogDebug("자식 노드 추가됨: {Parent} -> {Child}", this.key, child.key);
+            Logger.Debug("자식 노드 추가됨: " + this.key + " -> " + child.key);
         }
 
         /// <summary>
@@ -158,10 +166,10 @@ namespace ExcelToJsonAddin.Core
         /// <returns>노드 구조를 평면화한 목록</returns>
         public LinkedList<SchemeNode> Linear()
         {
-            Logger.LogDebug("Linear() 호출: {Node}", key);
+            Logger.Debug("Linear() 호출: " + key);
             var result = new LinkedList<SchemeNode>();
             result.AddLast(this);
-            
+
             foreach (var child in children)
             {
                 foreach (var node in child.Linear())
@@ -169,7 +177,7 @@ namespace ExcelToJsonAddin.Core
                     result.AddLast(node);
                 }
             }
-            
+
             return result;
         }
 
@@ -177,14 +185,14 @@ namespace ExcelToJsonAddin.Core
         {
             if (sheet == null || row == null)
             {
-                Logger.LogWarning("시트 또는 행이 null임: {Key}", key);
+                Logger.Warning("시트 또는 행이 null임: " + key);
                 return string.Empty;
             }
 
             IXLCell cell = row.Cell(schemeCellNum);
-            if (cell == null || cell.IsEmpty()) 
+            if (cell == null || cell.IsEmpty())
             {
-                Logger.LogDebug("셀이 비어있음: 행={Row}, 열={Column}", row.RowNumber(), schemeCellNum);
+                Logger.Debug("셀이 비어있음: 행=" + row.RowNumber() + ", 열=" + schemeCellNum);
                 return string.Empty;
             }
 
@@ -197,7 +205,7 @@ namespace ExcelToJsonAddin.Core
             if (!IsKeyProvidable || sheet == null || row == null)
             {
                 int rowNumber = row != null ? row.RowNumber() : -1;
-                Logger.LogDebug("키를 가져올 수 없음: 타입={Type}, 행={Row}", type, rowNumber);
+                Logger.Debug("키를 가져올 수 없음: 타입=" + type + ", 행=" + rowNumber);
                 return string.Empty;
             }
 
@@ -216,17 +224,17 @@ namespace ExcelToJsonAddin.Core
                 {
                     object value = valueNode.GetValue(row);
                     string valueStr = value != null ? value.ToString() : string.Empty;
-                    Logger.LogDebug("KEY 노드의 값 노드 값: {Value}", valueStr);
+                    Logger.Debug("KEY 노드의 값 노드 값: " + valueStr);
                     return valueStr;
                 }
-                
+
                 // 값 노드가 없는 경우 직접 셀 값 사용
                 IXLCell cell = row.Cell(schemeCellNum);
                 if (cell != null && !cell.IsEmpty())
                 {
                     object cellValue = ExcelCellValueResolver.GetCellValue(cell);
                     string cellValueStr = cellValue != null ? cellValue.ToString() : string.Empty;
-                    Logger.LogDebug("KEY 노드의 셀 값: {Value}", cellValueStr);
+                    Logger.Debug("KEY 노드의 셀 값: " + cellValueStr);
                     return cellValueStr;
                 }
             }
@@ -242,23 +250,23 @@ namespace ExcelToJsonAddin.Core
                     {
                         object parentCellValue = ExcelCellValueResolver.GetCellValue(parentCell);
                         string parentCellValueStr = parentCellValue != null ? parentCellValue.ToString() : string.Empty;
-                        Logger.LogDebug("부모 노드의 셀 값: {Value}", parentCellValueStr);
+                        Logger.Debug("부모 노드의 셀 값: " + parentCellValueStr);
                         return parentCellValueStr;
                     }
                 }
-                
+
                 // 부모의 키를 사용
                 return parent.GetKey(row);
             }
 
             // 4. 기본값
-            Logger.LogWarning("키를 결정할 수 없음: {Self}, 부모={Parent}", this, parent);
+            Logger.Warning("키를 결정할 수 없음: " + this + ", 부모=" + parent);
             return string.Empty;
         }
 
         public override string ToString()
         {
-            return $"{key}:{type}";
+            return key + ":" + type;
         }
 
         public bool IsRoot => parent == null;
@@ -270,12 +278,12 @@ namespace ExcelToJsonAddin.Core
         public IEnumerable<SchemeNode> Children => children;
         public int ChildCount => children.Count;
 
-        public bool IsContainer => 
+        public bool IsContainer =>
             type == SchemeNodeType.MAP ||
             type == SchemeNodeType.ARRAY ||
             type == SchemeNodeType.KEY;
-        
-        public bool IsKeyProvidable => 
+
+        public bool IsKeyProvidable =>
             type == SchemeNodeType.KEY ||
             type == SchemeNodeType.PROPERTY;
     }

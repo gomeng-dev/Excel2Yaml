@@ -26,7 +26,7 @@
     <NoStandardLibraries>false</NoStandardLibraries>
     <RootNamespace>ExcelToJsonAddin</RootNamespace>
     <AssemblyName>ExcelToJsonAddin</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
     <DefineConstants>VSTO40;UseOfficeInterop</DefineConstants>
     <ResolveComReferenceSilent>true</ResolveComReferenceSilent>
     <TargetFrameworkProfile />
@@ -168,8 +168,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.2" />
     <PackageReference Include="System.Buffers">
       <Version>4.6.0</Version>
     </PackageReference>
@@ -302,6 +300,8 @@
     <Compile Include="Ribbon.Designer.cs">
       <DependentUpon>Ribbon.cs</DependentUpon>
     </Compile>
+    <Compile Include="Logging\ISimpleLogger.cs" />
+    <Compile Include="Logging\SimpleLogger.cs" />
     <Compile Include="Config\ExcelToJsonConfig.cs" />
     <Compile Include="Core\Scheme.cs" />
     <Compile Include="Core\SchemeNode.cs" />
@@ -311,6 +311,14 @@
     <Compile Include="Core\OrderedYamlFactory.cs" />
     <Compile Include="Core\ExcelCellValueResolver.cs" />
     <Compile Include="Core\YamlGenerator.cs" />
+    <Compile Include="Core\SheetAnalyzer.cs" />
+    <Compile Include="Config\SheetPathManager.cs" />
+    <Compile Include="Forms\SheetPathSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\SheetPathSettingsForm.Designer.cs">
+      <DependentUpon>SheetPathSettingsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Extensions\LoggingExtensions.cs" />
   </ItemGroup>
   <ItemGroup>

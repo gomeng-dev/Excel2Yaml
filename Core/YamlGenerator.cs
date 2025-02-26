@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+using ExcelToJsonAddin.Logging;
 using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
@@ -11,20 +11,16 @@ namespace ExcelToJsonAddin.Core
 {
     public class YamlGenerator
     {
-        // 단순화된 로깅 방식으로 변경
-        private static readonly ILogger<YamlGenerator> Logger = LoggerFactory.Create(builder => 
-        {
-            builder.SetMinimumLevel(LogLevel.Debug);
-        }).CreateLogger<YamlGenerator>();
+        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<YamlGenerator>();
 
-        private readonly Scheme scheme;
-        private readonly IXLWorksheet sheet;
+        private readonly Scheme _scheme;
+        private readonly IXLWorksheet _sheet;
 
         public YamlGenerator(Scheme scheme)
         {
-            this.scheme = scheme;
-            this.sheet = scheme.Sheet;
-            Logger.LogDebug("YamlGenerator 초기화: 스키마 노드 타입={Type}", scheme.Root.NodeType);
+            _scheme = scheme;
+            _sheet = scheme.Sheet;
+            Logger.Debug("YamlGenerator 초기화: 스키마 노드 타입={0}", scheme.Root.NodeType);
         }
 
         // 외부에서 호출할 정적 메서드 추가
@@ -57,7 +53,7 @@ namespace ExcelToJsonAddin.Core
         {
             try
             {
-                Logger.LogDebug("YAML 생성 시작: 스타일={Style}, 들여쓰기={Indent}", style, indentSize);
+                Logger.Debug("YAML 생성 시작: 스타일={0}, 들여쓰기={1}", style, indentSize);
                 
                 // 루트 노드 처리
                 object rootObj = ProcessRootNode();
@@ -67,7 +63,7 @@ namespace ExcelToJsonAddin.Core
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "YAML 생성 중 오류 발생");
+                Logger.Error(ex, "YAML 생성 중 오류 발생");
                 throw;
             }
         }
@@ -77,9 +73,9 @@ namespace ExcelToJsonAddin.Core
             YamlObject result = OrderedYamlFactory.CreateObject();
             
             // 모든 데이터 행에 대해 처리
-            for (int rowNum = scheme.ContentStartRowNum; rowNum <= scheme.EndRowNum; rowNum++)
+            for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
             {
-                IXLRow row = sheet.Row(rowNum);
+                IXLRow row = _sheet.Row(rowNum);
                 if (row == null) continue;
                 
                 // 각 자식 노드에 대해 처리
@@ -136,9 +132,9 @@ namespace ExcelToJsonAddin.Core
             YamlArray result = OrderedYamlFactory.CreateArray();
             
             // 모든 데이터 행에 대해 처리
-            for (int rowNum = scheme.ContentStartRowNum; rowNum <= scheme.EndRowNum; rowNum++)
+            for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
             {
-                IXLRow row = sheet.Row(rowNum);
+                IXLRow row = _sheet.Row(rowNum);
                 if (row == null) continue;
                 
                 // 행마다 새 객체 생성
@@ -423,8 +419,8 @@ namespace ExcelToJsonAddin.Core
         // YAML 객체 생성을 위한 메서드
         public object ProcessRootNode()
         {
-            SchemeNode rootNode = scheme.Root;
-            Logger.LogDebug("루트 노드 처리: 타입={Type}", rootNode.NodeType);
+            SchemeNode rootNode = _scheme.Root;
+            Logger.Debug("루트 노드 처리: 타입={0}", rootNode.NodeType);
             
             if (rootNode.NodeType == SchemeNode.SchemeNodeType.MAP)
             {
@@ -436,7 +432,7 @@ namespace ExcelToJsonAddin.Core
             }
             else
             {
-                Logger.LogWarning("지원하지 않는 루트 노드 타입: {Type}", rootNode.NodeType);
+                Logger.Warning("지원하지 않는 루트 노드 타입: {0}", rootNode.NodeType);
                 return OrderedYamlFactory.CreateObject(); // 기본 빈 객체 반환
             }
         }

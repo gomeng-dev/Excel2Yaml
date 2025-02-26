@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+using ExcelToJsonAddin.Logging;
 using ClosedXML.Excel;
 using System;
 using System.Collections;
@@ -10,19 +10,7 @@ namespace ExcelToJsonAddin.Core
 {
     public class Scheme : IEnumerable<SchemeNode>
     {
-        private static readonly ILogger<Scheme> Logger = CreateLogger();
-
-        private static ILogger<Scheme> CreateLogger()
-        {
-            // 간단한 로거 팩토리 생성
-            var loggerFactory = LoggerFactory.Create(builder => 
-            {
-                // AddConsole 대신 디버그 로깅만 사용
-                builder.SetMinimumLevel(LogLevel.Debug);
-            });
-            
-            return loggerFactory.CreateLogger<Scheme>();
-        }
+        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<Scheme>();
 
         private readonly SchemeNode root;
         private readonly IXLWorksheet sheet;
@@ -39,7 +27,7 @@ namespace ExcelToJsonAddin.Core
             
             this.linearNodes = root.Linear() ?? new LinkedList<SchemeNode>();
             
-            Logger.LogInformation("Scheme 생성: 루트={RootName}, 시작행={StartRow}, 끝행={EndRow}, 노드 수={NodeCount}", 
+            Logger.Information("Scheme 생성: 루트={0}, 시작행={1}, 끝행={2}, 노드 수={3}", 
                 root.Key, contentStartRowNum, endRowNum, linearNodes.Count);
         }
 
@@ -59,7 +47,7 @@ namespace ExcelToJsonAddin.Core
             this.endRowNum = parsed.EndRowNum;
             this.linearNodes = new LinkedList<SchemeNode>(parsed.GetLinearNodes());
             
-            Logger.LogInformation("Scheme 생성(자동 파싱): 루트={RootName}, 시작행={StartRow}, 끝행={EndRow}, 노드 수={NodeCount}", 
+            Logger.Information("Scheme 생성(자동 파싱): 루트={0}, 시작행={1}, 끝행={2}, 노드 수={3}", 
                 root.Key, contentStartRowNum, endRowNum, linearNodes.Count);
         }
 

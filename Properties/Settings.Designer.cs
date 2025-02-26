@@ -22,5 +22,29 @@ namespace ExcelToJsonAddin.Properties {
                 return defaultInstance;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastSavedDirectory {
+            get {
+                return ((string)(this["LastSavedDirectory"]));
+            }
+            set {
+                this["LastSavedDirectory"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastExportPath {
+            get {
+                return ((string)(this["LastExportPath"]));
+            }
+            set {
+                this["LastExportPath"] = value;
+            }
+        }
     }
 }

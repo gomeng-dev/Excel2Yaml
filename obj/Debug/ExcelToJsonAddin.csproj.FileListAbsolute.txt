@@ -10,14 +10,7 @@ C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\ExcelToJs
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\ExcelToJsonAddin.dll.manifest
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\ExcelToJsonAddin.vsto
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.Bcl.AsyncInterfaces.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.Extensions.DependencyInjection.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.Extensions.DependencyInjection.Abstractions.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.Extensions.Logging.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.Extensions.Logging.Abstractions.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.Extensions.Options.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.Extensions.Primitives.dll
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\System.Buffers.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\System.Diagnostics.DiagnosticSource.dll
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\System.Memory.dll
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\System.Numerics.Vectors.dll
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\System.Runtime.CompilerServices.Unsafe.dll

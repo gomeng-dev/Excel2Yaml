@@ -7,19 +7,25 @@ using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
 using Office = Microsoft.Office.Core;
 using Microsoft.Office.Tools.Excel;
+using ExcelToJsonAddin.Logging;
 
 namespace ExcelToJsonAddin
 {
     public partial class ThisAddIn
     {
+        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<ThisAddIn>();
+
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
             // 애드인 시작 시 초기화
             try
             {
+                // Add-in 초기화 로깅
+                Logger.Debug("Excel To JSON Add-in 시작");
                 // Ribbon 인스턴스 생성 및 등록
                 var ribbon = new Ribbon();
                 Debug.WriteLine("Ribbon 인스턴스가 생성되었습니다.");
+                Logger.Information("Excel 애드인 시작됨");
             }
             catch (Exception ex)
             {
@@ -31,18 +37,7 @@ namespace ExcelToJsonAddin
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)
         {
             // 애드인 종료 시 정리 코드
-        }
-
-        // 활성 워크시트 가져오기
-        public Excel.Worksheet GetActiveWorksheet()
-        {
-            return (Excel.Worksheet)Application.ActiveSheet;
-        }
-
-        // 활성 워크북 가져오기
-        public Excel.Workbook GetActiveWorkbook()
-        {
-            return Application.ActiveWorkbook;
+            Logger.Information("Excel 애드인 종료됨");
         }
 
         // 임시 파일로 저장
@@ -50,17 +45,38 @@ namespace ExcelToJsonAddin
         {
             try
             {
-                string tempFile = Path.Combine(Path.GetTempPath(), $"excel2json_temp_{Guid.NewGuid()}.xlsx");
-                Excel.Workbook workbook = GetActiveWorkbook();
+                // 임시 파일 경로 생성
+                string tempDir = Path.GetTempPath();
+                string tempFileName = $"ExcelToJson_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+                string tempFile = Path.Combine(tempDir, tempFileName);
                 
-                // 현재 워크북을 복사하여 임시 파일로 저장
-                workbook.SaveCopyAs(tempFile);
+                // 현재 활성 워크북 저장
+                this.Application.ActiveWorkbook.SaveCopyAs(tempFile);
                 
+                Logger.Information("임시 파일 저장: {0}", tempFile);
                 return tempFile;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"임시 파일 생성 오류: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Logger.Error(ex, "임시 파일 저장 실패");
+                return null;
+            }
+        }
+        
+        // 현재 워크시트 이름 가져오기
+        public string GetActiveSheetName()
+        {
+            try
+            {
+                if (this.Application.ActiveSheet is Excel.Worksheet sheet)
+                {
+                    return sheet.Name;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "워크시트 이름 가져오기 실패");
                 return null;
             }
         }

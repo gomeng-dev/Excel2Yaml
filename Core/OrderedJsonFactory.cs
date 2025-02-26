@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 
 namespace ExcelToJsonAddin.Core
 {
@@ -349,10 +350,69 @@ namespace ExcelToJsonAddin.Core
         {
             for (int i = 0; i < indentLevel; i++)
             {
-                sb.Append("  ");
+                sb.Append("    ");
             }
         }
 
-        public static JsonObject NewJsonObject() => new JsonObject();
+        public static JsonObject NewJsonObject(string jsonString)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(jsonString))
+                    return null;
+
+                // 커스텀 JSON 파서 구현
+                var json = System.Text.Json.JsonDocument.Parse(jsonString);
+                return ConvertJsonElement(json.RootElement) as JsonObject;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private static object ConvertJsonElement(System.Text.Json.JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case System.Text.Json.JsonValueKind.Object:
+                    var obj = new JsonObject();
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        obj.Add(property.Name, ConvertJsonElement(property.Value));
+                    }
+                    return obj;
+
+                case System.Text.Json.JsonValueKind.Array:
+                    var array = new JsonArray();
+                    foreach (var item in element.EnumerateArray())
+                    {
+                        array.Add(ConvertJsonElement(item));
+                    }
+                    return array;
+
+                case System.Text.Json.JsonValueKind.String:
+                    return element.GetString();
+
+                case System.Text.Json.JsonValueKind.Number:
+                    if (element.TryGetInt32(out int intValue))
+                        return intValue;
+                    if (element.TryGetInt64(out long longValue))
+                        return longValue;
+                    return element.GetDouble();
+
+                case System.Text.Json.JsonValueKind.True:
+                    return true;
+
+                case System.Text.Json.JsonValueKind.False:
+                    return false;
+
+                case System.Text.Json.JsonValueKind.Null:
+                    return null;
+
+                default:
+                    return null;
+            }
+        }
     }
 }

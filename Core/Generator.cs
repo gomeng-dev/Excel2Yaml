@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+using ExcelToJsonAddin.Logging;
 using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
@@ -11,43 +11,47 @@ namespace ExcelToJsonAddin.Core
 {
     public class Generator
     {
-        private static readonly ILogger<Generator> Logger = CreateLogger();
+        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<Generator>();
 
-        private static ILogger<Generator> CreateLogger()
-        {
-            // 간단한 로거 팩토리 생성
-            var loggerFactory = LoggerFactory.Create(builder => 
-            {
-                // AddConsole 대신 디버그 로깅만 사용
-                builder.SetMinimumLevel(LogLevel.Debug);
-            });
-            
-            return loggerFactory.CreateLogger<Generator>();
-        }
-
-        private readonly Scheme scheme;
-        private readonly IXLWorksheet sheet;
+        private readonly Scheme _scheme;
+        private readonly IXLWorksheet _sheet;
 
         public Generator(Scheme scheme)
         {
-            this.scheme = scheme;
-            this.sheet = scheme.Sheet;
-            Logger.LogDebug("Generator 초기화: 스키마 노드 타입={Type}", scheme.Root.NodeType);
+            _scheme = scheme;
+            _sheet = scheme.Sheet;
+            Logger.Debug("Generator 초기화: 스키마 노드 타입={0}", scheme.Root.NodeType);
         }
 
         // 외부에서 호출할 정적 메서드 추가
         public static string GenerateJson(Scheme scheme, bool includeEmptyOptionals)
         {
             var generator = new Generator(scheme);
-            Logger.LogDebug("JSON 생성 시작: 스키마 노드 타입={Type}", scheme.Root.NodeType);
+            Logger.Debug("JSON 생성 시작: 스키마 노드 타입={0}", scheme.Root.NodeType);
             var result = generator.Generate();
             
             if (!includeEmptyOptionals)
             {
-                // 빈 속성 제거 로직 추가
-                var jsonObj = JsonSerializer.Deserialize<JsonObject>(result, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                OrderedJsonFactory.RemoveEmptyProperties(jsonObj);
-                result = OrderedJsonFactory.SerializeObject(jsonObj);
+                try
+                {
+                    // 빈 속성 제거 로직 수정
+                    // 직접 JsonObject를 생성하고 처리
+                    JsonObject jsonObj = OrderedJsonFactory.NewJsonObject(result);
+                    if (jsonObj != null)
+                    {
+                        OrderedJsonFactory.RemoveEmptyProperties(jsonObj);
+                        result = OrderedJsonFactory.SerializeObject(jsonObj);
+                    }
+                    else
+                    {
+                        Logger.Warning("JSON 객체 생성 실패: 원본 JSON 반환");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "JSON 처리 중 오류 발생");
+                    // 오류 발생 시 원본 결과 반환
+                }
             }
             
             return result;
@@ -55,28 +59,28 @@ namespace ExcelToJsonAddin.Core
 
         public string Generate()
         {
-            SchemeNode rootNode = scheme.Root;
-            Logger.LogInformation("JSON 생성 시작");
-            Logger.LogInformation("루트 노드: {Key}, 타입={Type}", rootNode.Key, rootNode.NodeType);
+            SchemeNode rootNode = _scheme.Root;
+            Logger.Debug("JSON 생성 시작");
+            Logger.Information("루트 노드: {0}, 타입={1}", rootNode.Key, rootNode.NodeType);
             
             object rootJson;
             if (rootNode.NodeType == SchemeNode.SchemeNodeType.MAP)
             {
-                Logger.LogInformation("MAP 루트 노드 처리");
+                Logger.Information("MAP 루트 노드 처리");
                 // MAP 노드를 직접 처리하지 않고, rootNode의 자식들을 직접 처리하도록 수정
                 var rootObject = ProcessMapNode(rootNode);
                 rootJson = rootObject;
             }
             else if (rootNode.NodeType == SchemeNode.SchemeNodeType.ARRAY)
             {
-                Logger.LogInformation("ARRAY 루트 노드 처리");
+                Logger.Information("ARRAY 루트 노드 처리");
                 // 루트 배열 노드의 항목들을 직접 추출
                 JsonArray array = OrderedJsonFactory.CreateArray();
                 
                 // 모든 데이터 행에 대해 처리
-                for (int rowNum = scheme.ContentStartRowNum; rowNum <= scheme.EndRowNum; rowNum++)
+                for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
                 {
-                    IXLRow row = sheet.Row(rowNum);
+                    IXLRow row = _sheet.Row(rowNum);
                     if (row == null) continue;
                     
                     // 행마다 새 객체 생성
@@ -148,7 +152,7 @@ namespace ExcelToJsonAddin.Core
                         }
                     }
                     
-                    Logger.LogDebug("행 {RowNum} 처리 결과: 유효한 값={HasValues}", rowNum, rowObj.HasValues);
+                    Logger.Debug("행 {0} 처리 결과: 유효한 값={1}", rowNum, rowObj.HasValues);
                     
                     // 비어있지 않은 객체만 추가
                     if (rowObj.HasValues)
@@ -161,7 +165,7 @@ namespace ExcelToJsonAddin.Core
             }
             else
             {
-                Logger.LogError("지원되지 않는 루트 노드 타입: {Type}", rootNode.NodeType);
+                Logger.Error("지원되지 않는 루트 노드 타입: {0}", rootNode.NodeType);
                 throw new InvalidOperationException("Illegal root json node type. must be unnamed map or array");
             }
             
@@ -174,9 +178,9 @@ namespace ExcelToJsonAddin.Core
             JsonObject result = OrderedJsonFactory.CreateObject();
             
             // 모든 데이터 행에 대해 처리
-            for (int rowNum = scheme.ContentStartRowNum; rowNum <= scheme.EndRowNum; rowNum++)
+            for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
             {
-                IXLRow row = sheet.Row(rowNum);
+                IXLRow row = _sheet.Row(rowNum);
                 if (row == null) continue;
                 
                 // 각 자식 노드에 대해 처리
@@ -233,9 +237,9 @@ namespace ExcelToJsonAddin.Core
             JsonArray result = OrderedJsonFactory.CreateArray();
             
             // 모든 데이터 행에 대해 처리
-            for (int rowNum = scheme.ContentStartRowNum; rowNum <= scheme.EndRowNum; rowNum++)
+            for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
             {
-                IXLRow row = sheet.Row(rowNum);
+                IXLRow row = _sheet.Row(rowNum);
                 if (row == null) continue;
                 
                 // 행마다 새 객체 생성
@@ -553,7 +557,7 @@ namespace ExcelToJsonAddin.Core
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "워크시트 변환 중 오류 발생");
+                Logger.Error(ex, "워크시트 변환 중 오류 발생");
                 throw;
             }
         }

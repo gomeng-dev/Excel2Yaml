@@ -21,6 +21,11 @@ namespace ExcelToJsonAddin
 
         public void ProcessExcelFile(string inputPath, string outputPath)
         {
+            ProcessExcelFile(inputPath, outputPath, null);
+        }
+
+        public void ProcessExcelFile(string inputPath, string outputPath, string targetSheetName)
+        {
             if (string.IsNullOrEmpty(inputPath) || !File.Exists(inputPath))
             {
                 throw new FileNotFoundException("엑셀 파일을 찾을 수 없습니다.", inputPath);
@@ -30,7 +35,27 @@ namespace ExcelToJsonAddin
             {
                 using (var workbook = new XLWorkbook(inputPath))
                 {
-                    var targetSheets = ExtractAutoGenTargetSheets(workbook);
+                    var targetSheets = new List<IXLWorksheet>();
+                    
+                    if (!string.IsNullOrEmpty(targetSheetName))
+                    {
+                        // 특정 시트만 처리
+                        var sheet = workbook.Worksheet(targetSheetName);
+                        if (sheet != null)
+                        {
+                            targetSheets.Add(sheet);
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException($"'{targetSheetName}' 시트를 찾을 수 없습니다.");
+                        }
+                    }
+                    else
+                    {
+                        // 모든 자동 생성 대상 시트 처리
+                        targetSheets = ExtractAutoGenTargetSheets(workbook);
+                    }
+                    
                     var completedSheetNames = new HashSet<string>();
 
                     foreach (var sheet in targetSheets)
