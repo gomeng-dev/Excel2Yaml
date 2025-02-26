@@ -1,0 +1,4 @@
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Release\ExcelToJsonAddin.csproj.AssemblyReference.cache
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Release\ExcelToJsonAddin.Properties.Resources.resources
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Release\ExcelToJsonAddin.csproj.GenerateResource.cache
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Release\ExcelToJsonAddin.csproj.CoreCompileInputs.cache
