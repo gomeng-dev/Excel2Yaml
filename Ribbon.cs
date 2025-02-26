@@ -299,6 +299,15 @@ namespace ExcelToJsonAddin
                         continue;
                     }
                     
+                    // 활성화 상태 확인 - 비활성화된 시트는 건너뛰기
+                    bool isEnabled = SheetPathManager.Instance.IsSheetEnabled(sheetName);
+                    if (!isEnabled)
+                    {
+                        Debug.WriteLine($"시트 '{sheetName}'은 비활성화 상태입니다. 건너뛰기");
+                        skipCount++;
+                        continue;
+                    }
+                    
                     // 경로 존재 확인 및 생성
                     if (!Directory.Exists(savePath))
                     {

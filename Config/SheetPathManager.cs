@@ -22,7 +22,8 @@ namespace ExcelToJsonAddin.Config
         private static SheetPathManager _instance;
 
         // 워크북 파일 경로와 시트 이름을 키로 사용하는 딕셔너리
-        private Dictionary<string, Dictionary<string, string>> _sheetPaths;
+        // 키: 워크북 경로, 값: 시트 이름과 경로 정보의 딕셔너리
+        private Dictionary<string, Dictionary<string, SheetPathInfo>> _sheetPaths;
 
         // 현재 워크북 경로
         private string _currentWorkbookPath;
@@ -47,7 +48,7 @@ namespace ExcelToJsonAddin.Config
         // 생성자
         private SheetPathManager()
         {
-            _sheetPaths = new Dictionary<string, Dictionary<string, string>>();
+            _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
         }
 
         // 현재 워크북 설정
@@ -79,14 +80,14 @@ namespace ExcelToJsonAddin.Config
             // 워크북 경로가 딕셔너리에 없으면 추가 (파일명)
             if (!LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath))
             {
-                LazyLoadSheetPaths()[_currentWorkbookPath] = new Dictionary<string, string>();
+                LazyLoadSheetPaths()[_currentWorkbookPath] = new Dictionary<string, SheetPathInfo>();
                 Debug.WriteLine($"[SetCurrentWorkbook] 워크북 '{_currentWorkbookPath}'에 대한 새 사전 생성");
             }
 
             // 전체 경로도 확인 (파일명과 다른 경우)
             if (workbookPath != _currentWorkbookPath && !LazyLoadSheetPaths().ContainsKey(workbookPath))
             {
-                LazyLoadSheetPaths()[workbookPath] = new Dictionary<string, string>();
+                LazyLoadSheetPaths()[workbookPath] = new Dictionary<string, SheetPathInfo>();
                 Debug.WriteLine($"[SetCurrentWorkbook] 전체 경로 '{workbookPath}'에 대한 새 사전 생성");
             }
 
@@ -129,14 +130,21 @@ namespace ExcelToJsonAddin.Config
         // 특정 워크북의 시트 경로 설정
         public void SetSheetPath(string workbookName, string sheetName, string path)
         {
-            Debug.WriteLine($"[SetSheetPath] 시트 경로 설정: 워크북 '{workbookName}', 시트 '{sheetName}', 경로 '{path}'");
+            // 기본값으로 활성화 상태를 true로 설정
+            SetSheetPath(workbookName, sheetName, path, true);
+        }
+
+        // 특정 워크북의 시트 경로 및 활성화 상태 설정 (오버로드)
+        public void SetSheetPath(string workbookName, string sheetName, string path, bool enabled)
+        {
+            Debug.WriteLine($"[SetSheetPath] 시트 경로 설정: 워크북 '{workbookName}', 시트 '{sheetName}', 경로 '{path}', 활성화: {enabled}");
 
             if (!LazyLoadSheetPaths().ContainsKey(workbookName))
             {
-                LazyLoadSheetPaths()[workbookName] = new Dictionary<string, string>();
+                LazyLoadSheetPaths()[workbookName] = new Dictionary<string, SheetPathInfo>();
             }
 
-            LazyLoadSheetPaths()[workbookName][sheetName] = path;
+            LazyLoadSheetPaths()[workbookName][sheetName] = new SheetPathInfo { Path = path, Enabled = enabled };
             SaveSheetPaths(); // 변경 즉시 저장
         }
 
@@ -172,7 +180,7 @@ namespace ExcelToJsonAddin.Config
                         if (LazyLoadSheetPaths()[_currentWorkbookPath].ContainsKey(altSheetName))
                         {
                             Debug.WriteLine($"[GetSheetPath] 대체 시트 이름 '{altSheetName}'로 경로 찾음: {LazyLoadSheetPaths()[_currentWorkbookPath][altSheetName]}");
-                            return LazyLoadSheetPaths()[_currentWorkbookPath][altSheetName];
+                            return LazyLoadSheetPaths()[_currentWorkbookPath][altSheetName].Path;
                         }
                     }
                 }
@@ -180,8 +188,9 @@ namespace ExcelToJsonAddin.Config
                 return null;
             }
 
-            Debug.WriteLine($"[GetSheetPath] 성공: 시트 '{sheetName}'의 경로는 '{LazyLoadSheetPaths()[_currentWorkbookPath][sheetName]}'");
-            return LazyLoadSheetPaths()[_currentWorkbookPath][sheetName];
+            var sheetInfo = LazyLoadSheetPaths()[_currentWorkbookPath][sheetName];
+            Debug.WriteLine($"[GetSheetPath] 시트 경로 조회 성공: '{sheetName}' -> '{sheetInfo.Path}', 활성화: {sheetInfo.Enabled}");
+            return sheetInfo.Path;
         }
 
         // 특정 워크북의 시트 경로 사전 반환 (수정된 메서드)
@@ -192,7 +201,7 @@ namespace ExcelToJsonAddin.Config
                 LazyLoadSheetPaths().ContainsKey(workbookPath))
             {
                 Debug.WriteLine($"[GetSheetPaths] 전체 경로 '{workbookPath}'에서 시트 경로 발견: {LazyLoadSheetPaths()[workbookPath].Count}개");
-                return LazyLoadSheetPaths()[workbookPath];
+                return LazyLoadSheetPaths()[workbookPath].ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Path);
             }
 
             // 2. 파일 이름만으로도 시도
@@ -201,7 +210,7 @@ namespace ExcelToJsonAddin.Config
                 LazyLoadSheetPaths().ContainsKey(fileName))
             {
                 Debug.WriteLine($"[GetSheetPaths] 파일명 '{fileName}'에서 시트 경로 발견: {LazyLoadSheetPaths()[fileName].Count}개");
-                return LazyLoadSheetPaths()[fileName];
+                return LazyLoadSheetPaths()[fileName].ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Path);
             }
 
             Debug.WriteLine($"[GetSheetPaths] '{workbookPath}' 또는 '{fileName}'에 대한 시트 경로를 찾을 수 없습니다.");
@@ -228,7 +237,7 @@ namespace ExcelToJsonAddin.Config
                 foreach (var entry in LazyLoadSheetPaths()[_currentWorkbookPath])
                 {
                     Debug.WriteLine($"[GetAllSheetPaths] 추가됨: 시트 '{entry.Key}' -> 경로 '{entry.Value}'");
-                    result[entry.Key] = entry.Value;
+                    result[entry.Key] = entry.Value.Path;
                 }
             }
 
@@ -249,7 +258,7 @@ namespace ExcelToJsonAddin.Config
                         if (!result.ContainsKey(entry.Key))
                         {
                             Debug.WriteLine($"[GetAllSheetPaths] 추가됨: 시트 '{entry.Key}' -> 경로 '{entry.Value}'");
-                            result[entry.Key] = entry.Value;
+                            result[entry.Key] = entry.Value.Path;
                         }
                     }
                 }
@@ -347,7 +356,8 @@ namespace ExcelToJsonAddin.Config
                         {
                             WorkbookPath = workbook.Key,
                             SheetName = sheet.Key,
-                            SavePath = sheet.Value
+                            SavePath = sheet.Value.Path,
+                            Enabled = sheet.Value.Enabled
                         });
                     }
                 }
@@ -381,7 +391,7 @@ namespace ExcelToJsonAddin.Config
                 if (!File.Exists(ConfigFilePath))
                 {
                     Debug.WriteLine("[LoadSheetPaths] 시트 경로 설정 파일이 없습니다. 새로 생성됩니다.");
-                    _sheetPaths = new Dictionary<string, Dictionary<string, string>>();
+                    _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
                     return;
                 }
 
@@ -399,7 +409,7 @@ namespace ExcelToJsonAddin.Config
                 Debug.WriteLine($"[LoadSheetPaths] 불러온 SheetPathData 항목 수: {serializableData.Count}");
 
                 // 기존 데이터 초기화
-                _sheetPaths = new Dictionary<string, Dictionary<string, string>>();
+                _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
 
                 foreach (var data in serializableData)
                 {
@@ -408,12 +418,16 @@ namespace ExcelToJsonAddin.Config
                     // 워크북 경로 딕셔너리가 없으면 생성
                     if (!_sheetPaths.ContainsKey(data.WorkbookPath))
                     {
-                        _sheetPaths[data.WorkbookPath] = new Dictionary<string, string>();
+                        _sheetPaths[data.WorkbookPath] = new Dictionary<string, SheetPathInfo>();
                         Debug.WriteLine($"[LoadSheetPaths] 워크북 '{data.WorkbookPath}'에 대한 새 딕셔너리 생성");
                     }
 
                     // 시트 경로 설정
-                    _sheetPaths[data.WorkbookPath][data.SheetName] = data.SavePath;
+                    _sheetPaths[data.WorkbookPath][data.SheetName] = new SheetPathInfo
+                    {
+                        Path = data.SavePath,
+                        Enabled = data.Enabled
+                    };
                     Debug.WriteLine($"[LoadSheetPaths] 시트 경로 저장: 워크북='{data.WorkbookPath}', 시트='{data.SheetName}', 경로='{data.SavePath}'");
                 }
 
@@ -425,7 +439,7 @@ namespace ExcelToJsonAddin.Config
                     Debug.WriteLine($"[LoadSheetPaths] 워크북 '{workbook}'에 등록된 시트 수: {_sheetPaths[workbook].Count}");
                     foreach (var sheet in _sheetPaths[workbook].Keys)
                     {
-                        Debug.WriteLine($"[LoadSheetPaths]   시트: '{sheet}', 경로: '{_sheetPaths[workbook][sheet]}'");
+                        Debug.WriteLine($"[LoadSheetPaths]   시트: '{sheet}', 경로: '{_sheetPaths[workbook][sheet].Path}'");
                     }
                 }
                 Debug.WriteLine($"[LoadSheetPaths] 총 저장된 시트 경로 항목 수: {totalSettings}");
@@ -435,16 +449,16 @@ namespace ExcelToJsonAddin.Config
                 Debug.WriteLine($"[LoadSheetPaths] 시트 경로 설정 불러오기 중 오류 발생: {ex.Message}");
                 Debug.WriteLine($"[LoadSheetPaths] 스택 트레이스: {ex.StackTrace}");
                 // 오류 발생 시 새로운 딕셔너리 생성
-                _sheetPaths = new Dictionary<string, Dictionary<string, string>>();
+                _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
             }
         }
 
         // 지연 초기화 패턴을 적용한 LoadSheetPaths 호출
-        private Dictionary<string, Dictionary<string, string>> LazyLoadSheetPaths()
+        private Dictionary<string, Dictionary<string, SheetPathInfo>> LazyLoadSheetPaths()
         {
             if (_sheetPaths == null)
             {
-                _sheetPaths = new Dictionary<string, Dictionary<string, string>>();
+                _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
                 LoadSheetPaths();
             }
             return _sheetPaths;
@@ -480,6 +494,53 @@ namespace ExcelToJsonAddin.Config
 
             return result;
         }
+
+        // 특정 워크북의 시트 경로 활성화 상태 가져오기
+        public bool GetSheetEnabled(string sheetName)
+        {
+            if (string.IsNullOrEmpty(_currentWorkbookPath) ||
+                !LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath) ||
+                !LazyLoadSheetPaths()[_currentWorkbookPath].ContainsKey(sheetName))
+            {
+                return false;
+            }
+
+            return LazyLoadSheetPaths()[_currentWorkbookPath][sheetName].Enabled;
+        }
+
+        // 현재 워크북 모든 경로 중 활성화된 것만 가져오기
+        public Dictionary<string, string> GetAllEnabledSheetPaths()
+        {
+            if (string.IsNullOrEmpty(_currentWorkbookPath) || !LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath))
+            {
+                Debug.WriteLine($"[GetAllEnabledSheetPaths] 워크북 '{_currentWorkbookPath}'의 시트 경로가 없습니다.");
+                return new Dictionary<string, string>();
+            }
+
+            // 활성화된 경로만 반환
+            var result = new Dictionary<string, string>();
+            foreach (var sheetInfo in LazyLoadSheetPaths()[_currentWorkbookPath])
+            {
+                if (sheetInfo.Value.Enabled)
+                {
+                    result[sheetInfo.Key] = sheetInfo.Value.Path;
+                }
+            }
+            return result;
+        }
+
+        // 특정 시트가 활성화되었는지 확인하는 메서드 (IsSheetEnabled가 GetSheetEnabled를 호출)
+        public bool IsSheetEnabled(string sheetName)
+        {
+            return GetSheetEnabled(sheetName);
+        }
+    }
+
+    // 시트 경로 정보 클래스 (내부 용도)
+    public class SheetPathInfo
+    {
+        public string Path { get; set; }
+        public bool Enabled { get; set; } = true;
     }
 
     // XML 직렬화를 위한 클래스
@@ -489,5 +550,6 @@ namespace ExcelToJsonAddin.Config
         public string WorkbookPath { get; set; }
         public string SheetName { get; set; }
         public string SavePath { get; set; }
+        public bool Enabled { get; set; } = true;
     }
 }
