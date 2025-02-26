@@ -29,7 +29,7 @@ namespace ExcelToJsonAddin.Core
 
         // 외부에서 호출할 정적 메서드 추가
         public static string Generate(Scheme scheme, YamlStyle style = YamlStyle.Block, 
-            int indentSize = 2, bool preserveQuotes = false, bool includeEmptyOptionals = false)
+            int indentSize = 2, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
             try 
             {
@@ -37,7 +37,7 @@ namespace ExcelToJsonAddin.Core
                 object rootObj = generator.ProcessRootNode();
                 
                 // 필요한 경우 빈 속성 제거
-                if (!includeEmptyOptionals)
+                if (!includeEmptyFields)
                 {
                     OrderedYamlFactory.RemoveEmptyProperties(rootObj);
                 }

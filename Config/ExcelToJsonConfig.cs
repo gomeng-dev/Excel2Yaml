@@ -2,8 +2,8 @@ namespace ExcelToJsonAddin.Config
 {
     public enum OutputFormat
     {
-        JSON,
-        YAML
+        Json,
+        Yaml
     }
     
     public enum YamlStyle
@@ -14,23 +14,23 @@ namespace ExcelToJsonAddin.Config
 
     public class ExcelToJsonConfig
     {
-        public bool EnableHashFileGen { get; set; }
+        public bool EnableHashGen { get; set; }
         public string WorkingDirectory { get; set; }
-        public OutputFormat Format { get; set; }
+        public OutputFormat OutputFormat { get; set; }
         public int YamlIndentSize { get; set; }
         public bool YamlPreserveQuotes { get; set; }
         public YamlStyle YamlStyle { get; set; }
-        public bool IncludeEmptyOptionals { get; set; }
+        public bool IncludeEmptyFields { get; set; }
 
         public ExcelToJsonConfig()
         {
-            EnableHashFileGen = false;
+            EnableHashGen = false;
             WorkingDirectory = System.IO.Directory.GetCurrentDirectory();
-            Format = OutputFormat.JSON;
+            OutputFormat = OutputFormat.Json;
             YamlIndentSize = 2;
             YamlPreserveQuotes = false;
             YamlStyle = YamlStyle.Block;
-            IncludeEmptyOptionals = false;
+            IncludeEmptyFields = false;
         }
     }
 }

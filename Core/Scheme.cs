@@ -43,6 +43,26 @@ namespace ExcelToJsonAddin.Core
                 root.Key, contentStartRowNum, endRowNum, linearNodes.Count);
         }
 
+        public Scheme(IXLWorksheet sheet)
+        {
+            if (sheet == null) throw new ArgumentNullException(nameof(sheet));
+            
+            this.sheet = sheet;
+            
+            // SchemeParser 생성 및 노드 파싱
+            var parser = new SchemeParser(sheet);
+            var parsed = parser.Parse();
+            
+            // 파싱된 스키마에서 값 가져오기
+            this.root = parsed.Root;
+            this.contentStartRowNum = parsed.ContentStartRowNum;
+            this.endRowNum = parsed.EndRowNum;
+            this.linearNodes = new LinkedList<SchemeNode>(parsed.GetLinearNodes());
+            
+            Logger.LogInformation("Scheme 생성(자동 파싱): 루트={RootName}, 시작행={StartRow}, 끝행={EndRow}, 노드 수={NodeCount}", 
+                root.Key, contentStartRowNum, endRowNum, linearNodes.Count);
+        }
+
         public SchemeNode Root => root;
         public IXLWorksheet Sheet => sheet;
         public int ContentStartRowNum => contentStartRowNum;
@@ -67,6 +87,6 @@ namespace ExcelToJsonAddin.Core
             return root.Linear();
         }
 
-        public List<SchemeNode> ToList() => GetLinearNodes().ToList();
+        public LinkedList<SchemeNode> ToList() => GetLinearNodes();
     }
 }

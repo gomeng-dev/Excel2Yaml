@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
@@ -13,8 +14,18 @@ namespace ExcelToJsonAddin
     {
         private void ThisAddIn_Startup(object sender, System.EventArgs e)
         {
-            // 애드인 시작 시 Globals 초기화
-            Globals.ThisAddIn = this;
+            // 애드인 시작 시 초기화
+            try
+            {
+                // Ribbon 인스턴스 생성 및 등록
+                var ribbon = new Ribbon();
+                Debug.WriteLine("Ribbon 인스턴스가 생성되었습니다.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ribbon 생성 중 오류: {ex.Message}");
+                MessageBox.Show($"애드인 초기화 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e)

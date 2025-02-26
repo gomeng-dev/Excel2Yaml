@@ -7,6 +7,7 @@ using Microsoft.Office.Tools.Ribbon;
 using ExcelToJsonAddin.Config;
 using System.Diagnostics;
 using Microsoft.Office.Core;
+using System.Reflection;
 
 namespace ExcelToJsonAddin
 {
@@ -21,51 +22,59 @@ namespace ExcelToJsonAddin
         public Ribbon()
             : base(Globals.Factory.GetRibbonFactory())
         {
-            // 리본 컨트롤은 ThisAddIn.Designer.xml에서 설정됨
+            InitializeComponent();
         }
 
-        #region IRibbonExtensibility 멤버
-
-        public string GetCustomUI(string ribbonID)
+        // 리본 로드 시 호출
+        private void Ribbon_Load(object sender, RibbonUIEventArgs e)
         {
-            return GetResourceText("ExcelToJsonAddin.ThisAddIn.Designer.xml");
+            try
+            {
+                Debug.WriteLine("리본 UI가 로드되었습니다.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"리본 로드 중 오류: {ex.Message}");
+            }
         }
-
-        #endregion
-
-        #region 리본 콜백
         
         // JSON으로 변환 버튼 클릭
-        public void OnConvertToJsonClick(IRibbonControl control)
+        public void OnConvertToJsonClick(object sender, RibbonControlEventArgs e)
         {
             try
             {
-                config.Format = OutputFormat.JSON;
-                config.EnableHashFileGen = enableHashGen;
-                config.IncludeEmptyOptionals = includeEmptyFields;
+                // 설정 적용
+                config.IncludeEmptyFields = includeEmptyFields;
+                config.EnableHashGen = enableHashGen;
+                config.OutputFormat = OutputFormat.Json;
                 
+                // 변환 처리
                 ConvertExcelFile(config);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"JSON 변환 중 오류: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"JSON 변환 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Debug.WriteLine($"JSON 변환 오류: {ex}");
             }
         }
-
-        // YAML로 변환 버튼 클릭
-        public void OnConvertToYamlClick(IRibbonControl control)
+        
+        // YAML으로 변환 버튼 클릭
+        public void OnConvertToYamlClick(object sender, RibbonControlEventArgs e)
         {
             try
             {
-                config.Format = OutputFormat.YAML;
-                config.EnableHashFileGen = enableHashGen;
-                config.IncludeEmptyOptionals = includeEmptyFields;
+                // 설정 적용
+                config.IncludeEmptyFields = includeEmptyFields;
+                config.EnableHashGen = enableHashGen;
+                config.OutputFormat = OutputFormat.Yaml;
                 
+                // 변환 처리
                 ConvertExcelFile(config);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"YAML 변환 중 오류: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"YAML 변환 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Debug.WriteLine($"YAML 변환 오류: {ex}");
             }
         }
 
@@ -99,10 +108,6 @@ namespace ExcelToJsonAddin
             MessageBox.Show("고급 설정 기능은 개발 중입니다.", "정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        #endregion
-
-        #region 도우미
-
         // Excel 파일 변환 처리
         private void ConvertExcelFile(ExcelToJsonConfig config)
         {
@@ -123,10 +128,10 @@ namespace ExcelToJsonAddin
                 // 저장 경로 선택
                 using (SaveFileDialog dlg = new SaveFileDialog())
                 {
-                    dlg.Filter = config.Format == OutputFormat.JSON 
+                    dlg.Filter = config.OutputFormat == OutputFormat.Json 
                         ? "JSON 파일 (*.json)|*.json"
                         : "YAML 파일 (*.yaml)|*.yaml|YML 파일 (*.yml)|*.yml";
-                    dlg.DefaultExt = config.Format == OutputFormat.JSON ? ".json" : ".yaml";
+                    dlg.DefaultExt = config.OutputFormat == OutputFormat.Json ? ".json" : ".yaml";
                     
                     if (dlg.ShowDialog() != DialogResult.OK)
                     {
@@ -208,7 +213,5 @@ namespace ExcelToJsonAddin
             
             return null;
         }
-
-        #endregion
     }
 } 

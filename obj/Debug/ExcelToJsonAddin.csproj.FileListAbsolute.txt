@@ -50,3 +50,5 @@ C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\YamlDotNe
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJ.F0199074.Up2Date
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJsonAddin.dll
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJsonAddin.pdb
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJsonAddin.Ribbon.resources
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\System.IO.Pipelines.dll

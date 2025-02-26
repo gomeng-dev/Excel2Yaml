@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
+  <ribbon>
+    <tabs>
+      <tab id="tabExcelToJson" label="Excel2Json">
+        <group id="groupConvert" label="변환">
+          <button id="btnConvertToJson" 
+                  label="JSON 변환" 
+                  size="large" 
+                  onAction="OnConvertToJsonClick" 
+                  imageMso="ExportToExcel" 
+                  screentip="Excel을 JSON으로 변환" 
+                  supertip="현재 워크시트의 데이터를 JSON 형식으로 변환합니다." />
+          <button id="btnConvertToYaml" 
+                  label="YAML 변환" 
+                  size="large" 
+                  onAction="OnConvertToYamlClick" 
+                  imageMso="ExportToExcel" 
+                  screentip="Excel을 YAML로 변환" 
+                  supertip="현재 워크시트의 데이터를 YAML 형식으로 변환합니다." />
+        </group>
+        <group id="groupOptions" label="옵션">
+          <checkBox id="chkEmptyFields" 
+                    label="빈 필드 포함" 
+                    getPressed="GetEmptyFieldsState" 
+                    onAction="OnEmptyFieldsClicked" 
+                    screentip="빈 필드 포함 여부" 
+                    supertip="체크하면 빈 필드도 출력 파일에 포함됩니다." />
+          <checkBox id="chkHashGen" 
+                    label="MD5 해시 생성" 
+                    getPressed="GetHashGenState" 
+                    onAction="OnHashGenClicked" 
+                    screentip="MD5 해시 생성 여부" 
+                    supertip="체크하면 변환된 파일의 MD5 해시 값을 별도 파일로 생성합니다." />
+          <button id="btnSettings" 
+                  label="고급 설정" 
+                  size="normal" 
+                  onAction="OnSettingsClick" 
+                  imageMso="AdvancedFileProperties" 
+                  screentip="고급 설정" 
+                  supertip="변환 관련 고급 설정을 변경합니다." />
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

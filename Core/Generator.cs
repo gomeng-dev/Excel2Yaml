@@ -81,7 +81,6 @@ namespace ExcelToJsonAddin.Core
                     
                     // 행마다 새 객체 생성
                     JsonObject rowObj = OrderedJsonFactory.CreateObject();
-                    bool hasValues = false;
                     
                     // 각 자식 노드에 대해 처리
                     foreach (var child in rootNode.Children)
@@ -97,7 +96,6 @@ namespace ExcelToJsonAddin.Core
                                 if (!string.IsNullOrEmpty(key))
                                 {
                                     rowObj.Add(key, value);
-                                    hasValues = true;
                                 }
                             }
                         }
@@ -111,7 +109,6 @@ namespace ExcelToJsonAddin.Core
                                 if (!string.IsNullOrEmpty(key))
                                 {
                                     rowObj.Add(key, childMap);
-                                    hasValues = true;
                                 }
                                 else
                                 {
@@ -119,7 +116,6 @@ namespace ExcelToJsonAddin.Core
                                     foreach (var property in childMap.Properties)
                                     {
                                         rowObj.Add(property.Key, property.Value);
-                                        hasValues = true;
                                     }
                                 }
                             }
@@ -133,7 +129,6 @@ namespace ExcelToJsonAddin.Core
                                 if (!string.IsNullOrEmpty(key))
                                 {
                                     rowObj.Add(key, childArray);
-                                    hasValues = true;
                                 }
                                 else
                                 {
@@ -145,7 +140,6 @@ namespace ExcelToJsonAddin.Core
                                             foreach (var property in obj.Properties)
                                             {
                                                 rowObj.Add(property.Key, property.Value);
-                                                hasValues = true;
                                             }
                                         }
                                     }
@@ -154,10 +148,10 @@ namespace ExcelToJsonAddin.Core
                         }
                     }
                     
-                    Logger.LogDebug("행 {RowNum} 처리 결과: 유효한 값={HasValues}", rowNum, hasValues);
+                    Logger.LogDebug("행 {RowNum} 처리 결과: 유효한 값={HasValues}", rowNum, rowObj.HasValues);
                     
                     // 비어있지 않은 객체만 추가
-                    if (hasValues)
+                    if (rowObj.HasValues)
                     {
                         array.Add(rowObj);
                     }
@@ -246,7 +240,6 @@ namespace ExcelToJsonAddin.Core
                 
                 // 행마다 새 객체 생성
                 JsonObject rowObj = OrderedJsonFactory.CreateObject();
-                bool hasNestedNodes = false;
                 
                 // 각 자식 노드에 대해 처리
                 foreach (var child in node.Children)
@@ -286,8 +279,6 @@ namespace ExcelToJsonAddin.Core
                     else
                     {
                         // 키가 없는 경우의 처리
-                        hasNestedNodes = true;
-                        
                         if (child.NodeType == SchemeNode.SchemeNodeType.MAP)
                         {
                             // MAP 노드의 모든 자식을 직접 rowObj에 추가
@@ -516,6 +507,55 @@ namespace ExcelToJsonAddin.Core
             }
             
             return valueExist;
+        }
+
+        // 워크시트 변환 메서드 추가
+        public string ConvertWorksheet(Microsoft.Office.Interop.Excel.Worksheet worksheet, Config.ExcelToJsonConfig config)
+        {
+            try
+            {
+                // 임시 파일로 저장
+                string tempFile = Path.GetTempFileName() + ".xlsx";
+                var app = worksheet.Application;
+                var workbook = worksheet.Parent as Microsoft.Office.Interop.Excel.Workbook;
+                
+                // 현재 워크북을 임시 파일로 저장
+                workbook.SaveCopyAs(tempFile);
+                
+                // ClosedXML로 워크시트 열기
+                using (var wb = new XLWorkbook(tempFile))
+                {
+                    var sheet = wb.Worksheets.First();
+                    var scheme = new Scheme(sheet);
+                    
+                    // 출력 형식에 따라 변환
+                    string result;
+                    if (config.OutputFormat == Config.OutputFormat.Json)
+                    {
+                        result = GenerateJson(scheme, config.IncludeEmptyFields);
+                    }
+                    else
+                    {
+                        result = YamlGenerator.Generate(
+                            scheme, 
+                            config.YamlStyle, 
+                            config.YamlIndentSize, 
+                            config.YamlPreserveQuotes, 
+                            config.IncludeEmptyFields
+                        );
+                    }
+                    
+                    // 임시 파일 삭제
+                    try { File.Delete(tempFile); } catch { /* 무시 */ }
+                    
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "워크시트 변환 중 오류 발생");
+                throw;
+            }
         }
     }
 }

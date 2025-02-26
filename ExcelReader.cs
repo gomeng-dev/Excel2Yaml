@@ -48,7 +48,7 @@ namespace ExcelToJsonAddin
                         // 출력 파일 경로 설정
                         string outputDir = Path.GetDirectoryName(outputPath);
                         string baseFileName = Path.GetFileNameWithoutExtension(outputPath);
-                        string ext = config.Format == OutputFormat.JSON ? ".json" : ".yaml";
+                        string ext = config.OutputFormat == OutputFormat.Json ? ".json" : ".yaml";
                         
                         // 시트별 출력 파일 경로
                         string sheetOutputPath;
@@ -64,13 +64,12 @@ namespace ExcelToJsonAddin
                         }
                         
                         // 데이터 파싱을 위한 스키마 파서와 생성기
-                        var schemeParser = new SchemeParser(sheet);
-                        var scheme = schemeParser.Parse();
+                        var scheme = new Scheme(sheet);
                         
-                        if (config.Format == OutputFormat.JSON)
+                        if (config.OutputFormat == OutputFormat.Json)
                         {
                             // JSON 생성 및 저장
-                            string jsonStr = Generator.GenerateJson(scheme, config.IncludeEmptyOptionals);
+                            string jsonStr = Generator.GenerateJson(scheme, config.IncludeEmptyFields);
                             File.WriteAllText(sheetOutputPath, jsonStr);
                         }
                         else
@@ -81,12 +80,12 @@ namespace ExcelToJsonAddin
                                 config.YamlStyle,
                                 config.YamlIndentSize,
                                 config.YamlPreserveQuotes,
-                                config.IncludeEmptyOptionals);
+                                config.IncludeEmptyFields);
                             File.WriteAllText(sheetOutputPath, yamlStr);
                         }
 
                         // MD5 해시 생성
-                        if (config.EnableHashFileGen)
+                        if (config.EnableHashGen)
                         {
                             using (var md5 = MD5.Create())
                             using (var stream = File.OpenRead(sheetOutputPath))

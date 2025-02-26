@@ -212,14 +212,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="ExcelToJsonAddin.dll" size="56320">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="ExcelToJsonAddin.dll" size="63488">
       <assemblyIdentity name="ExcelToJsonAddin" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>KLLvsi+C7FHowfIM3yqHoVss1YXJ6qsMuPq3pU9KNd0=</dsig:DigestValue>
+        <dsig:DigestValue>Aze/uVL/9OtmTEIvb2pJs1m3qTISoxxuHlG1NxJ+LHs=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -368,14 +368,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Buffers.dll" size="20856">
-      <assemblyIdentity name="System.Buffers" version="4.0.3.0" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Buffers.dll" size="23856">
+      <assemblyIdentity name="System.Buffers" version="4.0.4.0" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>rMzPvkXZ8I/+7ZkW43sz6YxlvgEs//bn+ntnIQzh/vs=</dsig:DigestValue>
+        <dsig:DigestValue>OvHgcwW+0KvgzzLZhU4Kf19HAhat7huH0CNQvgnTGzU=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -392,62 +392,74 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Memory.dll" size="142240">
-      <assemblyIdentity name="System.Memory" version="4.0.1.2" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.IO.Pipelines.dll" size="84784">
+      <assemblyIdentity name="System.IO.Pipelines" version="9.0.0.2" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>vz+4RmT0CX8aipvHGlHc+M8akF1AgKTSkNoXMIZuhW8=</dsig:DigestValue>
+        <dsig:DigestValue>aTkVqvwh++g+fPuhNteeFWFtaopzR670fJV/Nd6UOC8=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Numerics.Vectors.dll" size="115856">
-      <assemblyIdentity name="System.Numerics.Vectors" version="4.1.4.0" publicKeyToken="B03F5F7F11D50A3A" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Memory.dll" size="145192">
+      <assemblyIdentity name="System.Memory" version="4.0.2.0" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>HT74aYKB589zcdFVSv71hys5+Wwm2nciEKM9oEG6EYM=</dsig:DigestValue>
+        <dsig:DigestValue>uP4hav8PbRYvju/nvhcSFit9gZniDOLnD/rDbHziCkw=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Runtime.CompilerServices.Unsafe.dll" size="18024">
-      <assemblyIdentity name="System.Runtime.CompilerServices.Unsafe" version="6.0.0.0" publicKeyToken="B03F5F7F11D50A3A" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Numerics.Vectors.dll" size="110344">
+      <assemblyIdentity name="System.Numerics.Vectors" version="4.1.5.0" publicKeyToken="B03F5F7F11D50A3A" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>N3aEiOjvRXKbx9miZ3YzxkUAQpdbuWUW4YbabLnNDc8=</dsig:DigestValue>
+        <dsig:DigestValue>IshL44X+i6bQ4BOJUnSPKNeB/ONgeLWnrtkaYQS82Zs=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Text.Encodings.Web.dll" size="79024">
-      <assemblyIdentity name="System.Text.Encodings.Web" version="8.0.0.0" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Runtime.CompilerServices.Unsafe.dll" size="19224">
+      <assemblyIdentity name="System.Runtime.CompilerServices.Unsafe" version="6.0.1.0" publicKeyToken="B03F5F7F11D50A3A" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>6cT17tGGyxKcUnxLjWfRY+ovI5bp2LluMLXnwSIDzoQ=</dsig:DigestValue>
+        <dsig:DigestValue>LW9BnWQWgtjvxKQOhQ0uhd5RnWgjuT2vKu7mMgbU4y0=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Text.Json.dll" size="1056288">
-      <assemblyIdentity name="System.Text.Json" version="8.0.0.0" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Text.Encodings.Web.dll" size="79624">
+      <assemblyIdentity name="System.Text.Encodings.Web" version="9.0.0.2" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>yQkX5UvdOKKKgOgKejAXE08tBSCKY4Z80qCm8ouTVOk=</dsig:DigestValue>
+        <dsig:DigestValue>WUrjFXe11keFhxhORrUDQv13xMVw97HRT9arOGgoKnY=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="System.Text.Json.dll" size="726320">
+      <assemblyIdentity name="System.Text.Json" version="9.0.0.2" publicKeyToken="CC7B13FFCD2DDD51" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>MC1PPiXoKXwl9vqirXBKpSm2iNpYpirUxuP/9J2CQKs=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -487,13 +499,13 @@
       </hash>
     </dependentAssembly>
   </dependency>
-  <file name="ExcelToJsonAddin.dll.config" size="1704">
+  <file name="ExcelToJsonAddin.dll.config" size="2612">
     <hash>
       <dsig:Transforms>
         <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
       </dsig:Transforms>
       <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>lFfWhVXXx95JUTqbfh88cvun92quRoRUOmSGt+cJI6M=</dsig:DigestValue>
+      <dsig:DigestValue>0S1s2I61RI1iW8Wgxf5Udk1frE64JkXwVS5c6EX2GYU=</dsig:DigestValue>
     </hash>
   </file>
   <vstav3:addIn xmlns:vstav3="urn:schemas-microsoft-com:vsta.v3">
@@ -521,4 +533,4 @@
       </vstov4:customizations>
     </vstav3:application>
   </vstav3:addIn>
-<publisherIdentity name="CN=AzureAD\정영훈" issuerKeyHash="ad7ac86af3abaf7ce4563ce68b54c92d8f839347" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>0ueC+Z1hmwyZj7aOeZxdWn95RbNriQmUUx+1Tuw/LPQ=</DigestValue></Reference></SignedInfo><SignatureValue>NhKF5KLZeTE5FUHInszl5+OYd6dFI7HsfWhSDYtpBQa1jHgOkL6qzQyZDiR0bkO8HeihvzMNwmgRE9VIxVy7nxoAcTJMNo3eXkGCWaK7Jdqi2miVOJVZkYMj2nDfSi+Fh54YWzkknkevZ/y8sVqp+m9ppujQAhsWGvuPzcAaqbM=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>tVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="f42c3fec4eb51f539409896bb345797f5a5d9c798eb68f990c9b619df982e7d2" Description="" Url=""><as:assemblyIdentity name="ExcelToJsonAddin.dll" version="1.0.0.0" publicKeyToken="c4a4fc0f4c04e760" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=AzureAD\정영훈</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>XwhS5acJi+oPxa6EFvYfBOMMfickIOwecteMj3NszZ0=</DigestValue></Reference></SignedInfo><SignatureValue>qLMx9jfbZk5oW9CyGbeCBFRtAUqYJvR6FG3I+tZwfWaxpu55LdoehtmQ512ip9tq+pQWIjpaMqQyWyit6GS2qBZJNxYQkIyWbG5mAstWO8O61OhzFNzfIWATWT77nCzEqVBBtmqXkW+9tUx3EZsNXljq7sIDdXy53sXwVHwa0vY=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>tVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBxTCCAS6gAwIBAgIQLdFSvraOu6lGAhY/0xR2cDANBgkqhkiG9w0BAQsFADAhMR8wHQYDVQQDHhYAQQB6AHUAcgBlAEEARABcyBXGAdbIMB4XDTI1MDIyNjAyMzIyOVoXDTI2MDIyNjA4MzIyOVowITEfMB0GA1UEAx4WAEEAegB1AHIAZQBBAEQAXMgVxgHWyDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAtVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlkCAwEAATANBgkqhkiG9w0BAQsFAAOBgQA9MsTDw3NB75x/5lSQ8YhpTHX8MI5JrncLOQ0kSMgpnx9YS35LhbdD75Wcu61lSjH2r5us3Ku1Yaq1BMSMZ+KN2JmrIULhk7KgLIXFLMAcLxf2tw+XDKQkJkEDbCJqXiMMiQsG1+I3tn9wmBt3Tr5NtjmjK5cUXZ3AmmNzUDoqmw==</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>
+<publisherIdentity name="CN=AzureAD\정영훈" issuerKeyHash="ad7ac86af3abaf7ce4563ce68b54c92d8f839347" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>StwHOR9N1dCwH1BX4qZhQDkdCHnvSD8wIejVEpQx7t0=</DigestValue></Reference></SignedInfo><SignatureValue>Tbef0sVAMgzyjpc3yGqZs/3pnRLRKm0yAxJ0Fx/CT+H4B70gfleSzBxIOubkeedg7MMYdC2kvcheqobdxwYn2vEY+n4oSyI6PyI48Ba0ctVSTbHtRXVuN8Zh9D5hyHBZiJtYpm9e2Px1643nZysBYRBK0dR8OLrddjqmtS66uU4=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>tVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="ddee319412d5e821303f48ef79081d394061a6e257501fb0d0d54d1f3907dc4a" Description="" Url=""><as:assemblyIdentity name="ExcelToJsonAddin.dll" version="1.0.0.0" publicKeyToken="c4a4fc0f4c04e760" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=AzureAD\정영훈</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>+3lei4Q4DTciDcH1TE3ApGF2ck1JLeML8LQ+bw54jw8=</DigestValue></Reference></SignedInfo><SignatureValue>fVu82odAHS5Y3MWJ7DhWBmMC6NgJWP+8/jI/zg+F78MvAwWWzQ4kS3rkzfUANfIwVD35M4KSHVgm0/fmkrUvpjnbFX04/KB628uetcaZQQ87l3UV096p3XMkPdbpOTnVcIEDjjeJEC4ObNMi678oz/zrp0fj0m3t6sVonkkmGpc=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>tVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBxTCCAS6gAwIBAgIQLdFSvraOu6lGAhY/0xR2cDANBgkqhkiG9w0BAQsFADAhMR8wHQYDVQQDHhYAQQB6AHUAcgBlAEEARABcyBXGAdbIMB4XDTI1MDIyNjAyMzIyOVoXDTI2MDIyNjA4MzIyOVowITEfMB0GA1UEAx4WAEEAegB1AHIAZQBBAEQAXMgVxgHWyDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAtVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlkCAwEAATANBgkqhkiG9w0BAQsFAAOBgQA9MsTDw3NB75x/5lSQ8YhpTHX8MI5JrncLOQ0kSMgpnx9YS35LhbdD75Wcu61lSjH2r5us3Ku1Yaq1BMSMZ+KN2JmrIULhk7KgLIXFLMAcLxf2tw+XDKQkJkEDbCJqXiMMiQsG1+I3tn9wmBt3Tr5NtjmjK5cUXZ3AmmNzUDoqmw==</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>

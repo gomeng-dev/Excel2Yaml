@@ -34,9 +34,67 @@ namespace ExcelToJsonAddin
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
+            this.tabExcelToJson = this.Factory.CreateRibbonTab();
+            this.groupConvert = this.Factory.CreateRibbonGroup();
+            this.btnConvertToJson = this.Factory.CreateRibbonButton();
+            this.btnConvertToYaml = this.Factory.CreateRibbonButton();
+            this.tabExcelToJson.SuspendLayout();
+            this.groupConvert.SuspendLayout();
+            this.SuspendLayout();
+            // 
+            // tabExcelToJson
+            // 
+            this.tabExcelToJson.ControlId.ControlIdType = Microsoft.Office.Tools.Ribbon.RibbonControlIdType.Office;
+            this.tabExcelToJson.Groups.Add(this.groupConvert);
+            this.tabExcelToJson.Label = "Excel2Json";
+            this.tabExcelToJson.Name = "tabExcelToJson";
+            // 
+            // groupConvert
+            // 
+            this.groupConvert.Items.Add(this.btnConvertToJson);
+            this.groupConvert.Items.Add(this.btnConvertToYaml);
+            this.groupConvert.Label = "변환";
+            this.groupConvert.Name = "groupConvert";
+            // 
+            // btnConvertToJson
+            // 
+            this.btnConvertToJson.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnConvertToJson.Label = "JSON 변환";
+            this.btnConvertToJson.Name = "btnConvertToJson";
+            this.btnConvertToJson.ScreenTip = "Excel을 JSON으로 변환";
+            this.btnConvertToJson.ShowImage = true;
+            this.btnConvertToJson.SuperTip = "현재 워크시트의 데이터를 JSON 형식으로 변환합니다.";
+            this.btnConvertToJson.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnConvertToJsonClick);
+            // 
+            // btnConvertToYaml
+            // 
+            this.btnConvertToYaml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnConvertToYaml.Label = "YAML 변환";
+            this.btnConvertToYaml.Name = "btnConvertToYaml";
+            this.btnConvertToYaml.ScreenTip = "Excel을 YAML로 변환";
+            this.btnConvertToYaml.ShowImage = true;
+            this.btnConvertToYaml.SuperTip = "현재 워크시트의 데이터를 YAML 형식으로 변환합니다.";
+            this.btnConvertToYaml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnConvertToYamlClick);
+            // 
+            // Ribbon
+            // 
+            this.Name = "Ribbon";
+            this.RibbonType = "Microsoft.Excel.Workbook";
+            this.Tabs.Add(this.tabExcelToJson);
+            this.Load += new Microsoft.Office.Tools.Ribbon.RibbonUIEventHandler(this.Ribbon_Load);
+            this.tabExcelToJson.ResumeLayout(false);
+            this.tabExcelToJson.PerformLayout();
+            this.groupConvert.ResumeLayout(false);
+            this.groupConvert.PerformLayout();
+            this.ResumeLayout(false);
+
         }
 
         #endregion
+
+        internal Microsoft.Office.Tools.Ribbon.RibbonTab tabExcelToJson;
+        internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupConvert;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertToJson;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertToYaml;
     }
 } 

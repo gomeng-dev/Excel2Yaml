@@ -94,7 +94,34 @@ namespace ExcelToJsonAddin.Core
             return regions;
         }
 
-        public Scheme Parse()
+        // scheme parsing result
+        public class SchemeParsingResult
+        {
+            public SchemeNode Root { get; set; }
+            public int ContentStartRowNum { get; set; }
+            public int EndRowNum { get; set; }
+            public List<SchemeNode> LinearNodes { get; private set; } = new List<SchemeNode>();
+
+            public List<SchemeNode> GetLinearNodes()
+            {
+                if (LinearNodes.Count == 0 && Root != null)
+                {
+                    CollectLinearNodes(Root);
+                }
+                return LinearNodes;
+            }
+
+            private void CollectLinearNodes(SchemeNode node)
+            {
+                LinearNodes.Add(node);
+                foreach (var child in node.Children)
+                {
+                    CollectLinearNodes(child);
+                }
+            }
+        }
+
+        public SchemeParsingResult Parse()
         {
             Logger.LogInformation("스키마 파싱 시작");
             
@@ -160,7 +187,18 @@ namespace ExcelToJsonAddin.Core
                 rootNode = new SchemeNode(sheet, schemeStartRow.RowNumber(), firstCellNum, "$[]");
             }
             
-            return new Scheme(sheet, rootNode, schemeEndRowNum + 1, sheet.LastRowUsed()?.RowNumber() ?? schemeEndRowNum + 1);
+            var result = new SchemeParsingResult
+            {
+                Root = rootNode,
+                ContentStartRowNum = schemeEndRowNum + 1,
+                EndRowNum = sheet.LastRowUsed()?.RowNumber() ?? schemeEndRowNum + 1
+            };
+
+            // 결과 로깅
+            Logger.LogInformation("스키마 파싱 완료: 루트={Root}, 데이터 시작행={Start}, 끝행={End}", 
+                rootNode.Key, result.ContentStartRowNum, result.EndRowNum);
+
+            return result;
         }
 
         private SchemeNode Parse(SchemeNode parent, int rowNum, int startCellNum, int endCellNum)
