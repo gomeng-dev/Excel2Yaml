@@ -46,5 +46,17 @@ namespace ExcelToJsonAddin.Properties {
                 this["LastExportPath"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool AddEmptyYamlFields {
+            get {
+                return ((bool)(this["AddEmptyYamlFields"]));
+            }
+            set {
+                this["AddEmptyYamlFields"] = value;
+            }
+        }
     }
 }

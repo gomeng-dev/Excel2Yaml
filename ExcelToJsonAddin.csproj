@@ -320,6 +320,8 @@
       <DependentUpon>SheetPathSettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Extensions\LoggingExtensions.cs" />
+    <Compile Include="Core\YamlSchemaProcessor.cs" />
+    <Compile Include="Core\YamlPostProcessors\YamlOptionalFieldsProcessor.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Ribbon.resx">

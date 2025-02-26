@@ -17,86 +17,128 @@ namespace ExcelToJsonAddin.Core
         {
             if (cell == null || cell.IsEmpty())
             {
-                Logger.Debug("셀이 null이거나 비어 있습니다.");
+                Debug.WriteLine($"[ExcelCellValueResolver] 셀이 null이거나 비어 있습니다.");
                 return null;
             }
 
-            Logger.Debug("셀 값 추출: 행={Row}, 열={Column}, 타입={CellType}", 
-                cell.Address.RowNumber, cell.Address.ColumnNumber, cell.DataType);
-
-            // ClosedXML에서는 수식이 자동으로 평가됨
-            if (cell.HasFormula)
+            try
             {
-                Logger.Debug("수식 셀 처리: {Formula}", cell.FormulaA1);
-            }
+                Debug.WriteLine($"[ExcelCellValueResolver] 셀 값 추출: 행={cell.Address.RowNumber}, 열={cell.Address.ColumnNumber}, 타입={cell.DataType}");
 
-            switch (cell.DataType)
-            {
-                case XLDataType.Boolean:
-                    var boolValue = cell.GetBoolean();
-                    Logger.Debug("불리언 값: {Value}", boolValue);
-                    return boolValue;
+                // ClosedXML에서는 수식이 자동으로 평가됨
+                if (cell.HasFormula)
+                {
+                    Debug.WriteLine($"[ExcelCellValueResolver] 수식 셀 처리: {cell.FormulaA1}");
+                }
 
-                case XLDataType.Number:
-                    var numValue = cell.GetDouble();
-                    Logger.Debug("숫자 값: {Value}", numValue);
-                    return numValue;
-
-                case XLDataType.Text:
-                    var stringCellValue = cell.GetString();
-                    Logger.Debug("문자열 값: {Value}", stringCellValue);
-                    if (string.IsNullOrEmpty(stringCellValue))
-                    {
-                        Logger.Debug("빈 문자열 값");
-                        return null;
-                    }
-                    
-                    try
-                    {
-                        // Trim() 메서드 제거하여 공백 유지
-                        var str = stringCellValue;
-                        
-                        // 문자열이 숫자만 포함하는 경우에만 숫자로 변환 시도
-                        // 공백을 포함하는 문자열을 숫자로 변환하지 않도록 함
-                        if (!string.IsNullOrWhiteSpace(str) && !str.Contains(" ") && 
-                            !str.StartsWith(" ") && !str.EndsWith(" "))
+                switch (cell.DataType)
+                {
+                    case XLDataType.Boolean:
+                        try
                         {
-                            if (int.TryParse(str, out int intValue))
+                            var boolValue = cell.GetBoolean();
+                            Debug.WriteLine($"[ExcelCellValueResolver] 불리언 값: {boolValue}");
+                            return boolValue;
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[ExcelCellValueResolver] 불리언 값 추출 오류: {ex.Message}");
+                            return null;
+                        }
+
+                    case XLDataType.Number:
+                        try
+                        {
+                            var numValue = cell.GetDouble();
+                            Debug.WriteLine($"[ExcelCellValueResolver] 숫자 값: {numValue}");
+                            return numValue;
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[ExcelCellValueResolver] 숫자 값 추출 오류: {ex.Message}");
+                            return null;
+                        }
+
+                    case XLDataType.Text:
+                        try
+                        {
+                            var stringCellValue = cell.GetString();
+                            Debug.WriteLine($"[ExcelCellValueResolver] 문자열 값: {stringCellValue}");
+                            if (string.IsNullOrEmpty(stringCellValue))
                             {
-                                Logger.Debug("문자열을 정수로 변환: {Value}", intValue);
-                                return intValue;
+                                Debug.WriteLine($"[ExcelCellValueResolver] 빈 문자열 값");
+                                return null;
                             }
-                            if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue))
+                            
+                            try
                             {
-                                Logger.Debug("문자열을 실수로 변환: {Value}", doubleValue);
-                                return doubleValue;
+                                // Trim() 메서드 제거하여 공백 유지
+                                var str = stringCellValue;
+                                
+                                // 문자열이 숫자만 포함하는 경우에만 숫자로 변환 시도
+                                // 공백을 포함하는 문자열을 숫자로 변환하지 않도록 함
+                                if (!string.IsNullOrWhiteSpace(str) && !str.Contains(" ") && 
+                                    !str.StartsWith(" ") && !str.EndsWith(" "))
+                                {
+                                    if (int.TryParse(str, out int intValue))
+                                    {
+                                        Debug.WriteLine($"[ExcelCellValueResolver] 문자열을 정수로 변환: {intValue}");
+                                        return intValue;
+                                    }
+                                    if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue))
+                                    {
+                                        Debug.WriteLine($"[ExcelCellValueResolver] 문자열을 실수로 변환: {doubleValue}");
+                                        return doubleValue;
+                                    }
+                                }
+                                
+                                Debug.WriteLine($"[ExcelCellValueResolver] 문자열 그대로 반환: {str}");
+                                return str;
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"[ExcelCellValueResolver] 문자열 변환 중 오류: {ex.Message}");
+                                return stringCellValue;
                             }
                         }
-                        
-                        Logger.Debug("문자열 그대로 반환: {Value}", str);
-                        return str;
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Warning("문자열 변환 중 오류: {Error}", ex.Message);
-                        return stringCellValue;
-                    }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[ExcelCellValueResolver] 문자열 값 추출 오류: {ex.Message}");
+                            return null;
+                        }
 
-                case XLDataType.DateTime:
-                    var dateValue = cell.GetDateTime();
-                    Logger.Debug("날짜 값: {Value}", dateValue);
-                    return dateValue;
+                    case XLDataType.DateTime:
+                        try
+                        {
+                            var dateValue = cell.GetDateTime();
+                            Debug.WriteLine($"[ExcelCellValueResolver] 날짜 값: {dateValue}");
+                            return dateValue;
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[ExcelCellValueResolver] 날짜 값 추출 오류: {ex.Message}");
+                            return null;
+                        }
 
-                case XLDataType.TimeSpan:
-                    var timeValue = cell.GetTimeSpan();
-                    Logger.Debug("시간 값: {Value}", timeValue);
-                    return timeValue;
-
-                default:
-                    // 그 외의 타입은 문자열로 반환
-                    var value = cell.Value.ToString();
-                    Logger.Debug("기타 타입 값: {Value}", value);
-                    return value;
+                    default:
+                        // 그 외의 타입은 문자열로 반환
+                        try
+                        {
+                            var value = cell.Value.ToString();
+                            Debug.WriteLine($"[ExcelCellValueResolver] 기타 타입 값: {value}");
+                            return value;
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[ExcelCellValueResolver] 기타 타입 값 추출 오류: {ex.Message}");
+                            return null;
+                        }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ExcelCellValueResolver] 셀 값 추출 중 예외 발생: {ex.Message}");
+                return null;
             }
         }
     }

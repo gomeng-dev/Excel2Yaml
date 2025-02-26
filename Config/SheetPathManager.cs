@@ -5,6 +5,7 @@ using System.Linq;
 using System.Xml.Serialization;
 using ExcelToJsonAddin.Properties;
 using System.Diagnostics;
+using System.Xml;
 
 namespace ExcelToJsonAddin.Config
 {
@@ -130,21 +131,32 @@ namespace ExcelToJsonAddin.Config
         // 특정 워크북의 시트 경로 설정
         public void SetSheetPath(string workbookName, string sheetName, string path)
         {
-            // 기본값으로 활성화 상태를 true로 설정
-            SetSheetPath(workbookName, sheetName, path, true);
+            // 기본값으로 활성화 상태를 true로 설정하고 YAML 선택적 필드를 false로 설정
+            SetSheetPath(workbookName, sheetName, path, true, false);
         }
 
         // 특정 워크북의 시트 경로 및 활성화 상태 설정 (오버로드)
         public void SetSheetPath(string workbookName, string sheetName, string path, bool enabled)
         {
-            Debug.WriteLine($"[SetSheetPath] 시트 경로 설정: 워크북 '{workbookName}', 시트 '{sheetName}', 경로 '{path}', 활성화: {enabled}");
+            // YAML 선택적 필드 처리 기본값으로 false 설정
+            SetSheetPath(workbookName, sheetName, path, enabled, false);
+        }
+
+        // 특정 워크북의 시트 경로, 활성화 상태 및 YAML 선택적 필드 처리 상태 설정 (오버로드)
+        public void SetSheetPath(string workbookName, string sheetName, string path, bool enabled, bool yamlEmptyFields)
+        {
+            Debug.WriteLine($"[SetSheetPath] 시트 경로 설정: 워크북 '{workbookName}', 시트 '{sheetName}', 경로 '{path}', 활성화: {enabled}, YAML 선택적 필드: {yamlEmptyFields}");
 
             if (!LazyLoadSheetPaths().ContainsKey(workbookName))
             {
                 LazyLoadSheetPaths()[workbookName] = new Dictionary<string, SheetPathInfo>();
             }
 
-            LazyLoadSheetPaths()[workbookName][sheetName] = new SheetPathInfo { Path = path, Enabled = enabled };
+            LazyLoadSheetPaths()[workbookName][sheetName] = new SheetPathInfo { 
+                Path = path, 
+                Enabled = enabled,
+                YamlEmptyFields = yamlEmptyFields
+            };
             SaveSheetPaths(); // 변경 즉시 저장
         }
 
@@ -357,7 +369,9 @@ namespace ExcelToJsonAddin.Config
                             WorkbookPath = workbook.Key,
                             SheetName = sheet.Key,
                             SavePath = sheet.Value.Path,
-                            Enabled = sheet.Value.Enabled
+                            Enabled = sheet.Value.Enabled,
+                            YamlEmptyFields = sheet.Value.YamlEmptyFields,
+                            MergeKeyPaths = sheet.Value.MergeKeyPaths
                         });
                     }
                 }
@@ -426,9 +440,11 @@ namespace ExcelToJsonAddin.Config
                     _sheetPaths[data.WorkbookPath][data.SheetName] = new SheetPathInfo
                     {
                         Path = data.SavePath,
-                        Enabled = data.Enabled
+                        Enabled = data.Enabled,
+                        YamlEmptyFields = data.YamlEmptyFields,
+                        MergeKeyPaths = data.MergeKeyPaths
                     };
-                    Debug.WriteLine($"[LoadSheetPaths] 시트 경로 저장: 워크북='{data.WorkbookPath}', 시트='{data.SheetName}', 경로='{data.SavePath}'");
+                    Debug.WriteLine($"[LoadSheetPaths] 시트 경로 저장: 워크북='{data.WorkbookPath}', 시트='{data.SheetName}', 경로='{data.SavePath}', YAML 선택적 필드: {data.YamlEmptyFields}");
                 }
 
                 // 저장된 시트 경로 항목 수 출력
@@ -534,6 +550,130 @@ namespace ExcelToJsonAddin.Config
         {
             return GetSheetEnabled(sheetName);
         }
+
+        // 워크북의 특정 시트의 YAML 선택적 필드 처리 여부 가져오기
+        /// <param name="sheetName">시트 이름</param>
+        /// <returns>YAML 선택적 필드 처리 여부</returns>
+        public bool GetYamlEmptyFieldsOption(string sheetName)
+        {
+            // 현재 워크북 경로가 설정되어 있지 않으면 기본값 false 반환
+            if (string.IsNullOrEmpty(_currentWorkbookPath))
+            {
+                Debug.WriteLine("[SheetPathManager] GetYamlEmptyFieldsOption: 현재 워크북이 설정되지 않음");
+                return false;
+            }
+
+            // 워크북의 파일명과 전체 경로로 모두 확인
+            string workbookName = Path.GetFileName(_currentWorkbookPath);
+            
+            Debug.WriteLine($"[SheetPathManager] GetYamlEmptyFieldsOption 호출: 시트={sheetName}, 워크북={workbookName}, 전체경로={_currentWorkbookPath}");
+            
+            // 모든 워크북 설정 정보 출력
+            var sheetPaths = LazyLoadSheetPaths();
+            Debug.WriteLine($"[SheetPathManager] 저장된 워크북 수: {sheetPaths.Count}");
+            foreach (var workbook in sheetPaths.Keys)
+            {
+                Debug.WriteLine($"[SheetPathManager] 워크북: {workbook}, 시트 수: {sheetPaths[workbook].Count}");
+                foreach (var sheet in sheetPaths[workbook].Keys)
+                {
+                    Debug.WriteLine($"[SheetPathManager] - 시트: {sheet}, YAML 설정: {sheetPaths[workbook][sheet].YamlEmptyFields}");
+                }
+            }
+            
+            // 먼저 파일명으로 확인
+            if (sheetPaths.ContainsKey(workbookName) &&
+                sheetPaths[workbookName].ContainsKey(sheetName))
+            {
+                bool result = sheetPaths[workbookName][sheetName].YamlEmptyFields;
+                Debug.WriteLine($"[SheetPathManager] GetYamlEmptyFieldsOption: {workbookName} / {sheetName} -> {result}");
+                return result;
+            }
+            else
+            {
+                Debug.WriteLine($"[SheetPathManager] 파일명으로 시트를 찾지 못함: {workbookName} / {sheetName}");
+            }
+
+            // 파일명으로 찾지 못하면 전체 경로로 확인
+            if (sheetPaths.ContainsKey(_currentWorkbookPath) &&
+                sheetPaths[_currentWorkbookPath].ContainsKey(sheetName))
+            {
+                bool result = sheetPaths[_currentWorkbookPath][sheetName].YamlEmptyFields;
+                Debug.WriteLine($"[SheetPathManager] GetYamlEmptyFieldsOption: {_currentWorkbookPath} / {sheetName} -> {result}");
+                return result;
+            }
+            else
+            {
+                Debug.WriteLine($"[SheetPathManager] 전체 경로로도 시트를 찾지 못함: {_currentWorkbookPath} / {sheetName}");
+            }
+
+            // 해당 시트에 대한 설정이 없으면 기본값 false 반환
+            Debug.WriteLine($"[SheetPathManager] GetYamlEmptyFieldsOption: {sheetName} -> false (기본값)");
+            return false;
+        }
+
+        /// <summary>
+        /// 시트의 후처리용 키 경로 인수 값을 가져옵니다.
+        /// </summary>
+        /// <param name="sheetName">시트 이름</param>
+        /// <returns>설정된 후처리 키 경로 인수 값 (없으면 빈 문자열)</returns>
+        public string GetMergeKeyPaths(string sheetName)
+        {
+            if (string.IsNullOrEmpty(_currentWorkbookPath))
+                return "";
+
+            return GetMergeKeyPaths(_currentWorkbookPath, sheetName);
+        }
+
+        /// <summary>
+        /// 특정 워크북의 시트에 대한 후처리용 키 경로 인수 값을 가져옵니다.
+        /// </summary>
+        /// <param name="workbookName">워크북 이름 또는 경로</param>
+        /// <param name="sheetName">시트 이름</param>
+        /// <returns>설정된 후처리 키 경로 인수 값 (없으면 빈 문자열)</returns>
+        public string GetMergeKeyPaths(string workbookName, string sheetName)
+        {
+            // 설정이 없으면 빈 문자열 반환
+            if (!LazyLoadSheetPaths().ContainsKey(workbookName) ||
+                !LazyLoadSheetPaths()[workbookName].ContainsKey(sheetName))
+            {
+                return "";
+            }
+
+            return LazyLoadSheetPaths()[workbookName][sheetName].MergeKeyPaths ?? "";
+        }
+
+        /// <summary>
+        /// 시트의 후처리용 키 경로 인수 값을 설정합니다.
+        /// </summary>
+        /// <param name="sheetName">시트 이름</param>
+        /// <param name="mergeKeyPaths">설정할 후처리 키 경로 인수 값</param>
+        public void SetMergeKeyPaths(string sheetName, string mergeKeyPaths)
+        {
+            if (string.IsNullOrEmpty(_currentWorkbookPath))
+                return;
+
+            SetMergeKeyPaths(_currentWorkbookPath, sheetName, mergeKeyPaths);
+        }
+
+        /// <summary>
+        /// 특정 워크북의 시트에 대한 후처리용 키 경로 인수 값을 설정합니다.
+        /// </summary>
+        /// <param name="workbookName">워크북 이름 또는 경로</param>
+        /// <param name="sheetName">시트 이름</param>
+        /// <param name="mergeKeyPaths">설정할 후처리 키 경로 인수 값</param>
+        public void SetMergeKeyPaths(string workbookName, string sheetName, string mergeKeyPaths)
+        {
+            // 워크북과 시트가 없으면 무시
+            if (!LazyLoadSheetPaths().ContainsKey(workbookName) ||
+                !LazyLoadSheetPaths()[workbookName].ContainsKey(sheetName))
+            {
+                return;
+            }
+
+            // 값 설정 및 디버그 로그
+            LazyLoadSheetPaths()[workbookName][sheetName].MergeKeyPaths = mergeKeyPaths;
+            Debug.WriteLine($"[SetMergeKeyPaths] 후처리 키 경로 설정: 워크북='{workbookName}', 시트='{sheetName}', 값='{mergeKeyPaths}'");
+        }
     }
 
     // 시트 경로 정보 클래스 (내부 용도)
@@ -541,6 +681,8 @@ namespace ExcelToJsonAddin.Config
     {
         public string Path { get; set; }
         public bool Enabled { get; set; } = true;
+        public bool YamlEmptyFields { get; set; } = false;
+        public string MergeKeyPaths { get; set; } = ""; // 후처리용 키 경로 인수 (예: "test:merge;test2:append")
     }
 
     // XML 직렬화를 위한 클래스
@@ -551,5 +693,7 @@ namespace ExcelToJsonAddin.Config
         public string SheetName { get; set; }
         public string SavePath { get; set; }
         public bool Enabled { get; set; } = true;
+        public bool YamlEmptyFields { get; set; } = false;
+        public string MergeKeyPaths { get; set; } = ""; // 후처리용 키 경로 인수
     }
 }

@@ -8,6 +8,7 @@ using Excel = Microsoft.Office.Interop.Excel;
 using Office = Microsoft.Office.Core;
 using Microsoft.Office.Tools.Excel;
 using ExcelToJsonAddin.Logging;
+using ExcelToJsonAddin.Config;
 
 namespace ExcelToJsonAddin
 {
@@ -22,6 +23,18 @@ namespace ExcelToJsonAddin
             {
                 // Add-in 초기화 로깅
                 Logger.Debug("Excel To JSON Add-in 시작");
+                
+                // SheetPathManager 초기화 및 설정 미리 로드
+                SheetPathManager.Instance.Initialize();
+                
+                // 현재 워크북 설정
+                if (this.Application.ActiveWorkbook != null)
+                {
+                    string workbookPath = this.Application.ActiveWorkbook.FullName;
+                    SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
+                    Logger.Information("현재 워크북 설정: {0}", workbookPath);
+                }
+                
                 // Ribbon 인스턴스 생성 및 등록
                 var ribbon = new Ribbon();
                 Debug.WriteLine("Ribbon 인스턴스가 생성되었습니다.");
@@ -29,7 +42,7 @@ namespace ExcelToJsonAddin
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Ribbon 생성 중 오류: {ex.Message}");
+                Debug.WriteLine($"애드인 초기화 중 오류: {ex.Message}");
                 MessageBox.Show($"애드인 초기화 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

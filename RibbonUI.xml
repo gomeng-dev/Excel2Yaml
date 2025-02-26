@@ -18,8 +18,7 @@
                   imageMso="ExportToExcel" 
                   screentip="Excel을 YAML로 변환" 
                   supertip="현재 워크시트의 데이터를 YAML 형식으로 변환합니다." />
-        </group>
-        <group id="groupOptions" label="옵션">
+          <separator id="separator1" />
           <checkBox id="chkEmptyFields" 
                     label="빈 필드 포함" 
                     getPressed="GetEmptyFieldsState" 
@@ -32,6 +31,13 @@
                     onAction="OnHashGenClicked" 
                     screentip="MD5 해시 생성 여부" 
                     supertip="체크하면 변환된 파일의 MD5 해시 값을 별도 파일로 생성합니다." />
+          <checkBox id="chkAddEmptyYaml" 
+                    label="YAML 선택적 필드 처리" 
+                    getPressed="GetAddEmptyYamlState" 
+                    onAction="OnAddEmptyYamlClicked" 
+                    screentip="YAML 선택적 필드 처리 여부" 
+                    supertip="체크하면 빈 필드가 있는 경우에도 YAML 파일에 필드를 포함합니다." />
+          <separator id="separator2" />
           <button id="btnSettings" 
                   label="고급 설정" 
                   size="normal" 

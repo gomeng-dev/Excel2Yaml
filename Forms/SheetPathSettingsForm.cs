@@ -19,6 +19,7 @@ namespace ExcelToJsonAddin.Forms
             this.convertibleSheets = sheets;
             InitializeComponent();
             dataGridView.CellEndEdit += DataGridView_CellEndEdit;
+            dataGridView.CellValueChanged += DataGridView_CellValueChanged;
             LoadSheetPaths();
             PopulateSheetsList();
         }
@@ -112,39 +113,100 @@ namespace ExcelToJsonAddin.Forms
 
         private void PopulateSheetsList()
         {
-            dataGridView.Rows.Clear();
-
-            // 워크북 전체 경로와 파일명 확인
-            string fullWorkbookPath = convertibleSheets[0].Parent.FullName;
-            string workbookName = Path.GetFileName(fullWorkbookPath);
-
-            // SheetPathManager 인스턴스 가져오기
-            var pathManager = SheetPathManager.Instance;
-            pathManager.SetCurrentWorkbook(fullWorkbookPath);
-
-            foreach (var sheet in convertibleSheets)
+            try
             {
-                string sheetName = sheet.Name;
+                // 이벤트 핸들러 임시 제거 (값 채우는 동안 이벤트 발생 방지)
+                dataGridView.CellValueChanged -= DataGridView_CellValueChanged;
+                dataGridView.CellEndEdit -= DataGridView_CellEndEdit;
                 
-                // 경로가 있는지 확인
-                string path = "";
-                bool pathExists = sheetPaths.ContainsKey(sheetName);
-                if (pathExists)
+                dataGridView.Rows.Clear();
+
+                // 워크북 전체 경로와 파일명 확인
+                if (convertibleSheets == null || convertibleSheets.Count == 0 || 
+                    convertibleSheets[0] == null || convertibleSheets[0].Parent == null)
                 {
-                    path = sheetPaths[sheetName];
+                    Debug.WriteLine("[PopulateSheetsList] 오류: convertibleSheets 또는 Parent가 null입니다.");
+                    return;
+                }
+                
+                string fullWorkbookPath = convertibleSheets[0].Parent.FullName;
+                string workbookName = Path.GetFileName(fullWorkbookPath);
+
+                // SheetPathManager 인스턴스 가져오기
+                var pathManager = SheetPathManager.Instance;
+                pathManager.SetCurrentWorkbook(fullWorkbookPath);
+
+                // YAML 선택적 필드 처리 컬럼이 존재하는지 확인
+                bool hasYamlColumn = false;
+                for (int i = 0; i < dataGridView.Columns.Count; i++)
+                {
+                    if (dataGridView.Columns[i].Name == "YamlEmptyFields")
+                    {
+                        hasYamlColumn = true;
+                        break;
+                    }
                 }
 
-                // 활성화 상태는 XML에서 가져오기 (경로 존재 여부와 독립적)
-                bool enabled = pathManager.IsSheetEnabled(sheetName);
-                
-                // 경로가 없는데 활성화된 상태는 올바르지 않음 (경로가 없으면 비활성화 상태로 표시)
-                if (string.IsNullOrEmpty(path))
+                foreach (var sheet in convertibleSheets)
                 {
-                    enabled = false;
-                }
+                    try
+                    {
+                        string sheetName = sheet.Name;
+                        
+                        // 경로가 있는지 확인
+                        string path = "";
+                        bool pathExists = sheetPaths.ContainsKey(sheetName);
+                        if (pathExists)
+                        {
+                            path = sheetPaths[sheetName];
+                        }
 
-                int rowIndex = dataGridView.Rows.Add(sheetName, enabled, path);
-                var row = dataGridView.Rows[rowIndex];
+                        // 활성화 상태는 XML에서 가져오기 (경로 존재 여부와 독립적)
+                        bool enabled = pathManager.IsSheetEnabled(sheetName);
+                        
+                        // YAML 선택적 필드 처리 상태 가져오기
+                        bool yamlEmptyFields = pathManager.GetYamlEmptyFieldsOption(sheetName);
+                        
+                        // 경로가 없는데 활성화된 상태는 올바르지 않음 (경로가 없으면 비활성화 상태로 표시)
+                        if (string.IsNullOrEmpty(path))
+                        {
+                            enabled = false;
+                        }
+
+                        // 상세 디버그 정보 추가
+                        Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}', YAML 선택적 필드: {yamlEmptyFields}");
+
+                        // 데이터그리드뷰에 행 추가
+                        int rowIndex = dataGridView.Rows.Add();
+                        var row = dataGridView.Rows[rowIndex];
+                        
+                        // 각 셀에 직접 값 설정
+                        if (row.Cells.Count > 0)
+                            row.Cells[0].Value = sheetName;
+                            
+                        if (row.Cells.Count > 1)
+                            row.Cells[1].Value = enabled;
+                            
+                        if (row.Cells.Count > 2)
+                            row.Cells[2].Value = path;
+                            
+                        // YAML 선택적 필드 처리 컬럼이 존재하면 값 설정
+                        if (hasYamlColumn && row.Cells.Count > 4)
+                            row.Cells[4].Value = yamlEmptyFields;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[PopulateSheetsList] 시트 처리 중 예외 발생: {ex.Message}");
+                    }
+                }
+                
+                // 모든 행을 추가한 후 이벤트 핸들러 다시 등록
+                dataGridView.CellEndEdit += DataGridView_CellEndEdit;
+                dataGridView.CellValueChanged += DataGridView_CellValueChanged;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[PopulateSheetsList] 예외 발생: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -219,31 +281,64 @@ namespace ExcelToJsonAddin.Forms
 
         private void DataGridView_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
-            Debug.WriteLine($"[DataGridView_CellValueChanged] 행: {e.RowIndex}, 열: {e.ColumnIndex}");
-
-            // 체크박스 변경 처리 (인덱스 1 - '활성화' 열)
-            if (e.ColumnIndex == 1 && e.RowIndex >= 0)
+            try
             {
-                var row = dataGridView.Rows[e.RowIndex];
-                bool isChecked = (bool)row.Cells[1].Value;
+                Debug.WriteLine($"[DataGridView_CellValueChanged] 행: {e.RowIndex}, 열: {e.ColumnIndex}");
 
-                // 시트 이름 추출
-                string sheetName = row.Cells[0].Value.ToString();
-                Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 활성화 상태 변경: {isChecked}");
-
-                // 항상 출력 경로 텍스트 칸은 수정 가능하게 합니다.
-                row.Cells[2].ReadOnly = false;
-
-                // 체크박스가 선택되었으나 경로가 비어있으면 폴더 선택 다이얼로그 표시
-                string currentPath = row.Cells[2].Value?.ToString() ?? "";
-                if (isChecked && string.IsNullOrEmpty(currentPath))
+                // 행 인덱스가 유효하지 않으면 처리하지 않음
+                if (e.RowIndex < 0 || e.RowIndex >= dataGridView.Rows.Count)
                 {
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'에 대한 경로가 없어 폴더 선택 다이얼로그 표시");
-                    OpenFolderSelectionDialog(e.RowIndex);
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 유효하지 않은 행 인덱스: {e.RowIndex}");
+                    return;
                 }
+
+                var row = dataGridView.Rows[e.RowIndex];
+                
+                // 체크박스 변경 처리 (인덱스 1 - '활성화' 열)
+                if (e.ColumnIndex == 1 && row.Cells.Count > 1 && row.Cells[1].Value != null)
+                {
+                    bool isChecked = (bool)row.Cells[1].Value;
+
+                    // 시트 이름이 유효한지 확인
+                    if (row.Cells[0].Value == null)
+                    {
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 이름이 null입니다.");
+                        return;
+                    }
+
+                    // 시트 이름 추출
+                    string sheetName = row.Cells[0].Value.ToString();
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 활성화 상태 변경: {isChecked}");
+
+                    // 항상 출력 경로 텍스트 칸은 수정 가능하게 합니다.
+                    if (row.Cells.Count > 2)
+                    {
+                        row.Cells[2].ReadOnly = false;
+                    }
+
+                    // 체크박스가 선택되었으나 경로가 비어있으면 폴더 선택 다이얼로그 표시
+                    string currentPath = row.Cells.Count > 2 && row.Cells[2].Value != null ? row.Cells[2].Value.ToString() : "";
+                    if (isChecked && string.IsNullOrEmpty(currentPath))
+                    {
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'에 대한 경로가 없어 폴더 선택 다이얼로그 표시");
+                        OpenFolderSelectionDialog(e.RowIndex);
+                    }
+                }
+                // YAML 선택적 필드 처리 체크박스 변경 처리 (인덱스 4 - 'YAML 선택적 필드 처리' 열)
+                else if (e.ColumnIndex == 4 && row.Cells.Count > 4 && row.Cells[0].Value != null)
+                {
+                    bool yamlEmptyFields = row.Cells[4].Value != null ? (bool)row.Cells[4].Value : false;
+                    string sheetName = row.Cells[0].Value.ToString();
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 YAML 선택적 필드 처리 상태 변경: {yamlEmptyFields}");
+                }
+                
+                // 변경된 행을 즉시 XML와 동기화
+                if(e.RowIndex >= 0) UpdateSheetPathForRow(e.RowIndex);
             }
-            // 변경된 행을 즉시 XML와 동기화
-            if(e.RowIndex >= 0) UpdateSheetPathForRow(e.RowIndex);
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DataGridView_CellValueChanged] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         // 새로 추가: 셀 편집 종료 시에도 XML와 동기화
@@ -255,39 +350,71 @@ namespace ExcelToJsonAddin.Forms
         // 공통 메서드: 특정 행의 데이터를 XML에 업데이트
         private void UpdateSheetPathForRow(int rowIndex)
         {
-            var row = dataGridView.Rows[rowIndex];
-            string sheetName = row.Cells[0].Value.ToString();
-            bool enabled = (bool)row.Cells[1].Value;
-            string path = row.Cells[2].Value?.ToString() ?? "";
-
-            string fullWorkbookPath = convertibleSheets[0].Parent.FullName;
-            string workbookName = Path.GetFileName(fullWorkbookPath);
-
-            var pathManager = SheetPathManager.Instance;
-            pathManager.SetCurrentWorkbook(fullWorkbookPath);
-
-            // 변경: 경로가 있는 경우, 활성화 상태와 관계없이 항상 경로 정보 저장
-            if(!string.IsNullOrEmpty(path))
+            try 
             {
-                Debug.WriteLine($"[UpdateSheetPathForRow] 저장: 시트 '{sheetName}', 경로 '{path}', 활성화 상태: {enabled}");
-                pathManager.SetSheetPath(workbookName, sheetName, path, enabled);
-                if (workbookName != fullWorkbookPath)
+                var row = dataGridView.Rows[rowIndex];
+                if (row.Cells.Count <= 0 || row.Cells[0].Value == null)
                 {
-                    pathManager.SetSheetPath(fullWorkbookPath, sheetName, path, enabled);
+                    Debug.WriteLine($"[UpdateSheetPathForRow] 오류: 행 {rowIndex}의 셀 0에 값이 없습니다.");
+                    return;
                 }
-            }
-            else
-            {
-                // 경로가 비어있는 경우에만 경로 정보 삭제
-                Debug.WriteLine($"[UpdateSheetPathForRow] 제거: 시트 '{sheetName}' (경로가 비어있음)");
-                pathManager.RemoveSheetPath(workbookName, sheetName);
-                if (workbookName != fullWorkbookPath)
-                {
-                    pathManager.RemoveSheetPath(fullWorkbookPath, sheetName);
-                }
-            }
 
-            pathManager.SaveSettings();
+                string sheetName = row.Cells[0].Value.ToString();
+                
+                // 활성화 상태 확인 (인덱스 1)
+                bool enabled = row.Cells.Count > 1 && row.Cells[1].Value != null ? (bool)row.Cells[1].Value : false;
+                
+                // 경로 확인 (인덱스 2)
+                string path = row.Cells.Count > 2 && row.Cells[2].Value != null ? row.Cells[2].Value.ToString() : "";
+                
+                // YAML 선택적 필드 처리 상태 확인 (인덱스 4)
+                bool yamlEmptyFields = false;
+                if (row.Cells.Count > 4 && row.Cells[4].Value != null)
+                {
+                    yamlEmptyFields = (bool)row.Cells[4].Value;
+                }
+
+                // 워크북 경로가 없으면 함수 종료
+                if (convertibleSheets == null || convertibleSheets.Count == 0 || 
+                    convertibleSheets[0] == null || convertibleSheets[0].Parent == null)
+                {
+                    Debug.WriteLine($"[UpdateSheetPathForRow] 오류: convertibleSheets 또는 Parent가 null입니다.");
+                    return;
+                }
+
+                string fullWorkbookPath = convertibleSheets[0].Parent.FullName;
+                string workbookName = Path.GetFileName(fullWorkbookPath);
+
+                var pathManager = SheetPathManager.Instance;
+                pathManager.SetCurrentWorkbook(fullWorkbookPath);
+
+                // 변경: 경로가 있는 경우, 활성화 상태와 관계없이 항상 경로 정보 저장
+                if(!string.IsNullOrEmpty(path))
+                {
+                    Debug.WriteLine($"[UpdateSheetPathForRow] 저장: 시트 '{sheetName}', 경로 '{path}', 활성화 상태: {enabled}, YAML 선택적 필드: {yamlEmptyFields}");
+                    pathManager.SetSheetPath(workbookName, sheetName, path, enabled, yamlEmptyFields);
+                    if (workbookName != fullWorkbookPath)
+                    {
+                        pathManager.SetSheetPath(fullWorkbookPath, sheetName, path, enabled, yamlEmptyFields);
+                    }
+                }
+                else
+                {
+                    // 경로가 비어있는 경우에만 경로 정보 삭제
+                    Debug.WriteLine($"[UpdateSheetPathForRow] 제거: 시트 '{sheetName}' (경로가 비어있음)");
+                    pathManager.RemoveSheetPath(workbookName, sheetName);
+                    if (workbookName != fullWorkbookPath)
+                    {
+                        pathManager.RemoveSheetPath(fullWorkbookPath, sheetName);
+                    }
+                }
+
+                pathManager.SaveSettings();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[UpdateSheetPathForRow] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         // 디자이너에서 참조하는 이벤트 핸들러 재추가
@@ -331,14 +458,15 @@ namespace ExcelToJsonAddin.Forms
                 string sheetName = row.Cells[0].Value.ToString();
                 bool enabled = (bool)row.Cells[1].Value;
                 string path = row.Cells[2].Value?.ToString() ?? "";
+                bool yamlEmptyFields = row.Cells[4].Value != null ? (bool)row.Cells[4].Value : false;
 
                 if (!string.IsNullOrEmpty(path))
                 {
-                    Debug.WriteLine($"[SheetPathSettingsForm] 시트 경로 설정: '{sheetName}' -> '{path}', 활성화 상태: {enabled}");
-                    pathManager.SetSheetPath(workbookName, sheetName, path, enabled);
+                    Debug.WriteLine($"[SheetPathSettingsForm] 시트 경로 설정: '{sheetName}' -> '{path}', 활성화 상태: {enabled}, YAML 선택적 필드: {yamlEmptyFields}");
+                    pathManager.SetSheetPath(workbookName, sheetName, path, enabled, yamlEmptyFields);
                     if (workbookName != fullWorkbookPath)
                     {
-                        pathManager.SetSheetPath(fullWorkbookPath, sheetName, path, enabled);
+                        pathManager.SetSheetPath(fullWorkbookPath, sheetName, path, enabled, yamlEmptyFields);
                     }
                 }
                 else
@@ -371,16 +499,49 @@ namespace ExcelToJsonAddin.Forms
 
         private void SheetPathSettingsForm_Load(object sender, EventArgs e)
         {
-            // 설정 파일 경로 표시
-            string configFilePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "ExcelToJsonAddin",
-                "SheetPaths.xml");
+            try
+            {
+                // YAML 선택적 필드 처리 컬럼 추가
+                bool columnExists = false;
+                for (int i = 0; i < dataGridView.Columns.Count; i++)
+                {
+                    if (dataGridView.Columns[i].Name == "YamlEmptyFields")
+                    {
+                        columnExists = true;
+                        break;
+                    }
+                }
+                
+                if (!columnExists)  // YAML 컬럼이 아직 없는 경우에만 추가
+                {
+                    Debug.WriteLine("[SheetPathSettingsForm_Load] YAML 선택적 필드 처리 컬럼 추가");
+                    DataGridViewCheckBoxColumn yamlEmptyFieldsColumn = new DataGridViewCheckBoxColumn();
+                    yamlEmptyFieldsColumn.HeaderText = "YAML 선택적 필드 처리";
+                    yamlEmptyFieldsColumn.Name = "YamlEmptyFields";
+                    yamlEmptyFieldsColumn.Width = 150;
+                    yamlEmptyFieldsColumn.ToolTipText = "선택하면 빈 필드가 있는 경우에도 YAML 파일에 필드를 포함합니다.";
+                    yamlEmptyFieldsColumn.DisplayIndex = 3;  // 폴더 선택 버튼 앞에 배치
+                    dataGridView.Columns.Add(yamlEmptyFieldsColumn);
+                    
+                    // 컬럼 추가 후 데이터를 다시 로드 (YAML 컬럼 값을 포함하여)
+                    PopulateSheetsList();
+                }
 
-            lblConfigPath.Text = "설정 파일 경로: " + configFilePath;
+                // 설정 파일 경로 표시
+                string configFilePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "ExcelToJsonAddin",
+                    "SheetPaths.xml");
 
-            // 경로가 긴 경우 표시를 위해 폼 크기 조정
-            this.MinimumSize = new System.Drawing.Size(700, 450);
+                lblConfigPath.Text = "설정 파일 경로: " + configFilePath;
+
+                // 경로가 긴 경우 표시를 위해 폼 크기 조정
+                this.MinimumSize = new System.Drawing.Size(850, 450);  // 폼 크기 좀 더 넓게 조정
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SheetPathSettingsForm_Load] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+            }
         }
     }
 }

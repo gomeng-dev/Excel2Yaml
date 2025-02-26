@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using Microsoft.Office.Tools.Ribbon;
 using ExcelToJsonAddin.Config;
 using ExcelToJsonAddin.Core;
+using ExcelToJsonAddin.Core.YamlPostProcessors;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
@@ -20,6 +21,7 @@ namespace ExcelToJsonAddin
         // 옵션 설정
         private bool includeEmptyFields = false;
         private bool enableHashGen = false;
+        private bool addEmptyYamlFields = false;
         
         private readonly ExcelToJsonConfig config = new ExcelToJsonConfig();
 
@@ -27,6 +29,17 @@ namespace ExcelToJsonAddin
             : base(Globals.Factory.GetRibbonFactory())
         {
             InitializeComponent();
+            
+            // 설정 불러오기
+            try
+            {
+                addEmptyYamlFields = Properties.Settings.Default.AddEmptyYamlFields;
+                Debug.WriteLine($"[Ribbon] 설정에서 YAML 선택적 필드 처리 상태 로드: {addEmptyYamlFields}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Ribbon] 설정 로드 중 오류 발생: {ex.Message}");
+            }
         }
 
         // 리본 로드 시 호출
@@ -35,6 +48,40 @@ namespace ExcelToJsonAddin
             try
             {
                 Debug.WriteLine("리본 UI가 로드되었습니다.");
+                
+                // 설정 로드 확인
+                var pathManager = SheetPathManager.Instance;
+                if (pathManager != null)
+                {
+                    pathManager.Initialize(); // 설정 다시 로드
+                    
+                    // 현재 워크북 설정
+                    if (Globals.ThisAddIn.Application.ActiveWorkbook != null)
+                    {
+                        string workbookPath = Globals.ThisAddIn.Application.ActiveWorkbook.FullName;
+                        pathManager.SetCurrentWorkbook(workbookPath);
+                        Debug.WriteLine($"[Ribbon_Load] 현재 워크북 설정: {workbookPath}");
+                        
+                        // 워크북의 모든 시트에 대한 설정 확인
+                        foreach (Microsoft.Office.Interop.Excel.Worksheet sheet in Globals.ThisAddIn.Application.ActiveWorkbook.Worksheets)
+                        {
+                            bool yamlOption = pathManager.GetYamlEmptyFieldsOption(sheet.Name);
+                            Debug.WriteLine($"[Ribbon_Load] 시트 '{sheet.Name}' YAML 설정: {yamlOption}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.WriteLine("[Ribbon_Load] 활성화된 워크북이 없습니다.");
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("[Ribbon_Load] SheetPathManager 인스턴스를 가져올 수 없습니다.");
+                }
+                
+                // 설정에서 기본 YAML 옵션 로드
+                addEmptyYamlFields = Properties.Settings.Default.AddEmptyYamlFields;
+                Debug.WriteLine($"[Ribbon_Load] 기본 YAML 선택적 필드 처리 상태: {addEmptyYamlFields}");
             }
             catch (Exception ex)
             {
@@ -73,12 +120,108 @@ namespace ExcelToJsonAddin
                 config.OutputFormat = OutputFormat.Yaml;
                 
                 // 변환 처리
-                ConvertExcelFile(config);
+                List<string> convertedFiles = ConvertExcelFile(config);
+                
+                // YAML 후처리 기능은 이제 시트별로 적용됨
+                // 전역 addEmptyYamlFields 변수 대신 시트별 설정 사용
+                if (convertedFiles != null && convertedFiles.Count > 0)
+                {
+                    try
+                    {
+                        Debug.WriteLine($"[Ribbon] YAML 후처리 확인: {convertedFiles.Count}개 파일");
+                        int successCount = 0;
+                        
+                        foreach (var filePath in convertedFiles)
+                        {
+                            if (File.Exists(filePath) && Path.GetExtension(filePath).ToLower() == ".yaml")
+                            {
+                                // 파일 경로에서 시트 이름 추출
+                                string fileName = Path.GetFileNameWithoutExtension(filePath);
+                                string workbookName = Path.GetFileName(Globals.ThisAddIn.Application.ActiveWorkbook.FullName);
+                                
+                                // 가능한 시트 이름 형식
+                                List<string> possibleSheetNames = new List<string>
+                                {
+                                    fileName,                  // 파일명 그대로
+                                    "!" + fileName,            // !접두사 추가
+                                    fileName.StartsWith("!") ? fileName.Substring(1) : fileName   // !접두사 제거
+                                };
+                                
+                                Debug.WriteLine($"[Ribbon] YAML 파일 처리: {filePath}");
+                                Debug.WriteLine($"[Ribbon] 추출한 파일명: {fileName}");
+                                Debug.WriteLine($"[Ribbon] 워크북 이름: {workbookName}");
+                                
+                                // SheetPathManager 초기화 확인
+                                if (SheetPathManager.Instance != null)
+                                {
+                                    SheetPathManager.Instance.SetCurrentWorkbook(Globals.ThisAddIn.Application.ActiveWorkbook.FullName);
+                                }
+                                else
+                                {
+                                    Debug.WriteLine($"[Ribbon] 오류: SheetPathManager 인스턴스가 null입니다.");
+                                }
+                                
+                                bool useEmptyOptionals = false;
+                                string matchedSheetName = null;
+                                
+                                // 여러 가능한 시트 이름으로 설정 확인
+                                foreach (var sheetName in possibleSheetNames)
+                                {
+                                    Debug.WriteLine($"[Ribbon] 시트 이름으로 설정 확인: {sheetName}");
+                                    bool option = SheetPathManager.Instance.GetYamlEmptyFieldsOption(sheetName);
+                                    Debug.WriteLine($"[Ribbon] '{sheetName}' YAML 선택적 필드 설정: {option}");
+                                    
+                                    if (option)
+                                    {
+                                        useEmptyOptionals = true;
+                                        matchedSheetName = sheetName;
+                                        break;
+                                    }
+                                }
+                                
+                                Debug.WriteLine($"[Ribbon] 최종 YAML 선택적 필드 처리 여부: {useEmptyOptionals}" + 
+                                    (matchedSheetName != null ? $" (시트: {matchedSheetName})" : " (매칭된 시트 없음)"));
+                                
+                                // useEmptyOptionals가 true인 경우에만 처리
+                                if (useEmptyOptionals)
+                                {
+                                    Debug.WriteLine($"[Ribbon] YAML 파일에 선택적 필드 처리 시작: {filePath}");
+                                    
+                                    // 새로 만든 프로세서 사용
+                                    var processor = new YamlOptionalFieldsProcessor();
+                                    if (processor.ProcessYamlFile(filePath))
+                                    {
+                                        successCount++;
+                                        Debug.WriteLine($"[Ribbon] YAML 파일 선택적 필드 처리 완료: {filePath}");
+                                    }
+                                    else
+                                    {
+                                        Debug.WriteLine($"[Ribbon] YAML 파일 선택적 필드 처리 실패: {filePath}");
+                                    }
+                                }
+                                else
+                                {
+                                    Debug.WriteLine($"[Ribbon] YAML 선택적 필드 처리 건너뜀 (설정 꺼짐): {filePath}");
+                                }
+                            }
+                        }
+                        
+                        Debug.WriteLine($"[Ribbon] YAML 후처리 완료: {successCount}/{convertedFiles.Count} 파일 처리됨");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[Ribbon] YAML 후처리 중 오류 발생: {ex.Message}");
+                    }
+                }
+                
+                // 변환 완료 전역 메시지는 ConvertExcelFile 메서드에서 처리됨
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"YAML 변환 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Debug.WriteLine($"YAML 변환 오류: {ex}");
+                MessageBox.Show($"YAML 변환 중 오류가 발생했습니다: {ex.Message}", 
+                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Debug.WriteLine($"[Ribbon] YAML 변환 오류: {ex.Message}");
+                Debug.WriteLine($"[Ribbon] 스택 트레이스: {ex.StackTrace}");
             }
         }
 
@@ -106,6 +249,30 @@ namespace ExcelToJsonAddin
             enableHashGen = pressed;
         }
 
+        // YAML 선택적 필드 처리 옵션 체크박스 상태 가져오기
+        public bool GetAddEmptyYamlState(IRibbonControl control)
+        {
+            return addEmptyYamlFields;
+        }
+
+        // YAML 선택적 필드 처리 옵션 체크박스 클릭
+        public void OnAddEmptyYamlClicked(IRibbonControl control, bool pressed)
+        {
+            addEmptyYamlFields = pressed;
+            
+            // 설정 저장
+            try
+            {
+                Properties.Settings.Default.AddEmptyYamlFields = pressed;
+                Properties.Settings.Default.Save();
+                Debug.WriteLine($"[Ribbon] YAML 선택적 필드 처리 상태 저장: {pressed}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Ribbon] 설정 저장 중 오류 발생: {ex.Message}");
+            }
+        }
+
         // 고급 설정 버튼 클릭
         public void OnSettingsClick(IRibbonControl control)
         {
@@ -120,20 +287,20 @@ namespace ExcelToJsonAddin
                 // 현재 워크북 가져오기
                 var addIn = Globals.ThisAddIn;
                 var app = addIn.Application;
-                var workbook = app.ActiveWorkbook;
+                var activeWorkbook = app.ActiveWorkbook;
                 
-                if (workbook == null)
+                if (activeWorkbook == null)
                 {
                     MessageBox.Show("활성 워크북이 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
                 
                 // 워크북 경로 설정
-                string workbookPath = workbook.FullName;
+                string workbookPath = activeWorkbook.FullName;
                 SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
                 
                 // 변환 가능한 시트 찾기
-                var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(workbook);
+                var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(activeWorkbook);
                 
                 if (convertibleSheets.Count == 0)
                 {
@@ -208,32 +375,34 @@ namespace ExcelToJsonAddin
             }
         }
 
-        // Excel 파일 변환 처리
-        private void ConvertExcelFile(ExcelToJsonConfig config)
+        // Excel 파일 변환 처리 (수정: 변환된 파일 목록 반환)
+        private List<string> ConvertExcelFile(ExcelToJsonConfig config)
         {
             string tempFile = null;
+            List<string> convertedFiles = new List<string>();
+            
             try
             {
                 // 현재 워크북 가져오기
                 var addIn = Globals.ThisAddIn;
                 var app = addIn.Application;
-                var workbook = app.ActiveWorkbook;
+                var activeWorkbook = app.ActiveWorkbook;
                 
-                if (workbook == null)
+                if (activeWorkbook == null)
                 {
                     MessageBox.Show("활성 워크북이 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
+                    return convertedFiles;
                 }
                 
                 // 워크북 경로 설정
-                string workbookPath = workbook.FullName;
+                string workbookPath = activeWorkbook.FullName;
                 SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
                 
                 // 디버깅을 위한 로그 추가
                 Debug.WriteLine($"현재 워크북 경로: {workbookPath}");
                 
                 // 변환 가능한 시트 찾기
-                var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(workbook);
+                var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(activeWorkbook);
                 
                 Debug.WriteLine($"변환 가능한 시트 수: {convertibleSheets.Count}");
                 foreach (var sheet in convertibleSheets)
@@ -245,7 +414,7 @@ namespace ExcelToJsonAddin
                 {
                     MessageBox.Show("변환 가능한 시트가 없습니다. 변환하려는 시트 이름 앞에 '!'를 추가하세요.", 
                         "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
+                    return convertedFiles;
                 }
                 
                 // 임시 파일로 저장
@@ -253,12 +422,11 @@ namespace ExcelToJsonAddin
                 if (string.IsNullOrEmpty(tempFile))
                 {
                     MessageBox.Show("임시 파일을 생성할 수 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
+                    return convertedFiles;
                 }
 
                 int successCount = 0;
                 int skipCount = 0;
-                List<string> convertedFiles = new List<string>();
 
                 // 모든 변환 가능한 시트에 대해 처리
                 foreach (var sheet in convertibleSheets)
@@ -383,6 +551,8 @@ namespace ExcelToJsonAddin
                     MessageBox.Show("변환된 시트가 없습니다. 시트별 저장 경로를 설정했는지 확인하세요.", 
                         "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
+                
+                return convertedFiles;
             }
             catch (IOException ex)
             {
@@ -414,6 +584,8 @@ namespace ExcelToJsonAddin
                     }
                 }
             }
+            
+            return convertedFiles;
         }
 
         // 리소스 텍스트 가져오기
