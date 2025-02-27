@@ -130,6 +130,7 @@ namespace ExcelToJsonAddin
                         Debug.WriteLine($"[Ribbon] YAML 후처리 확인: {convertedFiles.Count}개 파일");
                         int optionalFieldsSuccessCount = 0;
                         int mergeKeyPathsSuccessCount = 0;
+                        int flowStyleSuccessCount = 0;
                         
                         foreach (var filePath in convertedFiles)
                         {
@@ -243,11 +244,43 @@ namespace ExcelToJsonAddin
                                 {
                                     Debug.WriteLine($"[Ribbon] YAML 키 경로 병합 처리 건너뜀 (설정 없음): {filePath}");
                                 }
+
+                                // YAML Flow Style 처리
+                                {
+                                    // 시트 이름을 로깅하여 디버깅을 돕습니다
+                                    Debug.WriteLine($"[Ribbon] Flow Style 처리 검사 중: 파일 경로={filePath}, 파일 이름={fileName}, 매칭된 시트 이름={matchedSheetName}");
+                                    
+                                    // 설정 값을 가져옵니다 (매칭된 시트 이름 사용 또는 파일 이름 사용)
+                                    string flowStyleConfig = SheetPathManager.Instance.GetFlowStyleConfig(matchedSheetName ?? fileName);
+                                    Debug.WriteLine($"[Ribbon] Flow Style 설정 값: '{flowStyleConfig}'");
+                                    
+                                    if (!string.IsNullOrWhiteSpace(flowStyleConfig))
+                                    {
+                                        Debug.WriteLine($"[Ribbon] YAML Flow Style 후처리 실행 시작: {filePath}");
+                                        
+                                        bool success = YamlFlowStyleProcessor.ProcessYamlFileFromConfig(filePath, flowStyleConfig);
+                                        if (success)
+                                        {
+                                            Debug.WriteLine($"[Ribbon] YAML Flow Style 후처리 완료: {filePath}");
+                                            flowStyleSuccessCount++;
+                                        }
+                                        else
+                                        {
+                                            Debug.WriteLine($"[Ribbon] YAML Flow Style 후처리 실패: {filePath}");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Debug.WriteLine($"[Ribbon] YAML Flow Style 후처리 건너뜀: {filePath}");
+                                        Debug.WriteLine($"[Ribbon] 설정 값: '{flowStyleConfig}'");
+                                    }
+                                }
                             }
                         }
                         
                         Debug.WriteLine($"[Ribbon] YAML 선택적 필드 후처리 완료: {optionalFieldsSuccessCount}/{convertedFiles.Count} 파일 처리됨");
                         Debug.WriteLine($"[Ribbon] YAML 키 경로 병합 후처리 완료: {mergeKeyPathsSuccessCount}/{convertedFiles.Count} 파일 처리됨");
+                        Debug.WriteLine($"[Ribbon] YAML Flow Style 후처리 완료: {flowStyleSuccessCount}/{convertedFiles.Count} 파일 처리됨");
                     }
                     catch (Exception ex)
                     {

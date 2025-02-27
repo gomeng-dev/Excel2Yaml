@@ -39,9 +39,10 @@ C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Newtonsoft.Json.xml
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\RBush.xml
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\SixLabors.Fonts.xml
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\YamlDotNet.xml
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJ.F0199074.Up2Date
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJsonAddin.dll
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJsonAddin.pdb
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJsonAddin.Ribbon.resources
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\System.IO.Pipelines.dll
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToJsonAddin.Forms.SheetPathSettingsForm.resources
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\SharpYaml.dll

@@ -21,6 +21,19 @@
           "buildTransitive/net462/_._": {}
         }
       },
+      "SharpYaml/2.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "System.Buffers/4.6.0": {
         "type": "package",
         "compile": {
@@ -193,6 +206,19 @@
         },
         "runtime": {
           "lib/net47/System.ValueTuple.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "YamlDotNet/16.3.0": {
+        "type": "package",
+        "compile": {
+          "lib/net47/YamlDotNet.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net47/YamlDotNet.dll": {
             "related": ".xml"
           }
         }
@@ -218,6 +244,19 @@
           "buildTransitive/net462/_._": {}
         }
       },
+      "SharpYaml/2.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "System.Buffers/4.6.0": {
         "type": "package",
         "compile": {
@@ -390,6 +429,19 @@
         },
         "runtime": {
           "lib/net47/System.ValueTuple.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "YamlDotNet/16.3.0": {
+        "type": "package",
+        "compile": {
+          "lib/net47/YamlDotNet.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net47/YamlDotNet.dll": {
             "related": ".xml"
           }
         }
@@ -415,6 +467,19 @@
           "buildTransitive/net462/_._": {}
         }
       },
+      "SharpYaml/2.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "System.Buffers/4.6.0": {
         "type": "package",
         "compile": {
@@ -587,6 +652,19 @@
         },
         "runtime": {
           "lib/net47/System.ValueTuple.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "YamlDotNet/16.3.0": {
+        "type": "package",
+        "compile": {
+          "lib/net47/YamlDotNet.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net47/YamlDotNet.dll": {
             "related": ".xml"
           }
         }
@@ -612,6 +690,19 @@
           "buildTransitive/net462/_._": {}
         }
       },
+      "SharpYaml/2.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "System.Buffers/4.6.0": {
         "type": "package",
         "compile": {
@@ -784,6 +875,19 @@
         },
         "runtime": {
           "lib/net47/System.ValueTuple.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "YamlDotNet/16.3.0": {
+        "type": "package",
+        "compile": {
+          "lib/net47/YamlDotNet.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net47/YamlDotNet.dll": {
             "related": ".xml"
           }
         }
@@ -809,6 +913,19 @@
           "buildTransitive/net462/_._": {}
         }
       },
+      "SharpYaml/2.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/SharpYaml.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "System.Buffers/4.6.0": {
         "type": "package",
         "compile": {
@@ -981,6 +1098,19 @@
         },
         "runtime": {
           "lib/net47/System.ValueTuple.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "YamlDotNet/16.3.0": {
+        "type": "package",
+        "compile": {
+          "lib/net47/YamlDotNet.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net47/YamlDotNet.dll": {
             "related": ".xml"
           }
         }
@@ -1012,6 +1142,19 @@
         "microsoft.bcl.asyncinterfaces.9.0.2.nupkg.sha512",
         "microsoft.bcl.asyncinterfaces.nuspec",
         "useSharedDesignerContext.txt"
+      ]
+    },
+    "SharpYaml/2.1.1": {
+      "sha512": "BISoFuW2AwZYXxrZGaBnedo21BvrdgC4kkWd6QYrOdhOGSsZB0RSqcBw09l9caUE1g3sykJoRfSbtSzZS6tYig==",
+      "type": "package",
+      "path": "sharpyaml/2.1.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/SharpYaml.dll",
+        "lib/netstandard2.0/SharpYaml.xml",
+        "sharpyaml.2.1.1.nupkg.sha512",
+        "sharpyaml.nuspec"
       ]
     },
     "System.Buffers/4.6.0": {
@@ -1307,15 +1450,40 @@
         "useSharedDesignerContext.txt",
         "version.txt"
       ]
+    },
+    "YamlDotNet/16.3.0": {
+      "sha512": "SgMOdxbz8X65z8hraIs6hOEdnkH6hESTAIUa7viEngHOYaH+6q5XJmwr1+yb9vJpNQ19hCQY69xbFsLtXpobQA==",
+      "type": "package",
+      "path": "yamldotnet/16.3.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "images/yamldotnet.png",
+        "lib/net47/YamlDotNet.dll",
+        "lib/net47/YamlDotNet.xml",
+        "lib/net6.0/YamlDotNet.dll",
+        "lib/net6.0/YamlDotNet.xml",
+        "lib/net8.0/YamlDotNet.dll",
+        "lib/net8.0/YamlDotNet.xml",
+        "lib/netstandard2.0/YamlDotNet.dll",
+        "lib/netstandard2.0/YamlDotNet.xml",
+        "lib/netstandard2.1/YamlDotNet.dll",
+        "lib/netstandard2.1/YamlDotNet.xml",
+        "yamldotnet.16.3.0.nupkg.sha512",
+        "yamldotnet.nuspec"
+      ]
     }
   },
   "projectFileDependencyGroups": {
     ".NETFramework,Version=v4.8.1": [
+      "SharpYaml >= 2.1.1",
       "System.Buffers >= 4.6.0",
       "System.Memory >= 4.6.0",
       "System.Numerics.Vectors >= 4.6.0",
       "System.Runtime.CompilerServices.Unsafe >= 6.1.0",
-      "System.Text.Json >= 9.0.2"
+      "System.Text.Json >= 9.0.2",
+      "YamlDotNet >= 16.3.0"
     ]
   },
   "packageFolders": {
@@ -1361,6 +1529,10 @@
     "frameworks": {
       "net481": {
         "dependencies": {
+          "SharpYaml": {
+            "target": "Package",
+            "version": "[2.1.1, )"
+          },
           "System.Buffers": {
             "target": "Package",
             "version": "[4.6.0, )"
@@ -1380,6 +1552,10 @@
           "System.Text.Json": {
             "target": "Package",
             "version": "[9.0.2, )"
+          },
+          "YamlDotNet": {
+            "target": "Package",
+            "version": "[16.3.0, )"
           }
         }
       }

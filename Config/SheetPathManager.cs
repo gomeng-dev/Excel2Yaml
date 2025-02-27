@@ -371,7 +371,8 @@ namespace ExcelToJsonAddin.Config
                             SavePath = sheet.Value.Path,
                             Enabled = sheet.Value.Enabled,
                             YamlEmptyFields = sheet.Value.YamlEmptyFields,
-                            MergeKeyPaths = sheet.Value.MergeKeyPaths
+                            MergeKeyPaths = sheet.Value.MergeKeyPaths,
+                            FlowStyleConfig = sheet.Value.FlowStyleConfig
                         });
                     }
                 }
@@ -442,7 +443,8 @@ namespace ExcelToJsonAddin.Config
                         Path = data.SavePath,
                         Enabled = data.Enabled,
                         YamlEmptyFields = data.YamlEmptyFields,
-                        MergeKeyPaths = data.MergeKeyPaths
+                        MergeKeyPaths = data.MergeKeyPaths,
+                        FlowStyleConfig = data.FlowStyleConfig
                     };
                     Debug.WriteLine($"[LoadSheetPaths] 시트 경로 저장: 워크북='{data.WorkbookPath}', 시트='{data.SheetName}', 경로='{data.SavePath}', YAML 선택적 필드: {data.YamlEmptyFields}");
                 }
@@ -652,7 +654,13 @@ namespace ExcelToJsonAddin.Config
             if (string.IsNullOrEmpty(_currentWorkbookPath))
                 return;
 
-            SetMergeKeyPaths(_currentWorkbookPath, sheetName, mergeKeyPaths);
+            var sheetPaths = LazyLoadSheetPaths();
+            if (sheetPaths.ContainsKey(_currentWorkbookPath) && sheetPaths[_currentWorkbookPath].ContainsKey(sheetName))
+            {
+                var sheet = sheetPaths[_currentWorkbookPath][sheetName];
+                sheet.MergeKeyPaths = mergeKeyPaths;
+                SaveSheetPaths();
+            }
         }
 
         /// <summary>
@@ -674,6 +682,81 @@ namespace ExcelToJsonAddin.Config
             LazyLoadSheetPaths()[workbookName][sheetName].MergeKeyPaths = mergeKeyPaths;
             Debug.WriteLine($"[SetMergeKeyPaths] 후처리 키 경로 설정: 워크북='{workbookName}', 시트='{sheetName}', 값='{mergeKeyPaths}'");
         }
+
+        /// <summary>
+        /// 지정된 시트의 Flow Style 설정을 반환합니다.
+        /// </summary>
+        /// <param name="sheetName">시트 이름</param>
+        /// <returns>Flow Style 설정 문자열</returns>
+        public string GetFlowStyleConfig(string sheetName)
+        {
+            if (string.IsNullOrEmpty(_currentWorkbookPath))
+                return "";
+
+            var sheetPaths = LazyLoadSheetPaths();
+            if (sheetPaths.ContainsKey(_currentWorkbookPath) && sheetPaths[_currentWorkbookPath].ContainsKey(sheetName))
+            {
+                return sheetPaths[_currentWorkbookPath][sheetName].FlowStyleConfig;
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// 지정된 시트의 Flow Style 설정을 저장합니다.
+        /// </summary>
+        /// <param name="sheetName">시트 이름</param>
+        /// <param name="flowStyleConfig">Flow Style 설정 문자열</param>
+        public void SetFlowStyleConfig(string sheetName, string flowStyleConfig)
+        {
+            // 현재 워크북 경로가 설정되어 있지 않으면 오류 로그 출력
+            if (string.IsNullOrEmpty(_currentWorkbookPath))
+            {
+                Debug.WriteLine("[SheetPathManager] SetFlowStyleConfig: 현재 워크북이 설정되지 않음");
+                return;
+            }
+            
+            Debug.WriteLine($"[SheetPathManager] SetFlowStyleConfig 호출: 워크북={_currentWorkbookPath}, 시트={sheetName}, FlowStyleConfig={flowStyleConfig}");
+            
+            // 파일명 추출
+            string workbookName = Path.GetFileName(_currentWorkbookPath);
+            SetFlowStyleConfig(workbookName, sheetName, flowStyleConfig);
+        }
+        
+        /// <summary>
+        /// 특정 워크북의 특정 시트의 Flow Style 설정을 저장합니다.
+        /// </summary>
+        /// <param name="workbookName">워크북 이름</param>
+        /// <param name="sheetName">시트 이름</param>
+        /// <param name="flowStyleConfig">Flow Style 설정</param>
+        public void SetFlowStyleConfig(string workbookName, string sheetName, string flowStyleConfig)
+        {
+            // sheetPaths 딕셔너리에서 워크북 이름 및 시트 이름으로 시트 경로 정보 조회
+            Dictionary<string, Dictionary<string, SheetPathInfo>> sheetPaths = LazyLoadSheetPaths();
+            
+            if (sheetPaths.ContainsKey(workbookName) && sheetPaths[workbookName].ContainsKey(sheetName))
+            {
+                // Flow Style 설정 저장
+                sheetPaths[workbookName][sheetName].FlowStyleConfig = flowStyleConfig;
+                
+                // 설정 저장
+                SaveSettings();
+                
+                Debug.WriteLine($"[SheetPathManager] SetFlowStyleConfig 완료: 워크북={workbookName}, 시트={sheetName}, FlowStyleConfig={flowStyleConfig}");
+            }
+            else
+            {
+                Debug.WriteLine($"[SheetPathManager] SetFlowStyleConfig 실패: 워크북={workbookName}, 시트={sheetName} 경로 정보를 찾을 수 없음");
+            }
+        }
+
+        /// <summary>
+        /// 설정 파일 경로를 반환합니다.
+        /// </summary>
+        /// <returns>설정 파일의 전체 경로</returns>
+        public static string GetConfigFilePath()
+        {
+            return ConfigFilePath;
+        }
     }
 
     // 시트 경로 정보 클래스 (내부 용도)
@@ -683,6 +766,7 @@ namespace ExcelToJsonAddin.Config
         public bool Enabled { get; set; } = true;
         public bool YamlEmptyFields { get; set; } = false;
         public string MergeKeyPaths { get; set; } = ""; // 후처리용 키 경로 인수 (예: "test:merge;test2:append")
+        public string FlowStyleConfig { get; set; } = ""; // YAML Flow Style 설정 (예: "details,info|triggers,events")
     }
 
     // XML 직렬화를 위한 클래스
@@ -695,5 +779,6 @@ namespace ExcelToJsonAddin.Config
         public bool Enabled { get; set; } = true;
         public bool YamlEmptyFields { get; set; } = false;
         public string MergeKeyPaths { get; set; } = ""; // 후처리용 키 경로 인수
+        public string FlowStyleConfig { get; set; } = ""; // YAML Flow Style 설정
     }
 }

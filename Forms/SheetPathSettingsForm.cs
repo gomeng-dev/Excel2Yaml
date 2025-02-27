@@ -18,15 +18,99 @@ namespace ExcelToJsonAddin.Forms
         {
             this.convertibleSheets = sheets;
             InitializeComponent();
-            dataGridView.CellEndEdit += DataGridView_CellEndEdit;
-            dataGridView.CellValueChanged += DataGridView_CellValueChanged;
+
+            // Del 키 이벤트 추가
+            this.dataGridView.KeyDown += new KeyEventHandler(DataGridView_KeyDown);
+            
+            // 폼 리사이즈 이벤트 추가
+            this.Resize += new EventHandler(SheetPathSettingsForm_Resize);
+            
+            // 시트 경로 설정 로드
             LoadSheetPaths();
+            
+            // 시트 목록 채우기
             PopulateSheetsList();
+        }
+
+        /// <summary>
+        /// 폼 크기가 변경될 때 DataGridView 크기를 조정합니다.
+        /// </summary>
+        /// <param name="sender">이벤트 발생자</param>
+        /// <param name="e">이벤트 인수</param>
+        private void SheetPathSettingsForm_Resize(object sender, EventArgs e)
+        {
+            AdjustDataGridViewSize();
+        }
+        
+        /// <summary>
+        /// DataGridView 크기를 폼에 맞게 조정합니다.
+        /// </summary>
+        private void AdjustDataGridViewSize()
+        {
+            if (dataGridView != null)
+            {
+                int margin = 40; // 좌우 여백
+                dataGridView.Width = this.ClientSize.Width - margin;
+                
+                // 마지막 열의 너비를 자동으로 조정 (필요시)
+                dataGridView.Columns[dataGridView.Columns.Count - 1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                
+                Debug.WriteLine($"[SheetPathSettingsForm] DataGridView 크기 조정: 너비={dataGridView.Width}, 폼너비={this.ClientSize.Width}");
+            }
+        }
+
+        /// <summary>
+        /// DataGridView에서 키 입력을 처리합니다.
+        /// </summary>
+        /// <param name="sender">이벤트 발생자</param>
+        /// <param name="e">이벤트 인수</param>
+        private void DataGridView_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Delete 키가 눌렸을 때
+            if (e.KeyCode == Keys.Delete)
+            {
+                Debug.WriteLine("[SheetPathSettingsForm] Delete 키 입력 감지");
+                
+                // 현재 선택된 셀이 있는지 확인
+                if (dataGridView.CurrentCell != null)
+                {
+                    // 선택된 셀이 편집 가능한 텍스트 타입 셀인지 확인
+                    if (dataGridView.CurrentCell.OwningColumn is DataGridViewTextBoxColumn && 
+                        !dataGridView.CurrentCell.ReadOnly)
+                    {
+                        // 셀 값을 빈 문자열로 설정
+                        dataGridView.CurrentCell.Value = string.Empty;
+                        Debug.WriteLine($"[SheetPathSettingsForm] 셀 값 삭제 - 행:{dataGridView.CurrentCell.RowIndex}, 열:{dataGridView.CurrentCell.ColumnIndex}");
+                        
+                        // 변경 이벤트 발생
+                        DataGridViewCellEventArgs args = new DataGridViewCellEventArgs(
+                            dataGridView.CurrentCell.ColumnIndex,
+                            dataGridView.CurrentCell.RowIndex);
+                        DataGridView_CellValueChanged(dataGridView, args);
+                        
+                        // 키 처리 완료 표시
+                        e.Handled = true;
+                    }
+                }
+            }
         }
 
         private void LoadSheetPaths()
         {
             sheetPaths = new Dictionary<string, string>();
+            
+            // convertibleSheets 유효성 검사
+            if (convertibleSheets == null || convertibleSheets.Count == 0)
+            {
+                Debug.WriteLine("[LoadSheetPaths] 오류: convertibleSheets가 null이거나 비어 있습니다.");
+                return;
+            }
+            
+            if (convertibleSheets[0] == null || convertibleSheets[0].Parent == null)
+            {
+                Debug.WriteLine("[LoadSheetPaths] 오류: convertibleSheets[0] 또는 Parent가 null입니다.");
+                return;
+            }
 
             // 워크북 전체 경로와 파일명 확인
             string fullWorkbookPath = convertibleSheets[0].Parent.FullName;
@@ -126,6 +210,14 @@ namespace ExcelToJsonAddin.Forms
                     convertibleSheets[0] == null || convertibleSheets[0].Parent == null)
                 {
                     Debug.WriteLine("[PopulateSheetsList] 오류: convertibleSheets 또는 Parent가 null입니다.");
+                    
+                    // 사용자에게 알림
+                    MessageBox.Show("변환 가능한 시트가 없습니다. 변환하려는 시트 이름 앞에 '!'를 추가하세요.", 
+                        "시트 목록 없음", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
+                    // 이벤트 핸들러 다시 등록
+                    dataGridView.CellEndEdit += DataGridView_CellEndEdit;
+                    dataGridView.CellValueChanged += DataGridView_CellValueChanged;
                     return;
                 }
                 
@@ -145,6 +237,41 @@ namespace ExcelToJsonAddin.Forms
                         hasYamlColumn = true;
                         break;
                     }
+                }
+
+                // Flow Style 설정 컬럼 추가 확인 및 추가
+                bool hasFlowStyleFieldsColumn = false;
+                bool hasFlowStyleItemsFieldsColumn = false;
+                for (int i = 0; i < dataGridView.Columns.Count; i++)
+                {
+                    if (dataGridView.Columns[i].Name == "FlowStyleFieldsColumn")
+                    {
+                        hasFlowStyleFieldsColumn = true;
+                    }
+                    if (dataGridView.Columns[i].Name == "FlowStyleItemsFieldsColumn")
+                    {
+                        hasFlowStyleItemsFieldsColumn = true;
+                    }
+                }
+
+                if (!hasFlowStyleFieldsColumn)
+                {
+                    DataGridViewTextBoxColumn flowStyleFieldsColumn = new DataGridViewTextBoxColumn();
+                    flowStyleFieldsColumn.HeaderText = "Flow 필드";
+                    flowStyleFieldsColumn.Name = "FlowStyleFieldsColumn";
+                    flowStyleFieldsColumn.Width = 100;
+                    flowStyleFieldsColumn.ToolTipText = "Flow 스타일로 변환할 필드 (예: \"details,info\")";
+                    dataGridView.Columns.Add(flowStyleFieldsColumn);
+                }
+                
+                if (!hasFlowStyleItemsFieldsColumn)
+                {
+                    DataGridViewTextBoxColumn flowStyleItemsFieldsColumn = new DataGridViewTextBoxColumn();
+                    flowStyleItemsFieldsColumn.HeaderText = "Flow 항목 필드";
+                    flowStyleItemsFieldsColumn.Name = "FlowStyleItemsFieldsColumn";
+                    flowStyleItemsFieldsColumn.Width = 110;
+                    flowStyleItemsFieldsColumn.ToolTipText = "Flow 스타일로 변환할 항목 필드 (예: \"triggers,events\")";
+                    dataGridView.Columns.Add(flowStyleItemsFieldsColumn);
                 }
 
                 foreach (var sheet in convertibleSheets)
@@ -170,6 +297,22 @@ namespace ExcelToJsonAddin.Forms
                         // 후처리 키 경로 가져오기
                         string mergeKeyPaths = pathManager.GetMergeKeyPaths(sheetName);
                         Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}', 후처리 키 경로: {mergeKeyPaths}");
+                        
+                        // Flow Style 설정 가져오기
+                        string flowStyleConfig = pathManager.GetFlowStyleConfig(sheetName);
+                        Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}', Flow Style 설정: {flowStyleConfig}");
+                        
+                        // Flow Style 설정을 필드와 항목으로 분리
+                        string flowStyleFields = "";
+                        string flowStyleItemsFields = "";
+                        if (!string.IsNullOrWhiteSpace(flowStyleConfig))
+                        {
+                            string[] parts = flowStyleConfig.Split('|');
+                            if (parts.Length >= 1)
+                                flowStyleFields = parts[0];
+                            if (parts.Length >= 2)
+                                flowStyleItemsFields = parts[1];
+                        }
                         
                         // 키 경로 데이터 파싱하여 각 컬럼에 설정
                         string idPath = "";      // 기본값 제거
@@ -199,7 +342,7 @@ namespace ExcelToJsonAddin.Forms
                         // 상세 디버그 정보 추가
                         Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}', YAML 선택적 필드: {yamlEmptyFields}");
 
-                        // 데이터그리드뷰에 행 추가
+                        // 데이터그리드뷰뷰에 행 추가
                         int rowIndex = dataGridView.Rows.Add();
                         var row = dataGridView.Rows[rowIndex];
                         
@@ -224,6 +367,14 @@ namespace ExcelToJsonAddin.Forms
                             row.Cells[6].Value = mergePaths;
                         if (row.Cells.Count > 7)
                             row.Cells[7].Value = keyPaths;
+                            
+                        // Flow Style 필드 설정 컬럼이 존재하면 값 설정
+                        if (hasFlowStyleFieldsColumn && row.Cells.Count > 8)
+                            row.Cells[8].Value = flowStyleFields;
+                        
+                        // Flow Style 항목 필드 설정 컬럼이 존재하면 값 설정
+                        if (hasFlowStyleItemsFieldsColumn && row.Cells.Count > 9)
+                            row.Cells[9].Value = flowStyleItemsFields;
                     }
                     catch (Exception ex)
                     {
@@ -383,6 +534,23 @@ namespace ExcelToJsonAddin.Forms
                     string sheetName = row.Cells[0].Value.ToString();
                     Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 키 경로 변경: '{keyPaths}'");
                 }
+                // Flow Style 필드 설정 필드 변경 처리
+                if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "FlowStyleFieldsColumn")
+                {
+                    UpdateSheetPathForRow(e.RowIndex);
+                    string sheetName = dataGridView.Rows[e.RowIndex].Cells[0].Value?.ToString() ?? "";
+                    string flowStyleFields = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 Flow Style 필드 설정 변경: '{flowStyleFields}'");
+                }
+                
+                // Flow Style 항목 필드 설정 필드 변경 처리
+                if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "FlowStyleItemsFieldsColumn")
+                {
+                    UpdateSheetPathForRow(e.RowIndex);
+                    string sheetName = dataGridView.Rows[e.RowIndex].Cells[0].Value?.ToString() ?? "";
+                    string flowStyleItemsFields = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 Flow Style 항목 필드 설정 변경: '{flowStyleItemsFields}'");
+                }
                 
                 // 변경된 행을 즉시 XML와 동기화
                 if(e.RowIndex >= 0) UpdateSheetPathForRow(e.RowIndex);
@@ -438,6 +606,25 @@ namespace ExcelToJsonAddin.Forms
                 if (row.Cells.Count > 7)
                     keyPaths = row.Cells[7].Value?.ToString() ?? "";
                 
+                // Flow Style 필드 설정 확인
+                string flowStyleFields = "";
+                string flowStyleItemsFields = "";
+                
+                foreach (DataGridViewCell cell in row.Cells)
+                {
+                    if (cell.OwningColumn.Name == "FlowStyleFieldsColumn")
+                    {
+                        flowStyleFields = cell.Value?.ToString() ?? "";
+                    }
+                    else if (cell.OwningColumn.Name == "FlowStyleItemsFieldsColumn")
+                    {
+                        flowStyleItemsFields = cell.Value?.ToString() ?? "";
+                    }
+                }
+                
+                // Flow Style 설정 합치기
+                string flowStyleConfig = $"{flowStyleFields}|{flowStyleItemsFields}";
+                
                 // 합친 문자열 생성
                 string mergeKeyPaths = $"{idPath}|{mergePaths}|{keyPaths}";
 
@@ -471,6 +658,14 @@ namespace ExcelToJsonAddin.Forms
                     if (workbookName != fullWorkbookPath)
                     {
                         pathManager.SetMergeKeyPaths(fullWorkbookPath, sheetName, mergeKeyPaths);
+                    }
+                    
+                    // Flow Style 설정 저장
+                    Debug.WriteLine($"[UpdateSheetPathForRow] Flow Style 설정 저장: 시트 '{sheetName}', 값: '{flowStyleConfig}'");
+                    pathManager.SetFlowStyleConfig(workbookName, sheetName, flowStyleConfig);
+                    if (workbookName != fullWorkbookPath)
+                    {
+                        pathManager.SetFlowStyleConfig(fullWorkbookPath, sheetName, flowStyleConfig);
                     }
                 }
                 else
@@ -573,6 +768,28 @@ namespace ExcelToJsonAddin.Forms
                         pathManager.SetMergeKeyPaths(workbookName, sheetName, mergeKeyPaths);
                         Debug.WriteLine($"[SaveButton_Click] 후처리 키 경로 저장: {sheetName} -> ID 경로: '{idPath}', 병합 경로: '{mergePaths}', 키 경로: '{keyPaths}'");
                     }
+                    
+                    // Flow Style 설정
+                    string flowStyleFields = "";
+                    string flowStyleItemsFields = "";
+                    
+                    foreach (DataGridViewCell cell in row.Cells)
+                    {
+                        if (cell.OwningColumn.Name == "FlowStyleFieldsColumn")
+                        {
+                            flowStyleFields = cell.Value?.ToString() ?? "";
+                        }
+                        else if (cell.OwningColumn.Name == "FlowStyleItemsFieldsColumn")
+                        {
+                            flowStyleItemsFields = cell.Value?.ToString() ?? "";
+                        }
+                    }
+                    
+                    // Flow Style 설정 저장
+                    string flowStyleConfig = $"{flowStyleFields}|{flowStyleItemsFields}";
+                    Debug.WriteLine($"[SaveButton_Click] Flow Style 설정 저장: {sheetName} -> '{flowStyleConfig}'");
+                    pathManager.SetFlowStyleConfig(workbookFullPath, sheetName, flowStyleConfig);
+                    pathManager.SetFlowStyleConfig(workbookName, sheetName, flowStyleConfig);
                 }
 
                 // 전체 설정 저장
@@ -600,49 +817,10 @@ namespace ExcelToJsonAddin.Forms
 
         private void SheetPathSettingsForm_Load(object sender, EventArgs e)
         {
-            try
-            {
-                // YAML 선택적 필드 처리 컬럼 추가
-                bool columnExists = false;
-                for (int i = 0; i < dataGridView.Columns.Count; i++)
-                {
-                    if (dataGridView.Columns[i].Name == "YamlEmptyFields")
-                    {
-                        columnExists = true;
-                        break;
-                    }
-                }
-                
-                if (!columnExists)  // YAML 컬럼이 아직 없는 경우에만 추가
-                {
-                    Debug.WriteLine("[SheetPathSettingsForm_Load] YAML 선택적 필드 처리 컬럼 추가");
-                    DataGridViewCheckBoxColumn yamlEmptyFieldsColumn = new DataGridViewCheckBoxColumn();
-                    yamlEmptyFieldsColumn.HeaderText = "YAML 선택적 필드 처리";
-                    yamlEmptyFieldsColumn.Name = "YamlEmptyFields";
-                    yamlEmptyFieldsColumn.Width = 150;
-                    yamlEmptyFieldsColumn.ToolTipText = "선택하면 빈 필드가 있는 경우에도 YAML 파일에 필드를 포함합니다.";
-                    yamlEmptyFieldsColumn.DisplayIndex = 3;  // 폴더 선택 버튼 앞에 배치
-                    dataGridView.Columns.Add(yamlEmptyFieldsColumn);
-                    
-                    // 컬럼 추가 후 데이터를 다시 로드 (YAML 컬럼 값을 포함하여)
-                    PopulateSheetsList();
-                }
-
-                // 설정 파일 경로 표시
-                string configFilePath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ExcelToJsonAddin",
-                    "SheetPaths.xml");
-
-                lblConfigPath.Text = "설정 파일 경로: " + configFilePath;
-
-                // 경로가 긴 경우 표시를 위해 폼 크기 조정
-                this.MinimumSize = new System.Drawing.Size(850, 450);  // 폼 크기 좀 더 넓게 조정
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[SheetPathSettingsForm_Load] 예외 발생: {ex.Message}\n{ex.StackTrace}");
-            }
+            lblConfigPath.Text = $"설정 파일 경로: {SheetPathManager.GetConfigFilePath()}";
+            
+            // 초기 DataGridView 크기 조정
+            AdjustDataGridViewSize();
         }
     }
 }

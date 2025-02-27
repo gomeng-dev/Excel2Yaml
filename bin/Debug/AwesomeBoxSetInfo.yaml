@@ -1,34 +1,34 @@
-﻿# 이 파일은 빈 키 경로로 설정되어 처리되지 않아야 합니다.
-# 기존 파일 내용을 유지해야 합니다.
+﻿# ???뚯씪? 鍮???寃쎈줈濡??ㅼ젙?섏뼱 泥섎━?섏? ?딆븘???⑸땲??
+# 湲곗〈 ?뚯씪 ?댁슜???좎??댁빞 ?⑸땲??
 
-# 테스트용 YAML 파일
+# ?뚯뒪?몄슜 YAML ?뚯씪
 - id: 1
   items:
   - category: CHAT_BALLOON
     itemList:
-    - comment: 10주년 | 찬란한 축사
+    - comment: 10二쇰뀈 | 李щ???異뺤궗
       itemId: 43025
   - category: AURA 
     itemList:
-    - comment: 출석체크 | 콩닥콩닥 러브레터
+    - comment: 異쒖꽍泥댄겕 | 肄⑸떏肄⑸떏 ?щ툕?덊꽣
       itemId: 41096
 - id: 1
   items:
   - category: CHAT_BALLOON
     itemList:
-    - comment: 10주년 | 삐~이~약! 삐약!
+    - comment: 10二쇰뀈 | ?????? ?먯빟!
       itemId: 909
   - category: NAME_TAG
     itemList:
-    - comment: '11주년 | '
-      itemId: ID 미정
+    - comment: '11二쇰뀈 | '
+      itemId: ID 誘몄젙
 - id: 1
   items:
   - category: WING
     itemList:
-    - comment: '11주년 | '
-      itemId: ID 미정
+    - comment: '11二쇰뀈 | '
+      itemId: ID 誘몄젙
   - category: TICKET
     itemList:
-    - comment: 11주년 응모권
-      itemId: ID미정
+    - comment: 11二쇰뀈 ?묐え沅?
+      itemId: ID誘몄젙
