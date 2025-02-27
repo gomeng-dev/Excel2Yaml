@@ -238,40 +238,42 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                 }
                 int currentIndex = fieldCounters[key]++;
 
-                // Flow 스타일 필드 설정
+                // Flow 필드 처리 - 필드 자체를 Flow 스타일로 설정
                 if (flowStyleFields.ContainsKey(key))
                 {
                     var indices = flowStyleFields[key];
                     if (indices.Count == 0 || indices.Contains(currentIndex))
                     {
+                        // 필드 값 자체를 Flow 스타일로 설정
                         if (entry.Value is YamlMappingNode valueMapping)
                         {
-                            // Flow 스타일 설정
                             valueMapping.Style = YamlDotNet.Core.Events.MappingStyle.Flow;
                         }
                         else if (entry.Value is YamlSequenceNode valueSequence)
                         {
-                            // Flow 스타일 설정
                             valueSequence.Style = YamlDotNet.Core.Events.SequenceStyle.Flow;
                         }
                     }
                 }
 
-                // Flow 스타일 항목 필드 설정
+                // Flow 항목 필드 처리 - 해당 필드의 자식(항목)들을 Flow 스타일로 설정
                 if (flowStyleItemsFields.ContainsKey(key) && entry.Value is YamlSequenceNode itemsSequence)
                 {
                     var indices = flowStyleItemsFields[key];
-                    // Flow 스타일 설정
-                    itemsSequence.Style = YamlDotNet.Core.Events.SequenceStyle.Flow;
-                    
-                    for (int i = 0; i < itemsSequence.Children.Count; i++)
+                    if (indices.Count == 0 || indices.Contains(currentIndex))
                     {
-                        if (indices.Count == 0 || indices.Contains(i))
+                        // 자식 항목들만 Flow 스타일로 설정 (시퀀스 자체는 Block 스타일로 유지)
+                        for (int i = 0; i < itemsSequence.Children.Count; i++)
                         {
                             if (itemsSequence.Children[i] is YamlMappingNode itemMapping)
                             {
-                                // Flow 스타일 설정
+                                // 각 항목을 Flow 스타일로 설정
                                 itemMapping.Style = YamlDotNet.Core.Events.MappingStyle.Flow;
+                            }
+                            else if (itemsSequence.Children[i] is YamlSequenceNode itemSequence)
+                            {
+                                // 각 항목(시퀀스)을 Flow 스타일로 설정
+                                itemSequence.Style = YamlDotNet.Core.Events.SequenceStyle.Flow;
                             }
                         }
                     }
@@ -328,7 +330,7 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
         {
             string processedYaml = yamlText;
             
-            // 필드에 Flow 스타일 적용
+            // 필드에 Flow 스타일 적용 - 필드 자체를 Flow 스타일로 출력
             foreach (var field in flowStyleFields.Keys)
             {
                 // 정규식 패턴으로 해당 필드의 매핑을 찾아 Flow 스타일로 변환
@@ -349,25 +351,51 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                 processedYaml = Regex.Replace(processedYaml, pattern, " ]", RegexOptions.Multiline);
             }
             
-            // Flow 스타일 항목 필드에 Flow 스타일 적용
+            // Flow 항목 필드에 Flow 스타일 적용 - 자식 항목들만 Flow 스타일로 출력
             foreach (var field in flowStyleItemsFields.Keys)
             {
-                // 정규식 패턴으로 해당 필드의 시퀀스를 찾아 Flow 스타일로 변환
-                string pattern = $@"({field}:)(\s*\n\s*)(\[\s*\n)";
-                processedYaml = Regex.Replace(processedYaml, pattern, "$1 [ ", RegexOptions.Multiline);
-                
-                // 대괄호 닫기 스타일 변경
-                pattern = $@"(\n\s*\])(\s*\n)";
-                processedYaml = Regex.Replace(processedYaml, pattern, " ]", RegexOptions.Multiline);
-                
-                // 시퀀스 항목이 매핑인 경우 Flow 스타일로 변환
+                // 해당 필드 내의 시퀀스 항목이 매핑인 경우 Flow 스타일로 변환
                 // 시퀀스의 각 항목이 매핑인 경우를 찾음 (- 다음에 중괄호가 오는 형태)
-                pattern = $@"(\s*-\s*\n\s*)(\{{\s*\n)";
-                processedYaml = Regex.Replace(processedYaml, pattern, "- { ", RegexOptions.Multiline);
+                string fieldPattern = $@"({field}:(?:\s*\n)(?:\s*-).*?)";
+                var matches = Regex.Matches(processedYaml, fieldPattern, RegexOptions.Singleline);
                 
-                // 중괄호 닫기 스타일 변경
-                pattern = $@"(\n\s*\}})(\s*\n)";
-                processedYaml = Regex.Replace(processedYaml, pattern, " }", RegexOptions.Multiline);
+                if (matches.Count > 0)
+                {
+                    foreach (Match match in matches)
+                    {
+                        string itemPattern = @"(\s*-\s*\n\s*)(\{\s*\n)";
+                        string itemReplacement = "- { ";
+                        string itemText = match.Value;
+                        string processedItemText = Regex.Replace(itemText, itemPattern, itemReplacement, RegexOptions.Multiline);
+                        
+                        // 중괄호 닫기 스타일 변경
+                        processedItemText = Regex.Replace(processedItemText, @"(\n\s*\})(\s*\n)", " }", RegexOptions.Multiline);
+                        
+                        // 원본 텍스트 교체
+                        processedYaml = processedYaml.Replace(itemText, processedItemText);
+                    }
+                }
+                
+                // 시퀀스 항목이 다시 시퀀스인 경우를 처리
+                fieldPattern = $@"({field}:(?:\s*\n)(?:\s*-).*?)";
+                matches = Regex.Matches(processedYaml, fieldPattern, RegexOptions.Singleline);
+                
+                if (matches.Count > 0)
+                {
+                    foreach (Match match in matches)
+                    {
+                        string itemPattern = @"(\s*-\s*\n\s*)(\[\s*\n)";
+                        string itemReplacement = "- [ ";
+                        string itemText = match.Value;
+                        string processedItemText = Regex.Replace(itemText, itemPattern, itemReplacement, RegexOptions.Multiline);
+                        
+                        // 대괄호 닫기 스타일 변경
+                        processedItemText = Regex.Replace(processedItemText, @"(\n\s*\])(\s*\n)", " ]", RegexOptions.Multiline);
+                        
+                        // 원본 텍스트 교체
+                        processedYaml = processedYaml.Replace(itemText, processedItemText);
+                    }
+                }
             }
             
             return processedYaml;
