@@ -192,11 +192,25 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
             }
 
             // 처리된 YAML 저장
+            string processedYaml;
+
             using (var writer = new StringWriter())
             {
-                yaml.Save(writer, false);
-                File.WriteAllText(yamlPath, writer.ToString());
+                // 들여쓰기 설정 - 2칸으로 설정
+                var emitterSettings = new YamlDotNet.Core.EmitterSettings();
+                emitterSettings = emitterSettings.WithBestIndent(2);
+                emitterSettings = emitterSettings.WithIndentedSequences(); // 시퀀스 인덴트 적용
+                
+                var emitter = new YamlDotNet.Core.Emitter(writer, emitterSettings);
+                yaml.Save(emitter, false);
+                processedYaml = writer.ToString();
             }
+            
+            // Flow 스타일 내부에 인덴트 적용
+            processedYaml = ApplyIndentationToFlowStyle(processedYaml);
+            
+            // 저장
+            File.WriteAllText(yamlPath, processedYaml);
 
             Debug.WriteLine($"[YamlFlowStyleProcessor] YAML 파일 Flow 스타일 처리 완료: {yamlPath}");
             return true;
@@ -248,10 +262,36 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                         if (entry.Value is YamlMappingNode valueMapping)
                         {
                             valueMapping.Style = YamlDotNet.Core.Events.MappingStyle.Flow;
+                            
+                            // 인덴트를 유지하기 위해 각 자식 노드의 스타일도 설정
+                            foreach (var childEntry in valueMapping.Children)
+                            {
+                                if (childEntry.Value is YamlMappingNode childMapping)
+                                {
+                                    childMapping.Style = YamlDotNet.Core.Events.MappingStyle.Flow;
+                                }
+                                else if (childEntry.Value is YamlSequenceNode childSequence)
+                                {
+                                    childSequence.Style = YamlDotNet.Core.Events.SequenceStyle.Flow;
+                                }
+                            }
                         }
                         else if (entry.Value is YamlSequenceNode valueSequence)
                         {
                             valueSequence.Style = YamlDotNet.Core.Events.SequenceStyle.Flow;
+                            
+                            // 인덴트를 유지하기 위해 각 자식 노드의 스타일도 설정
+                            for (int i = 0; i < valueSequence.Children.Count; i++)
+                            {
+                                if (valueSequence.Children[i] is YamlMappingNode childMapping)
+                                {
+                                    childMapping.Style = YamlDotNet.Core.Events.MappingStyle.Flow;
+                                }
+                                else if (valueSequence.Children[i] is YamlSequenceNode childSequence)
+                                {
+                                    childSequence.Style = YamlDotNet.Core.Events.SequenceStyle.Flow;
+                                }
+                            }
                         }
                     }
                 }
@@ -322,6 +362,17 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
         }
 
         /// <summary>
+        /// Flow 스타일 내부에 인덴트를 적용합니다.
+        /// </summary>
+        /// <param name="yamlText">YAML 텍스트</param>
+        /// <returns>인덴트가 적용된 YAML 텍스트</returns>
+        private string ApplyIndentationToFlowStyle(string yamlText)
+        {
+            // 기존 개행은 유지하되 새로운 개행은 추가하지 않음
+            return yamlText;
+        }
+
+        /// <summary>
         /// YAML 텍스트에 Flow 스타일을 적용합니다.
         /// </summary>
         /// <param name="yamlText">YAML 텍스트</param>
@@ -349,6 +400,8 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                 // 대괄호 닫기 스타일 변경
                 pattern = $@"(\n\s*\])(\s*\n)";
                 processedYaml = Regex.Replace(processedYaml, pattern, " ]", RegexOptions.Multiline);
+                
+                // 쉼표 뒤에 자동 개행 추가하는 부분 제거
             }
             
             // Flow 항목 필드에 Flow 스타일 적용 - 자식 항목들만 Flow 스타일로 출력
@@ -364,12 +417,14 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                     foreach (Match match in matches)
                     {
                         string itemPattern = @"(\s*-\s*\n\s*)(\{\s*\n)";
-                        string itemReplacement = "- { ";
+                        string itemReplacement = "$1{ ";
                         string itemText = match.Value;
                         string processedItemText = Regex.Replace(itemText, itemPattern, itemReplacement, RegexOptions.Multiline);
                         
                         // 중괄호 닫기 스타일 변경
                         processedItemText = Regex.Replace(processedItemText, @"(\n\s*\})(\s*\n)", " }", RegexOptions.Multiline);
+                        
+                        // 쉼표 뒤에 개행과 들여쓰기 추가하는 부분 제거
                         
                         // 원본 텍스트 교체
                         processedYaml = processedYaml.Replace(itemText, processedItemText);
@@ -385,12 +440,14 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                     foreach (Match match in matches)
                     {
                         string itemPattern = @"(\s*-\s*\n\s*)(\[\s*\n)";
-                        string itemReplacement = "- [ ";
+                        string itemReplacement = "$1[ ";
                         string itemText = match.Value;
                         string processedItemText = Regex.Replace(itemText, itemPattern, itemReplacement, RegexOptions.Multiline);
                         
                         // 대괄호 닫기 스타일 변경
                         processedItemText = Regex.Replace(processedItemText, @"(\n\s*\])(\s*\n)", " ]", RegexOptions.Multiline);
+                        
+                        // 쉼표 뒤에 개행과 들여쓰기 추가하는 부분 제거
                         
                         // 원본 텍스트 교체
                         processedYaml = processedYaml.Replace(itemText, processedItemText);
