@@ -37,6 +37,10 @@ namespace ExcelToJsonAddin.Forms
             this.cancelButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.lblConfigPath = new System.Windows.Forms.Label();
+            this.YamlEmptyFields = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.IdPathColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.MergePathsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.KeyPathsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView)).BeginInit();
             this.SuspendLayout();
             // 
@@ -52,7 +56,11 @@ namespace ExcelToJsonAddin.Forms
             this.SheetNameColumn,
             this.EnabledColumn,
             this.PathColumn,
-            this.BrowseColumn});
+            this.BrowseColumn,
+            this.YamlEmptyFields,
+            this.IdPathColumn,
+            this.MergePathsColumn,
+            this.KeyPathsColumn});
             this.dataGridView.Location = new System.Drawing.Point(12, 47);
             this.dataGridView.Name = "dataGridView";
             this.dataGridView.Size = new System.Drawing.Size(676, 323);
@@ -128,6 +136,34 @@ namespace ExcelToJsonAddin.Forms
             this.lblConfigPath.TabIndex = 3;
             this.lblConfigPath.Text = "설정 파일 경로:";
             // 
+            // YamlEmptyFields
+            // 
+            this.YamlEmptyFields.HeaderText = "YAML 선택적 필드";
+            this.YamlEmptyFields.Name = "YamlEmptyFields";
+            this.YamlEmptyFields.ToolTipText = "YAML 파일에 선택적 필드를 빈 값으로 포함할지 여부";
+            this.YamlEmptyFields.Width = 120;
+            // 
+            // IdPathColumn
+            // 
+            this.IdPathColumn.HeaderText = "ID 경로";
+            this.IdPathColumn.Name = "IdPathColumn";
+            this.IdPathColumn.ToolTipText = "ID가 있는 경로 (기본값: id)";
+            this.IdPathColumn.Width = 90;
+            // 
+            // MergePathsColumn
+            // 
+            this.MergePathsColumn.HeaderText = "병합 경로";
+            this.MergePathsColumn.Name = "MergePathsColumn";
+            this.MergePathsColumn.ToolTipText = "병합할 경로들 (기본값: events)";
+            this.MergePathsColumn.Width = 90;
+            // 
+            // KeyPathsColumn
+            // 
+            this.KeyPathsColumn.HeaderText = "키 경로 전략";
+            this.KeyPathsColumn.Name = "KeyPathsColumn";
+            this.KeyPathsColumn.ToolTipText = "키 경로:전략 문자열 (예: level:merge;achievement:append)";
+            this.KeyPathsColumn.Width = 120;
+            // 
             // SheetPathSettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
@@ -158,5 +194,9 @@ namespace ExcelToJsonAddin.Forms
         private System.Windows.Forms.Button cancelButton;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label lblConfigPath;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn YamlEmptyFields;
+        private System.Windows.Forms.DataGridViewTextBoxColumn IdPathColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn MergePathsColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn KeyPathsColumn;
     }
 }

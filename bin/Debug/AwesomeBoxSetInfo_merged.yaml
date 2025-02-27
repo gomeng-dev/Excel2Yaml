@@ -1,0 +1,26 @@
+﻿# 예상 병합 결과
+# category 별로 items가 병합되어야 함
+- id: 1
+  items:
+  - category: CHAT_BALLOON
+    itemList:
+    - comment: 10주년 | 찬란한 축사
+      itemId: 43025
+    - comment: 10주년 | 삐~이~약! 삐약!
+      itemId: 909
+  - category: AURA
+    itemList:
+    - comment: 출석체크 | 콩닥콩닥 러브레터
+      itemId: 41096
+  - category: NAME_TAG
+    itemList:
+    - comment: '11주년 | '
+      itemId: ID 미정
+  - category: WING
+    itemList:
+    - comment: '11주년 | '
+      itemId: ID 미정
+  - category: TICKET
+    itemList:
+    - comment: 11주년 응모권
+      itemId: ID미정

@@ -1,0 +1,34 @@
+﻿# 이 파일은 빈 키 경로로 설정되어 처리되지 않아야 합니다.
+# 기존 파일 내용을 유지해야 합니다.
+
+# 테스트용 YAML 파일
+- id: 1
+  items:
+  - category: CHAT_BALLOON
+    itemList:
+    - comment: 10주년 | 찬란한 축사
+      itemId: 43025
+  - category: AURA 
+    itemList:
+    - comment: 출석체크 | 콩닥콩닥 러브레터
+      itemId: 41096
+- id: 1
+  items:
+  - category: CHAT_BALLOON
+    itemList:
+    - comment: 10주년 | 삐~이~약! 삐약!
+      itemId: 909
+  - category: NAME_TAG
+    itemList:
+    - comment: '11주년 | '
+      itemId: ID 미정
+- id: 1
+  items:
+  - category: WING
+    itemList:
+    - comment: '11주년 | '
+      itemId: ID 미정
+  - category: TICKET
+    itemList:
+    - comment: 11주년 응모권
+      itemId: ID미정

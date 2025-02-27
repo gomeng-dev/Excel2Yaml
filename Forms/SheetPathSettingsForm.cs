@@ -167,6 +167,29 @@ namespace ExcelToJsonAddin.Forms
                         // YAML 선택적 필드 처리 상태 가져오기
                         bool yamlEmptyFields = pathManager.GetYamlEmptyFieldsOption(sheetName);
                         
+                        // 후처리 키 경로 가져오기
+                        string mergeKeyPaths = pathManager.GetMergeKeyPaths(sheetName);
+                        Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}', 후처리 키 경로: {mergeKeyPaths}");
+                        
+                        // 키 경로 데이터 파싱하여 각 컬럼에 설정
+                        string idPath = "";      // 기본값 제거
+                        string mergePaths = ""; // 기본값 제거
+                        string keyPaths = "";
+                        
+                        // 설정된 값이 있으면 파싱
+                        if (!string.IsNullOrWhiteSpace(mergeKeyPaths))
+                        {
+                            string[] parts = mergeKeyPaths.Split('|');
+                            if (parts.Length >= 1)
+                                idPath = parts[0]; // 빈 문자열도 그대로 사용
+                            if (parts.Length >= 2)
+                                mergePaths = parts[1]; // 빈 문자열도 그대로 사용
+                            if (parts.Length >= 3)
+                                keyPaths = parts[2]; // 빈 문자열도 그대로 사용
+                        }
+                        
+                        Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}', ID 경로: {idPath}, 병합 경로: {mergePaths}, 키 경로: {keyPaths}");
+                        
                         // 경로가 없는데 활성화된 상태는 올바르지 않음 (경로가 없으면 비활성화 상태로 표시)
                         if (string.IsNullOrEmpty(path))
                         {
@@ -193,6 +216,14 @@ namespace ExcelToJsonAddin.Forms
                         // YAML 선택적 필드 처리 컬럼이 존재하면 값 설정
                         if (hasYamlColumn && row.Cells.Count > 4)
                             row.Cells[4].Value = yamlEmptyFields;
+                            
+                        // 후처리 키 경로 컬럼에 값 설정 (인덱스 5, 6, 7)
+                        if (row.Cells.Count > 5)
+                            row.Cells[5].Value = idPath;
+                        if (row.Cells.Count > 6)
+                            row.Cells[6].Value = mergePaths;
+                        if (row.Cells.Count > 7)
+                            row.Cells[7].Value = keyPaths;
                     }
                     catch (Exception ex)
                     {
@@ -331,6 +362,27 @@ namespace ExcelToJsonAddin.Forms
                     string sheetName = row.Cells[0].Value.ToString();
                     Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 YAML 선택적 필드 처리 상태 변경: {yamlEmptyFields}");
                 }
+                // ID 경로 필드 변경 처리 (인덱스 5)
+                else if (e.ColumnIndex == 5 && row.Cells.Count > 5 && row.Cells[0].Value != null)
+                {
+                    string idPath = row.Cells[5].Value?.ToString() ?? "";
+                    string sheetName = row.Cells[0].Value.ToString();
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 ID 경로 변경: '{idPath}'");
+                }
+                // 병합 경로 필드 변경 처리 (인덱스 6)
+                else if (e.ColumnIndex == 6 && row.Cells.Count > 6 && row.Cells[0].Value != null)
+                {
+                    string mergePaths = row.Cells[6].Value?.ToString() ?? "";
+                    string sheetName = row.Cells[0].Value.ToString();
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 병합 경로 변경: '{mergePaths}'");
+                }
+                // 키 경로 필드 변경 처리 (인덱스 7)
+                else if (e.ColumnIndex == 7 && row.Cells.Count > 7 && row.Cells[0].Value != null)
+                {
+                    string keyPaths = row.Cells[7].Value?.ToString() ?? "";
+                    string sheetName = row.Cells[0].Value.ToString();
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 키 경로 변경: '{keyPaths}'");
+                }
                 
                 // 변경된 행을 즉시 XML와 동기화
                 if(e.RowIndex >= 0) UpdateSheetPathForRow(e.RowIndex);
@@ -373,6 +425,21 @@ namespace ExcelToJsonAddin.Forms
                 {
                     yamlEmptyFields = (bool)row.Cells[4].Value;
                 }
+                
+                // 후처리 키 경로 확인 (인덱스 5, 6, 7)
+                string idPath = "";
+                string mergePaths = "";
+                string keyPaths = "";
+                
+                if (row.Cells.Count > 5)
+                    idPath = row.Cells[5].Value?.ToString() ?? "";
+                if (row.Cells.Count > 6)
+                    mergePaths = row.Cells[6].Value?.ToString() ?? "";
+                if (row.Cells.Count > 7)
+                    keyPaths = row.Cells[7].Value?.ToString() ?? "";
+                
+                // 합친 문자열 생성
+                string mergeKeyPaths = $"{idPath}|{mergePaths}|{keyPaths}";
 
                 // 워크북 경로가 없으면 함수 종료
                 if (convertibleSheets == null || convertibleSheets.Count == 0 || 
@@ -396,6 +463,14 @@ namespace ExcelToJsonAddin.Forms
                     if (workbookName != fullWorkbookPath)
                     {
                         pathManager.SetSheetPath(fullWorkbookPath, sheetName, path, enabled, yamlEmptyFields);
+                    }
+                    
+                    // 후처리 키 경로 설정 저장
+                    Debug.WriteLine($"[UpdateSheetPathForRow] 후처리 키 경로 저장: 시트 '{sheetName}', 값: '{mergeKeyPaths}'");
+                    pathManager.SetMergeKeyPaths(workbookName, sheetName, mergeKeyPaths);
+                    if (workbookName != fullWorkbookPath)
+                    {
+                        pathManager.SetMergeKeyPaths(fullWorkbookPath, sheetName, mergeKeyPaths);
                     }
                 }
                 else
@@ -435,60 +510,86 @@ namespace ExcelToJsonAddin.Forms
 
         private void SaveButton_Click(object sender, EventArgs e)
         {
-            // 워크북 전체 경로와 파일명
-            string fullWorkbookPath = convertibleSheets[0].Parent.FullName;
-            string workbookName = Path.GetFileName(fullWorkbookPath);
-            Debug.WriteLine($"[SheetPathSettingsForm] 저장 시 워크북 전체 경로: {fullWorkbookPath}");
-            Debug.WriteLine($"[SheetPathSettingsForm] 저장 시 워크북 이름: {workbookName}");
-
-            // 저장 경로 매니저 가져오기
-            var pathManager = SheetPathManager.Instance;
-
-            // 저장 전 설정 백업
-            var allWorkbooks = pathManager.GetAllWorkbookPaths();
-            Debug.WriteLine($"[SheetPathSettingsForm] 저장 전 워크북 수: {(allWorkbooks != null ? allWorkbooks.Count : 0)}");
-
-            // 현재 워크북 설정 - 전체 경로와 파일명
-            pathManager.SetCurrentWorkbook(fullWorkbookPath);
-
-            // 시트별 경로 정보 저장 (변경: 경로가 있으면 활성화 상태와 관계없이 저장)
-            for (int i = 0; i < dataGridView.Rows.Count; i++)
+            try
             {
-                var row = dataGridView.Rows[i];
-                string sheetName = row.Cells[0].Value.ToString();
-                bool enabled = (bool)row.Cells[1].Value;
-                string path = row.Cells[2].Value?.ToString() ?? "";
-                bool yamlEmptyFields = row.Cells[4].Value != null ? (bool)row.Cells[4].Value : false;
+                // 워크북 전체 경로와 파일명 확인
+                string workbookFullPath = convertibleSheets[0].Parent.FullName;
+                string workbookName = Path.GetFileName(workbookFullPath);
+                Debug.WriteLine($"[SaveButton_Click] 워크북 전체 경로: {workbookFullPath}");
+                Debug.WriteLine($"[SaveButton_Click] 워크북 이름: {workbookName}");
 
-                if (!string.IsNullOrEmpty(path))
+                // SheetPathManager 인스턴스 가져오기
+                var pathManager = SheetPathManager.Instance;
+                // 기본적으로 전체 경로 사용
+                pathManager.SetCurrentWorkbook(workbookFullPath);
+
+                // 각 행에 대해 설정 저장
+                for (int i = 0; i < dataGridView.Rows.Count; i++)
                 {
-                    Debug.WriteLine($"[SheetPathSettingsForm] 시트 경로 설정: '{sheetName}' -> '{path}', 활성화 상태: {enabled}, YAML 선택적 필드: {yamlEmptyFields}");
-                    pathManager.SetSheetPath(workbookName, sheetName, path, enabled, yamlEmptyFields);
-                    if (workbookName != fullWorkbookPath)
+                    var row = dataGridView.Rows[i];
+                    if (row.Cells.Count < 3 || row.Cells[0].Value == null)
+                        continue;
+
+                    string sheetName = row.Cells[0].Value.ToString();
+                    bool isEnabled = row.Cells.Count > 1 && row.Cells[1].Value != null ? 
+                                     Convert.ToBoolean(row.Cells[1].Value) : false;
+                    string path = row.Cells.Count > 2 && row.Cells[2].Value != null ? 
+                                  row.Cells[2].Value.ToString() : "";
+
+                    // 활성화된 시트에 대해서만 경로 저장 검증
+                    if (isEnabled && string.IsNullOrEmpty(path))
                     {
-                        pathManager.SetSheetPath(fullWorkbookPath, sheetName, path, enabled, yamlEmptyFields);
+                        // 경로가 없는데 활성화하려고 하면 경고 표시
+                        MessageBox.Show($"시트 '{sheetName}'에 대한 경로가 설정되지 않았습니다. 활성화하려면 경로를 지정하세요.",
+                                       "경로 필요", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        continue;
+                    }
+
+                    Debug.WriteLine($"[SaveButton_Click] 시트 경로 저장: {sheetName} -> '{path}', 활성화: {isEnabled}");
+
+                    // 설정 저장 (전체 경로와 파일명 모두에 설정)
+                    pathManager.SetSheetPath(workbookFullPath, sheetName, path, isEnabled);
+                    pathManager.SetSheetPath(workbookName, sheetName, path, isEnabled);
+
+                    // YAML 선택적 필드 처리 설정 저장
+                    if (row.Cells.Count > 4 && row.Cells[4].Value != null)
+                    {
+                        bool yamlEmptyFields = Convert.ToBoolean(row.Cells[4].Value);
+                        pathManager.SetSheetPath(workbookFullPath, sheetName, path, isEnabled, yamlEmptyFields);
+                        pathManager.SetSheetPath(workbookName, sheetName, path, isEnabled, yamlEmptyFields);
+                    }
+                    
+                    // 후처리 키 경로 설정 저장
+                    if (row.Cells.Count > 7)
+                    {
+                        string idPath = row.Cells[5].Value?.ToString() ?? "";
+                        string mergePaths = row.Cells[6].Value?.ToString() ?? "";
+                        string keyPaths = row.Cells[7].Value?.ToString() ?? "";
+                        
+                        // 합친 문자열 생성
+                        string mergeKeyPaths = $"{idPath}|{mergePaths}|{keyPaths}";
+                        
+                        pathManager.SetMergeKeyPaths(workbookFullPath, sheetName, mergeKeyPaths);
+                        pathManager.SetMergeKeyPaths(workbookName, sheetName, mergeKeyPaths);
+                        Debug.WriteLine($"[SaveButton_Click] 후처리 키 경로 저장: {sheetName} -> ID 경로: '{idPath}', 병합 경로: '{mergePaths}', 키 경로: '{keyPaths}'");
                     }
                 }
-                else
-                {
-                    // 경로가 비어있는 경우에만 정보 삭제
-                    pathManager.RemoveSheetPath(workbookName, sheetName);
-                    if (workbookName != fullWorkbookPath)
-                    {
-                        pathManager.RemoveSheetPath(fullWorkbookPath, sheetName);
-                    }
-                }
+
+                // 전체 설정 저장
+                pathManager.SaveSettings();
+
+                // 사용자에게 저장 완료 메시지 표시
+                MessageBox.Show("설정이 저장되었습니다.", "저장 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // 폼 닫기
+                DialogResult = DialogResult.OK;
+                Close();
             }
-
-            // 설정 저장
-            pathManager.SaveSettings();
-
-            // 저장 후 설정 확인
-            allWorkbooks = pathManager.GetAllWorkbookPaths();
-            Debug.WriteLine($"[SheetPathSettingsForm] 저장 후 워크북 수: {(allWorkbooks != null ? allWorkbooks.Count : 0)}");
-
-            this.DialogResult = DialogResult.OK;
-            this.Close();
+            catch (Exception ex)
+            {
+                MessageBox.Show($"설정 저장 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Debug.WriteLine($"[SaveButton_Click] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+            }
         }
 
         private void CancelButton_Click(object sender, EventArgs e)

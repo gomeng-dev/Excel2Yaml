@@ -322,6 +322,7 @@
     <Compile Include="Extensions\LoggingExtensions.cs" />
     <Compile Include="Core\YamlSchemaProcessor.cs" />
     <Compile Include="Core\YamlPostProcessors\YamlOptionalFieldsProcessor.cs" />
+    <Compile Include="Core\YamlPostProcessors\YamlMergeKeyPathsProcessor.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Ribbon.resx">
