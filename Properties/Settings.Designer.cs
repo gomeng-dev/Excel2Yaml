@@ -58,5 +58,17 @@ namespace ExcelToJsonAddin.Properties {
                 this["AddEmptyYamlFields"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool FirstConfigMigration {
+            get {
+                return ((bool)(this["FirstConfigMigration"]));
+            }
+            set {
+                this["FirstConfigMigration"] = value;
+            }
+        }
     }
 }
