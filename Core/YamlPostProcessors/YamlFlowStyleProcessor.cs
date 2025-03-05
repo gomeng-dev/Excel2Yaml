@@ -202,8 +202,16 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                 emitterSettings = emitterSettings.WithIndentedSequences(); // 시퀀스 인덴트 적용
                 
                 var emitter = new YamlDotNet.Core.Emitter(writer, emitterSettings);
+                // 문서 종료 마커("...")를 출력하지 않도록 false 설정
                 yaml.Save(emitter, false);
                 processedYaml = writer.ToString();
+                
+                // 만약 문서 종료 마커가 여전히 포함되어 있다면 명시적으로 제거
+                processedYaml = processedYaml.TrimEnd('.', ' ', '\r', '\n');
+                if (processedYaml.EndsWith("..."))
+                {
+                    processedYaml = processedYaml.Substring(0, processedYaml.Length - 3);
+                }
             }
             
             // Flow 스타일 내부에 인덴트 적용

@@ -217,7 +217,7 @@ namespace ExcelToJsonAddin.Core
 
         private SchemeNode Parse(SchemeNode parent, int rowNum, int startCellNum, int endCellNum)
         {
-            Logger.Debug($"Parse called: row={rowNum}, start column={startCellNum}, end column={endCellNum}, parent={parent?.Key ?? "null"}");
+            Logger.Debug($"Parse called: row={rowNum}, start column={startCellNum}, end column={endCellNum}, parent={parent?.Key ?? "null"}, parent type={parent?.NodeType}");
 
             for (int cellNum = startCellNum; cellNum <= endCellNum; cellNum++)
             {
@@ -241,12 +241,13 @@ namespace ExcelToJsonAddin.Core
                 if (parent == null)
                 {
                     parent = child;
-                    Logger.Debug($"Parent node set: {parent.Key}");
+                    Logger.Debug($"Parent node set: {parent.Key}, type={parent.NodeType}");
                 }
                 else
                 {
                     parent.AddChild(child);
-                    Logger.Debug($"Child node added: parent={parent.Key}, child={child.Key}");
+                    child.SetParent(parent);
+                    Logger.Debug($"Child node added: parent={parent.Key} ({parent.NodeType}), child={child.Key} ({child.NodeType})");
 
                     if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
                     {

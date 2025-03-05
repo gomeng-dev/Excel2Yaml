@@ -78,6 +78,20 @@ namespace ExcelToJsonAddin.Core
                     }
                     Logger.Debug("ARRAY 노드 생성: " + key);
                 }
+                // KEY 타입($key)인 경우 특별 처리
+                else if (schemeName.Contains("$key"))
+                {
+                    Logger.Debug("KEY 형식 감지: " + schemeName);
+                    this.type = SchemeNodeType.KEY;
+                    Logger.Debug("KEY 노드 생성: " + key);
+                }
+                // VALUE 타입($value)인 경우 특별 처리  
+                else if (schemeName.Contains("$value"))
+                {
+                    Logger.Debug("VALUE 형식 감지: " + schemeName);
+                    this.type = SchemeNodeType.VALUE;
+                    Logger.Debug("VALUE 노드 생성: " + key);
+                }
                 else
                 {
                     // 타입 문자열 추출 - 원본 CS 코드처럼 마지막 요소 사용

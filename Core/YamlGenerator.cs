@@ -236,12 +236,15 @@ namespace ExcelToJsonAddin.Core
         private YamlArray ProcessArrayItems(SchemeNode node, IXLRow row)
         {
             YamlArray result = OrderedYamlFactory.CreateArray();
+            Logger.Debug($"ProcessArrayItems: 노드={node.Key}, 타입={node.NodeType}");
             
             // 직접 자식 노드가 있는 경우 처리
             if (node.Children.Any())
             {
                 foreach (var child in node.Children)
                 {
+                    Logger.Debug($"배열 자식 처리: 자식={child.Key}, 타입={child.NodeType}");
+                    
                     if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
                     {
                         // PROPERTY 노드 처리
@@ -260,6 +263,18 @@ namespace ExcelToJsonAddin.Core
                             {
                                 result.Add(value);
                             }
+                        }
+                    }
+                    else if (child.NodeType == SchemeNode.SchemeNodeType.VALUE)
+                    {
+                        // VALUE 노드 처리 - 이 부분이 누락되었던 문제
+                        Logger.Debug($"VALUE 타입 노드 처리: {child.Key}");
+                        object value = child.GetValue(row);
+                        if (value != null && !string.IsNullOrEmpty(value.ToString()))
+                        {
+                            // VALUE 타입은 배열 항목에 직접 값을 추가
+                            result.Add(value);
+                            Logger.Debug($"VALUE 추가됨: {value}");
                         }
                     }
                     else if (child.NodeType == SchemeNode.SchemeNodeType.MAP)
