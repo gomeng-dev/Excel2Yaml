@@ -25,13 +25,13 @@ namespace ExcelToJsonAddin
                 Logger.Debug("Excel To JSON Add-in 시작");
                 
                 // SheetPathManager 초기화 및 설정 미리 로드
-                SheetPathManager.Instance.Initialize();
+                ExcelToJsonAddin.Config.SheetPathManager.Instance.Initialize();
                 
                 // 현재 워크북 설정
                 if (this.Application.ActiveWorkbook != null)
                 {
                     string workbookPath = this.Application.ActiveWorkbook.FullName;
-                    SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
+                    ExcelToJsonAddin.Config.SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
                     Logger.Information("현재 워크북 설정: {0}", workbookPath);
                 }
                 

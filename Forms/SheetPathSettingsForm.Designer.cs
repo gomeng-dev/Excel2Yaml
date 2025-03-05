@@ -210,7 +210,7 @@ namespace ExcelToJsonAddin.Forms
             this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "SheetPathSettingsForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "시트별 경로 설정";
+            this.Text = "데이터 변환 설정";
             this.Load += new System.EventHandler(this.SheetPathSettingsForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView)).EndInit();
             this.ResumeLayout(false);

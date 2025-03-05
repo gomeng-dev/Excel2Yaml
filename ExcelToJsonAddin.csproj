@@ -318,6 +318,7 @@
     <Compile Include="Core\ExcelCellValueResolver.cs" />
     <Compile Include="Core\YamlGenerator.cs" />
     <Compile Include="Core\SheetAnalyzer.cs" />
+    <Compile Include="Core\ExcelConfigManager.cs" />
     <Compile Include="Config\SheetPathManager.cs" />
     <Compile Include="Forms\SheetPathSettingsForm.cs">
       <SubType>Form</SubType>

@@ -36,7 +36,6 @@ namespace ExcelToJsonAddin
         {
             this.tabExcelToJson = this.Factory.CreateRibbonTab();
             this.groupConvert = this.Factory.CreateRibbonGroup();
-            this.btnConvertToJson = this.Factory.CreateRibbonButton();
             this.btnConvertToYaml = this.Factory.CreateRibbonButton();
             this.groupSettings = this.Factory.CreateRibbonGroup();
             this.btnSheetPathSettings = this.Factory.CreateRibbonButton();
@@ -55,20 +54,9 @@ namespace ExcelToJsonAddin
             // 
             // groupConvert
             // 
-            this.groupConvert.Items.Add(this.btnConvertToJson);
             this.groupConvert.Items.Add(this.btnConvertToYaml);
             this.groupConvert.Label = "변환";
             this.groupConvert.Name = "groupConvert";
-            // 
-            // btnConvertToJson
-            // 
-            this.btnConvertToJson.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnConvertToJson.Label = "JSON 변환";
-            this.btnConvertToJson.Name = "btnConvertToJson";
-            this.btnConvertToJson.ScreenTip = "Excel을 JSON으로 변환";
-            this.btnConvertToJson.ShowImage = true;
-            this.btnConvertToJson.SuperTip = "현재 워크시트의 데이터를 JSON 형식으로 변환합니다.";
-            this.btnConvertToJson.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnConvertToJsonClick);
             // 
             // btnConvertToYaml
             // 
@@ -116,7 +104,6 @@ namespace ExcelToJsonAddin
 
         internal Microsoft.Office.Tools.Ribbon.RibbonTab tabExcelToJson;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupConvert;
-        internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertToJson;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertToYaml;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnSheetPathSettings;
