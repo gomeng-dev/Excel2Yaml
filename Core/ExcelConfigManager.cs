@@ -24,6 +24,14 @@ namespace ExcelToJsonAddin.Core
         // 현재 워크북 경로
         private string _currentWorkbookPath;
         
+        /// <summary>
+        /// 현재 워크북 경로를 가져옵니다.
+        /// </summary>
+        public string WorkbookPath
+        {
+            get { return _currentWorkbookPath; }
+        }
+        
         // 캐시된 설정 값
         private Dictionary<string, Dictionary<string, string>> _sheetConfigCache;
         

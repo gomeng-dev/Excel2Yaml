@@ -314,7 +314,8 @@ namespace ExcelToJsonAddin.Core
                     
                     if (kvp.Value is YamlObject || kvp.Value is YamlArray)
                     {
-                        SerializeObject(kvp.Value, sb, level + 1, indentSize, style, preserveQuotes);
+                        // MAP 노드의 자식들은 2 레벨 더 들여쓰기
+                        SerializeObject(kvp.Value, sb, level + 2, indentSize, style, preserveQuotes);
                     }
                     else
                     {
@@ -367,59 +368,61 @@ namespace ExcelToJsonAddin.Core
                     
                     if (item is YamlObject yamlObj)
                     {
-                        // 객체의 속성들을 현재 줄에서 시작
-                        bool isFirst = true;
-                        bool hasProcessedFirstProperty = false;
-                        
-                        foreach (var prop in yamlObj.Properties)
-                        {
-                            if (isFirst)
-                            {
-                                // 첫 번째 속성은 현재 줄에 표시
-                                sb.Append(prop.Key).Append(": ");
-                                
-                                if (prop.Value is YamlObject || prop.Value is YamlArray)
-                                {
-                                    // 복잡한 값의 경우 다음 줄에 시작
-                                    SerializeObject(prop.Value, sb, level + 1, indentSize, style, preserveQuotes);
-                                }
-                                else
-                                {
-                                    // 단순 값은 현재 줄에 표시
-                                    SerializeObject(prop.Value, sb, level, indentSize, style, preserveQuotes);
-                                    sb.AppendLine();
-                                }
-                                
-                                isFirst = false;
-                                hasProcessedFirstProperty = true;
-                            }
-                            else
-                            {
-                                // 두 번째 이후 속성은 새 줄에 표시
-                                Indent(sb, level + 1, indentSize);
-                                sb.Append(prop.Key).Append(": ");
-                                
-                                if (prop.Value is YamlObject || prop.Value is YamlArray)
-                                {
-                                    SerializeObject(prop.Value, sb, level + 2, indentSize, style, preserveQuotes);
-                                }
-                                else
-                                {
-                                    SerializeObject(prop.Value, sb, level + 1, indentSize, style, preserveQuotes);
-                                    sb.AppendLine();
-                                }
-                            }
-                        }
-                        
-                        // 속성이 없는 경우 빈 객체로 표시
-                        if (!hasProcessedFirstProperty)
+                        // 객체 내 속성들 처리
+                        if (!yamlObj.HasValues)
                         {
                             sb.AppendLine("{}");
+                        }
+                        else
+                        {
+                            // 첫 번째 속성을 "- " 다음에 바로 표시
+                            bool isFirstProperty = true;
+                            
+                            foreach (var prop in yamlObj.Properties)
+                            {
+                                if (isFirstProperty)
+                                {
+                                    // 첫 번째 속성은 같은 줄에 표시
+                                    sb.Append(prop.Key).Append(": ");
+                                    
+                                    if (prop.Value is YamlObject || prop.Value is YamlArray)
+                                    {
+                                        // 복잡한 값은 다음 줄에 표시
+                                        SerializeObject(prop.Value, sb, level + 2, indentSize, style, preserveQuotes);
+                                    }
+                                    else
+                                    {
+                                        // 단순 값은 같은 줄에 표시
+                                        SerializeObject(prop.Value, sb, level, indentSize, style, preserveQuotes);
+                                        sb.AppendLine();
+                                    }
+                                    
+                                    isFirstProperty = false;
+                                }
+                                else
+                                {
+                                    // 두 번째 이후 속성은 새 줄에 들여쓰기 적용하여 표시
+                                    Indent(sb, level + 1, indentSize);
+                                    sb.Append(prop.Key).Append(": ");
+                                    
+                                    if (prop.Value is YamlObject || prop.Value is YamlArray)
+                                    {
+                                        // MAP 노드의 자식들은 2 레벨 더 들여쓰기
+                                        SerializeObject(prop.Value, sb, level + 2, indentSize, style, preserveQuotes);
+                                    }
+                                    else
+                                    {
+                                        SerializeObject(prop.Value, sb, level + 1, indentSize, style, preserveQuotes);
+                                        sb.AppendLine();
+                                    }
+                                }
+                            }
                         }
                     }
                     else if (item is YamlArray)
                     {
-                        SerializeObject(item, sb, level + 1, indentSize, style, preserveQuotes);
+                        // 배열의 자식들도 2 레벨 더 들여쓰기
+                        SerializeObject(item, sb, level + 2, indentSize, style, preserveQuotes);
                     }
                     else
                     {

@@ -39,6 +39,7 @@ namespace ExcelToJsonAddin.Forms
             this.KeyPathsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.FlowStyleFieldsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.FlowStyleItemsFieldsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.CompareFieldsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.saveButton = new System.Windows.Forms.Button();
             this.cancelButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
@@ -64,7 +65,8 @@ namespace ExcelToJsonAddin.Forms
             this.MergePathsColumn,
             this.KeyPathsColumn,
             this.FlowStyleFieldsColumn,
-            this.FlowStyleItemsFieldsColumn});
+            this.FlowStyleItemsFieldsColumn,
+            this.CompareFieldsColumn});
             this.dataGridView.Location = new System.Drawing.Point(17, 70);
             this.dataGridView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.dataGridView.Name = "dataGridView";
@@ -145,11 +147,17 @@ namespace ExcelToJsonAddin.Forms
             // 
             // FlowStyleItemsFieldsColumn
             // 
-            this.FlowStyleItemsFieldsColumn.HeaderText = "Flow 항목 필드";
+            this.FlowStyleItemsFieldsColumn.HeaderText = "Flow Style 항목 필드";
             this.FlowStyleItemsFieldsColumn.MinimumWidth = 8;
             this.FlowStyleItemsFieldsColumn.Name = "FlowStyleItemsFieldsColumn";
-            this.FlowStyleItemsFieldsColumn.ToolTipText = "Flow 스타일로 변환할 항목 필드 (예: triggers,events)";
-            this.FlowStyleItemsFieldsColumn.Width = 110;
+            this.FlowStyleItemsFieldsColumn.Width = 150;
+            // 
+            // CompareFieldsColumn
+            // 
+            this.CompareFieldsColumn.HeaderText = "비교 필드";
+            this.CompareFieldsColumn.MinimumWidth = 8;
+            this.CompareFieldsColumn.Name = "CompareFieldsColumn";
+            this.CompareFieldsColumn.Width = 150;
             // 
             // saveButton
             // 
@@ -235,5 +243,6 @@ namespace ExcelToJsonAddin.Forms
         private System.Windows.Forms.DataGridViewTextBoxColumn KeyPathsColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn FlowStyleFieldsColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn FlowStyleItemsFieldsColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn CompareFieldsColumn;
     }
 }

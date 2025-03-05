@@ -155,25 +155,50 @@ namespace ExcelToJsonAddin.Core
                 return;
             }
             
-            // Java 코드와 유사한 검증 로직 추가
+            // 자바 코드 기반으로 타입별 자식 노드 추가 제약 조건 구현
             switch (this.type)
             {
                 case SchemeNodeType.KEY:
-                case SchemeNodeType.PROPERTY:
                     if (child.NodeType == SchemeNodeType.KEY || child.NodeType == SchemeNodeType.PROPERTY)
                     {
-                        Logger.Warning("PROPERTY 또는 KEY 노드에 다른 PROPERTY 또는 KEY 노드 추가 시도 무시: " + this.key + " -> " + child.key);
+                        Logger.Warning($"KEY 노드에 KEY/PROPERTY 추가 불가: {this.key} -> {child.key}");
                         return;
                     }
                     break;
+                case SchemeNodeType.PROPERTY:
+                    if (child.NodeType == SchemeNodeType.KEY || child.NodeType == SchemeNodeType.PROPERTY)
+                    {
+                        Logger.Warning($"PROPERTY 노드에 KEY/PROPERTY 추가 불가: {this.key} -> {child.key}");
+                        return;
+                    }
+                    break;
+                case SchemeNodeType.ARRAY:
+                    // 자바 코드에서는 ARRAY 노드에 PROPERTY나 KEY 노드를 추가할 수 없었으나,
+                    // 현재 케이스에서는 이런 제한이 문제를 일으킬 수 있으므로 로깅만 하고 계속 진행합니다.
+                    if (child.NodeType == SchemeNodeType.PROPERTY || child.NodeType == SchemeNodeType.KEY)
+                    {
+                        Logger.Debug($"ARRAY 노드에 {child.NodeType} 노드 추가: {this.key}$[] -> {child.key}");
+                    }
+                    break;
+                case SchemeNodeType.MAP:
+                    // 자바 코드에서는 MAP 노드에 VALUE 노드를 추가할 수 없었으나,
+                    // 현재 케이스에서는 이런 제한이 문제를 일으킬 수 있으므로 로깅만 하고 계속 진행합니다.
+                    if (child.NodeType == SchemeNodeType.VALUE)
+                    {
+                        Logger.Debug($"MAP 노드에 VALUE 노드 추가: {this.key}${{}} -> {child.key}");
+                    }
+                    break;
+                case SchemeNodeType.VALUE:
+                    Logger.Warning($"VALUE 노드에 자식 추가 불가: {this.key} -> {child.key}");
+                    return;
                 case SchemeNodeType.IGNORE:
-                    Logger.Warning("IGNORE 노드에 자식 추가 시도 무시: " + child.key);
+                    Logger.Warning($"IGNORE 노드에 자식 추가 시도 무시: {child.key}");
                     return;
             }
             
             child.SetParent(this);
             children.AddLast(child);
-            Logger.Debug("자식 노드 추가됨: " + this.key + " -> " + child.key);
+            Logger.Debug($"자식 노드 추가됨: {this.key} ({this.type}) -> {child.key} ({child.NodeType})");
         }
 
         /// <summary>

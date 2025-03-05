@@ -15,6 +15,7 @@ namespace ExcelToJsonAddin.Core
 
         private readonly Scheme _scheme;
         private readonly IXLWorksheet _sheet;
+        private readonly Stack<object> _stack = new Stack<object>();  // Java와 같은 스택 기반 접근법 적용
 
         public YamlGenerator(Scheme scheme)
         {
@@ -23,7 +24,26 @@ namespace ExcelToJsonAddin.Core
             Logger.Debug("YamlGenerator 초기화: 스키마 노드 타입={0}", scheme.Root.NodeType);
         }
 
-        // 외부에서 호출할 정적 메서드 추가
+        // 스택 관리 메서드
+        private void Push(object obj)
+        {
+            _stack.Push(obj);
+            Logger.Debug($"스택에 객체 추가: 현재 크기={_stack.Count}, 타입={obj.GetType().Name}");
+        }
+
+        private object Pop()
+        {
+            object popped = _stack.Pop();
+            Logger.Debug($"스택에서 객체 제거: 현재 크기={_stack.Count}, 타입={popped.GetType().Name}");
+            return popped;
+        }
+
+        private int GetStackSize()
+        {
+            return _stack.Count;
+        }
+
+        // 외부에서 호출할 정적 메서드
         public static string Generate(Scheme scheme, YamlStyle style = YamlStyle.Block, 
             int indentSize = 2, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
@@ -38,12 +58,10 @@ namespace ExcelToJsonAddin.Core
                     OrderedYamlFactory.RemoveEmptyProperties(rootObj);
                 }
                 
-                // YAML 문자열로 직렬화
                 return OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes);
             }
             catch (Exception ex)
             {
-                // 로그를 사용할 수 없으므로 디버그 출력
                 Debug.WriteLine($"YAML 생성 중 오류 발생: {ex.Message}");
                 throw;
             }
@@ -55,10 +73,8 @@ namespace ExcelToJsonAddin.Core
             {
                 Logger.Debug("YAML 생성 시작: 스타일={0}, 들여쓰기={1}", style, indentSize);
                 
-                // 루트 노드 처리
                 object rootObj = ProcessRootNode();
                 
-                // YAML 문자열로 직렬화
                 return OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes);
             }
             catch (Exception ex)
@@ -68,439 +84,293 @@ namespace ExcelToJsonAddin.Core
             }
         }
         
-        private YamlObject ProcessMapNode(SchemeNode node)
+        // Java 버전과 유사한 스택 기반 루트 노드 처리 메서드
+        public object ProcessRootNode()
         {
-            YamlObject result = OrderedYamlFactory.CreateObject();
+            SchemeNode rootNode = _scheme.Root;
+            Logger.Debug($"ProcessRootNode 시작: 루트 타입={rootNode.NodeType}, 키={rootNode.Key}, 자식 수={rootNode.ChildCount}");
             
-            // 모든 데이터 행에 대해 처리
-            for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
+            // 루트 노드에 따른 객체 생성
+            object rootObj;
+            if (rootNode.NodeType == SchemeNode.SchemeNodeType.MAP)
             {
-                IXLRow row = _sheet.Row(rowNum);
-                if (row == null) continue;
-                
-                // 각 자식 노드에 대해 처리
-                foreach (var child in node.Children)
-                {
-                    string key = GetNodeKey(child, row);
-                    if (string.IsNullOrEmpty(key)) continue;
-                    
-                    // PROPERTY 노드 처리
-                    if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
-                    {
-                        object value = child.GetValue(row);
-                        if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                        {
-                            if (!result.ContainsKey(key))
-                            {
-                                result.Add(key, value);
-                            }
-                        }
-                    }
-                    // MAP 노드 처리
-                    else if (child.NodeType == SchemeNode.SchemeNodeType.MAP)
-                    {
-                        if (!result.ContainsKey(key))
-                        {
-                            YamlObject childMap = OrderedYamlFactory.CreateObject();
-                            AddChildProperties(child, childMap, row);
-                            if (childMap.HasValues)
-                            {
-                                result.Add(key, childMap);
-                            }
-                        }
-                    }
-                    // ARRAY 노드 처리
-                    else if (child.NodeType == SchemeNode.SchemeNodeType.ARRAY)
-                    {
-                        if (!result.ContainsKey(key))
-                        {
-                            YamlArray childArray = ProcessArrayItems(child, row);
-                            if (childArray.HasValues)
-                            {
-                                result.Add(key, childArray);
-                            }
-                        }
-                    }
-                }
+                rootObj = OrderedYamlFactory.CreateObject();
+                Logger.Debug("MAP 루트 노드 객체 생성");
             }
-            
-            return result;
-        }
-        
-        private YamlArray ProcessArrayNode(SchemeNode node)
-        {
-            YamlArray result = OrderedYamlFactory.CreateArray();
-            
-            // 모든 데이터 행에 대해 처리
-            for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
+            else if (rootNode.NodeType == SchemeNode.SchemeNodeType.ARRAY)
             {
-                IXLRow row = _sheet.Row(rowNum);
-                if (row == null) continue;
-                
-                // 행마다 새 객체 생성
-                YamlObject rowObj = OrderedYamlFactory.CreateObject();
-                bool hasValues = false;
-                
-                // 각 자식 노드에 대해 처리
-                foreach (var child in node.Children)
-                {
-                    string key = GetNodeKey(child, row);
-                    if (!string.IsNullOrEmpty(key))
-                    {
-                        // PROPERTY 노드 처리
-                        if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
-                        {
-                            object value = child.GetValue(row);
-                            if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                            {
-                                rowObj.Add(key, FormatStringValue(value));
-                                hasValues = true;
-                            }
-                        }
-                        // MAP 노드 처리
-                        else if (child.NodeType == SchemeNode.SchemeNodeType.MAP)
-                        {
-                            YamlObject childMap = OrderedYamlFactory.CreateObject();
-                            AddChildProperties(child, childMap, row);
-                            if (childMap.HasValues)
-                            {
-                                rowObj.Add(key, childMap);
-                                hasValues = true;
-                            }
-                        }
-                        // ARRAY 노드 처리
-                        else if (child.NodeType == SchemeNode.SchemeNodeType.ARRAY)
-                        {
-                            YamlArray childArray = ProcessArrayItems(child, row);
-                            if (childArray.HasValues)
-                            {
-                                rowObj.Add(key, childArray);
-                                hasValues = true;
-                            }
-                        }
-                        // KEY 노드 처리 추가
-                        else if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
-                        {
-                            Logger.Debug($"ProcessArrayNode: KEY 노드 처리 - {key} (스키마 이름: {child.SchemeName})");
-                            string dynamicKey = child.GetKey(row);
-                            Logger.Debug($"ProcessArrayNode: 동적 키 값: '{dynamicKey}'");
-                            
-                            // KEY 노드에 대응하는 VALUE 노드 찾기
-                            SchemeNode valueNode = child.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.VALUE);
-                            if (valueNode != null)
-                            {
-                                object value = valueNode.GetValue(row);
-                                if (!string.IsNullOrEmpty(dynamicKey) && value != null && !string.IsNullOrEmpty(value.ToString()))
-                                {
-                                    Logger.Debug($"ProcessArrayNode: KEY-VALUE 쌍 추가 - {dynamicKey}={value}");
-                                    // 동적으로 생성된 키를 사용
-                                    rowObj.Add(dynamicKey, FormatStringValue(value));
-                                    hasValues = true;
-                                }
-                            }
-                            else
-                            {
-                                // VALUE 노드가 없는 경우 KEY 자체를 키로 사용
-                                if (!string.IsNullOrEmpty(dynamicKey))
-                                {
-                                    // 키만 있고 값이 없는 경우 빈 값을 추가
-                                    Logger.Debug($"ProcessArrayNode: 키만 추가 - {dynamicKey}");
-                                    rowObj.Add(dynamicKey, "");
-                                    hasValues = true;
-                                }
-                            }
-                        }
-                        // VALUE 노드 처리 (KEY의 자식이 아닌 경우)
-                        else if (child.NodeType == SchemeNode.SchemeNodeType.VALUE)
-                        {
-                            if (child.Parent == null || child.Parent.NodeType != SchemeNode.SchemeNodeType.KEY)
-                            {
-                                Logger.Debug($"ProcessArrayNode: 독립 VALUE 노드 처리 - {key}");
-                                object value = child.GetValue(row);
-                                if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                                {
-                                    rowObj.Add(key, FormatStringValue(value));
-                                    hasValues = true;
-                                    Logger.Debug($"ProcessArrayNode: VALUE 값 추가 - {key}={value}");
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // 키가 없는 경우의 처리
-                        
-                        if (child.NodeType == SchemeNode.SchemeNodeType.MAP)
-                        {
-                            // MAP 노드의 모든 자식을 직접 rowObj에 추가
-                            AddChildProperties(child, rowObj, row);
-                            hasValues = rowObj.HasValues;
-                        }
-                        else if (child.NodeType == SchemeNode.SchemeNodeType.ARRAY)
-                        {
-                            // ARRAY 노드의 처리
-                            YamlArray childArray = ProcessArrayItems(child, row);
-                            if (childArray.HasValues && childArray.Count > 0 && childArray[0] is YamlObject firstObj)
-                            {
-                                foreach (var property in firstObj.Properties)
-                                {
-                                    rowObj.Add(property.Key, property.Value);
-                                    hasValues = true;
-                                }
-                            }
-                        }
-                        else if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
-                        {
-                            // PROPERTY 노드의 값을 직접 추가
-                            object value = child.GetValue(row);
-                            if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                            {
-                                // 값이 있지만 키가 없는 경우, 기본 키를 사용하거나 처리 방식 결정
-                                // 여기서는 값 자체를 별도 객체로 추가
-                                YamlObject valueObj = OrderedYamlFactory.CreateObject();
-                                valueObj.Add("value", value); // 기본 키 사용
-                                for (int i = 0; i < valueObj.Properties.Count(); i++)
-                                {
-                                    var prop = valueObj.Properties.ElementAt(i);
-                                    rowObj.Add(prop.Key, prop.Value);
-                                    hasValues = true;
-                                }
-                            }
-                        }
-                        // KEY 노드 처리 추가 (키가 없는 경우)
-                        else if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
-                        {
-                            Logger.Debug($"ProcessArrayNode(key없음): KEY 노드 처리 - 스키마 이름: {child.SchemeName}");
-                            string dynamicKey = child.GetKey(row);
-                            Logger.Debug($"ProcessArrayNode(key없음): 동적 키 값: '{dynamicKey}'");
-                            
-                            if (!string.IsNullOrEmpty(dynamicKey))
-                            {
-                                // KEY 노드에 대응하는 VALUE 노드 찾기
-                                SchemeNode valueNode = child.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.VALUE);
-                                if (valueNode != null)
-                                {
-                                    object value = valueNode.GetValue(row);
-                                    if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                                    {
-                                        Logger.Debug($"ProcessArrayNode(key없음): KEY-VALUE 쌍 추가 - {dynamicKey}={value}");
-                                        rowObj.Add(dynamicKey, FormatStringValue(value));
-                                        hasValues = true;
-                                    }
-                                }
-                                else
-                                {
-                                    // VALUE 노드가 없는 경우 빈 값으로 처리
-                                    Logger.Debug($"ProcessArrayNode(key없음): 키만 추가 - {dynamicKey}");
-                                    rowObj.Add(dynamicKey, "");
-                                    hasValues = true;
-                                }
-                            }
-                        }
-                        // VALUE 노드 처리 추가 (키가 없는 경우, KEY의 자식이 아닌 경우)
-                        else if (child.NodeType == SchemeNode.SchemeNodeType.VALUE)
-                        {
-                            if (child.Parent == null || child.Parent.NodeType != SchemeNode.SchemeNodeType.KEY)
-                            {
-                                Logger.Debug($"ProcessArrayNode(key없음): VALUE 노드 처리");
-                                object value = child.GetValue(row);
-                                if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                                {
-                                    // 키가 없는 VALUE는 기본 키와 함께 추가
-                                    Logger.Debug($"ProcessArrayNode(key없음): VALUE 값 추가 - {value}");
-                                    rowObj.Add("value", FormatStringValue(value));
-                                    hasValues = true;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // 비어있지 않은 객체만 추가
-                if (hasValues)
-                {
-                    result.Add(rowObj);
-                }
-            }
-            
-            return result;
-        }
-        
-        private YamlArray ProcessArrayItems(SchemeNode node, IXLRow row)
-        {
-            YamlArray result = OrderedYamlFactory.CreateArray();
-            Logger.Debug($"ProcessArrayItems: 노드={node.Key}, 타입={node.NodeType}");
-            
-            // 직접 자식 노드가 있는 경우 처리
-            if (node.Children.Any())
-            {
-                foreach (var child in node.Children)
-                {
-                    Logger.Debug($"배열 자식 처리: 자식={child.Key}, 타입={child.NodeType}");
-                    
-                    if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
-                    {
-                        // PROPERTY 노드 처리
-                        object value = child.GetValue(row);
-                        if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                        {
-                            // 키가 있는 경우 객체로, 없는 경우 값으로 추가
-                            string childKey = GetNodeKey(child, row);
-                            if (!string.IsNullOrEmpty(childKey))
-                            {
-                                YamlObject childObj = OrderedYamlFactory.CreateObject();
-                                childObj.Add(childKey, FormatStringValue(value));
-                                result.Add(childObj);
-                            }
-                            else
-                            {
-                                result.Add(FormatStringValue(value));
-                            }
-                        }
-                    }
-                    else if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
-                    {
-                        // KEY 노드 처리
-                        Logger.Debug($"KEY 타입 노드 처리: {child.Key} (스키마 이름: {child.SchemeName})");
-                        string keyValue = child.GetKey(row);
-                        Logger.Debug($"KEY 노드의 실제 키 값: '{keyValue}'");
-                        
-                        // KEY 노드의 자식 중 VALUE 노드 찾기
-                        SchemeNode valueNode = child.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.VALUE);
-                        if (valueNode != null)
-                        {
-                            // VALUE 노드가 있으면 키-값 쌍으로 처리
-                            object value = valueNode.GetValue(row);
-                            if (!string.IsNullOrEmpty(keyValue) && value != null && !string.IsNullOrEmpty(value.ToString()))
-                            {
-                                Logger.Debug($"KEY-VALUE 쌍 생성: '{keyValue}'={value}");
-                                YamlObject keyValueObj = OrderedYamlFactory.CreateObject();
-                                keyValueObj.Add(keyValue, FormatStringValue(value));
-                                result.Add(keyValueObj);
-                            }
-                        }
-                        else if (!string.IsNullOrEmpty(keyValue))
-                        {
-                            // VALUE 노드가 없으면 KEY 자체 값을 사용
-                            // 키 값이 있으면 빈 값과 함께 객체로 추가
-                            Logger.Debug($"KEY 값만 사용: '{keyValue}'");
-                            YamlObject keyObj = OrderedYamlFactory.CreateObject();
-                            keyObj.Add(keyValue, "");
-                            result.Add(keyObj);
-                        }
-                    }
-                    else if (child.NodeType == SchemeNode.SchemeNodeType.VALUE)
-                    {
-                        // VALUE 노드 처리 (부모가 KEY가 아닌 경우)
-                        if (child.Parent == null || child.Parent.NodeType != SchemeNode.SchemeNodeType.KEY)
-                        {
-                            Logger.Debug($"독립 VALUE 타입 노드 처리: {child.Key}");
-                            object value = child.GetValue(row);
-                            if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                            {
-                                // VALUE 타입은 배열 항목에 직접 값을 추가
-                                Logger.Debug($"VALUE 값 추가: {value}");
-                                result.Add(FormatStringValue(value));
-                            }
-                        }
-                    }
-                    else if (child.NodeType == SchemeNode.SchemeNodeType.MAP)
-                    {
-                        // MAP 노드 처리
-                        YamlObject childObj = OrderedYamlFactory.CreateObject();
-                        AddChildProperties(child, childObj, row);
-                        if (childObj.HasValues)
-                        {
-                            result.Add(childObj);
-                        }
-                    }
-                    else if (child.NodeType == SchemeNode.SchemeNodeType.ARRAY)
-                    {
-                        // 배열 노드 처리
-                        YamlArray childArray = ProcessArrayItems(child, row);
-                        if (childArray.HasValues)
-                        {
-                            // 배열의 각 항목을 결과 배열에 추가
-                            for (int i = 0; i < childArray.Count; i++)
-                            {
-                                result.Add(childArray[i]);
-                            }
-                        }
-                    }
-                }
+                rootObj = OrderedYamlFactory.CreateArray();
+                Logger.Debug("ARRAY 루트 노드 객체 생성");
             }
             else
             {
-                // 자식 노드가 없는 경우 기본 객체 추가
-                YamlObject obj = OrderedYamlFactory.CreateObject();
-                string key = GetNodeKey(node, row);
-                object value = node.GetValue(row);
+                Logger.Warning($"지원되지 않는 루트 노드 타입: {rootNode.NodeType}, MAP으로 처리합니다.");
+                rootObj = OrderedYamlFactory.CreateObject();
+            }
+            
+            // 스택에 루트 객체 추가
+            Push(rootObj);
+            
+            // 모든 데이터 행 처리
+            for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
+            {
+                IXLRow row = _sheet.Row(rowNum);
+                if (row == null) continue;
                 
-                if (!string.IsNullOrEmpty(key) && value != null && !string.IsNullOrEmpty(value.ToString()))
+                Logger.Debug($"행 {rowNum} 처리 중");
+                
+                // 현재 객체는 항상 스택의 맨 위에 있는 객체
+                object currentObject = rootObj;
+                
+                // 스키마 노드를 순회하며 처리
+                var linearNodes = _scheme.GetLinearNodes().ToList();
+                
+                for (int i = 0; i < linearNodes.Count; i++)
                 {
-                    obj.Add(key, value);
-                    if (obj.HasValues)
+                    SchemeNode currentNode = linearNodes[i];
+                    Logger.Debug($"노드 처리: 키={currentNode.Key}, 타입={currentNode.NodeType}, 스키마 행={currentNode.SchemeRowNum}");
+                    
+                    // 노드 깊이와 스택 크기를 비교하여 스택 관리
+                    int stackSize = GetStackSize();
+                    if (currentNode.SchemeRowNum < stackSize)
                     {
-                        result.Add(obj);
+                        int popCount = stackSize - currentNode.SchemeRowNum;
+                        for (int j = 0; j < popCount; j++)
+                        {
+                            currentObject = Pop();
+                        }
                     }
+                    
+                    // 컨테이너 타입 노드 처리 (MAP, ARRAY)
+                    if (currentNode.NodeType == SchemeNode.SchemeNodeType.MAP || 
+                        currentNode.NodeType == SchemeNode.SchemeNodeType.ARRAY)
+                    {
+                        ProcessContainerNode(currentNode, currentObject, row);
+                    }
+                    // 값 타입 노드 처리 (PROPERTY, VALUE)
+                    else if (currentNode.NodeType == SchemeNode.SchemeNodeType.PROPERTY ||
+                             currentNode.NodeType == SchemeNode.SchemeNodeType.VALUE)
+                    { 
+                        ProcessValueNode(currentNode, currentObject, row);
+                    }
+                    // KEY-VALUE 쌍 처리
+                    else if (currentNode.NodeType == SchemeNode.SchemeNodeType.KEY)
+                    {
+                        ProcessKeyNode(currentNode, currentObject, row);
+                    }
+                }
+                
+                // 행 처리 후 스택 초기화 - 루트 객체만 남기기
+                while (GetStackSize() > 1)
+                {
+                    Pop();
+                }
+                currentObject = _stack.Peek();
+            }
+            
+            // 마지막 객체 반환
+            return Pop();
+        }
+        
+        // 컨테이너 노드 처리 (MAP, ARRAY)
+        private void ProcessContainerNode(SchemeNode node, object parentObject, IXLRow row)
+        {
+            string key = GetNodeKey(node, row);
+            
+            if (string.IsNullOrEmpty(key) && parentObject is YamlObject)
+            {
+                Logger.Debug($"컨테이너 노드의 키가 비어 있어 무시: 타입={node.NodeType}");
+                return;
+            }
+            
+            // 부모가 객체인 경우
+            if (parentObject is YamlObject parentMap)
+            {
+                // 이미 키가 있는 경우, 기존 객체 사용
+                if (parentMap.ContainsKey(key))
+                {
+                    object existingObj = parentMap.Properties.First(p => p.Key == key).Value;
+                    Push(parentObject);
+                    Push(existingObj);
+                    Logger.Debug($"기존 객체 사용: 키={key}, 타입={existingObj.GetType().Name}");
+                    return;
+                }
+                
+                // 새 객체 생성
+                if (node.NodeType == SchemeNode.SchemeNodeType.MAP)
+                {
+                    YamlObject newMap = OrderedYamlFactory.CreateObject();
+                    parentMap.Add(key, newMap);
+                    Push(parentObject);
+                    Push(newMap);
+                    Logger.Debug($"새 MAP 객체 생성: 키={key}");
+                }
+                else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY)
+                {
+                    YamlArray newArray = OrderedYamlFactory.CreateArray();
+                    parentMap.Add(key, newArray);
+                    Push(parentObject);
+                    Push(newArray);
+                    Logger.Debug($"새 ARRAY 객체 생성: 키={key}");
+                }
+            }
+            // 부모가 배열인 경우
+            else if (parentObject is YamlArray parentArray)
+            {
+                if (node.NodeType == SchemeNode.SchemeNodeType.MAP)
+                {
+                    YamlObject newMap = OrderedYamlFactory.CreateObject();
+                    parentArray.Add(newMap);
+                    Push(parentObject);
+                    Push(newMap);
+                    Logger.Debug($"배열에 새 MAP 객체 추가");
+                }
+                else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY)
+                {
+                    YamlArray newArray = OrderedYamlFactory.CreateArray();
+                    parentArray.Add(newArray);
+                    Push(parentObject);
+                    Push(newArray);
+                    Logger.Debug($"배열에 새 ARRAY 객체 추가");
+                }
+            }
+        }
+        
+        // 값 노드 처리 (PROPERTY, VALUE)
+        private void ProcessValueNode(SchemeNode node, object parentObject, IXLRow row)
+        {
+            string key = GetNodeKey(node, row);
+            object value = node.GetValue(row);
+            
+            if (value == null || string.IsNullOrEmpty(value.ToString()))
+            {
+                Logger.Debug($"값이 비어 있어 무시: 키={key}");
+                return;
+            }
+            
+            value = FormatStringValue(value);
+            
+            // 부모가 객체인 경우
+            if (parentObject is YamlObject parentMap)
+            {
+                if (!string.IsNullOrEmpty(key))
+                {
+                    parentMap.Add(key, value);
+                    Logger.Debug($"객체에 값 추가: 키={key}, 값={value}");
+                }
+            }
+            // 부모가 배열인 경우
+            else if (parentObject is YamlArray parentArray)
+            {
+                if (!string.IsNullOrEmpty(key))
+                {
+                    // 키가 있는 경우 단일 속성을 가진 객체 추가
+                    YamlObject singlePropObj = OrderedYamlFactory.CreateObject();
+                    singlePropObj.Add(key, value);
+                    parentArray.Add(singlePropObj);
+                    Logger.Debug($"배열에 객체로 값 추가: 키={key}, 값={value}");
+                }
+                else
+                {
+                    // 키가 없는 경우 값 직접 추가
+                    parentArray.Add(value);
+                    Logger.Debug($"배열에 값 직접 추가: 값={value}");
+                }
+            }
+        }
+        
+        // KEY 노드 처리
+        private void ProcessKeyNode(SchemeNode node, object parentObject, IXLRow row)
+        {
+            string dynamicKey = node.GetKey(row);
+            if (string.IsNullOrEmpty(dynamicKey))
+            {
+                Logger.Debug("KEY 노드에서 동적 키를 가져올 수 없음");
+                return;
+            }
+            
+            // KEY 노드의 VALUE 자식 찾기
+            SchemeNode valueNode = node.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.VALUE);
+            if (valueNode == null)
+            {
+                Logger.Debug($"KEY 노드에 대응하는 VALUE 노드가 없음: 키={dynamicKey}");
+                return;
+            }
+            
+            object value = valueNode.GetValue(row);
+            if (value == null || string.IsNullOrEmpty(value.ToString()))
+            {
+                Logger.Debug($"VALUE 값이 비어 있어 무시: 키={dynamicKey}");
+                return;
+            }
+            
+            value = FormatStringValue(value);
+            
+            // 부모가 객체인 경우
+            if (parentObject is YamlObject parentMap)
+            {
+                parentMap.Add(dynamicKey, value);
+                Logger.Debug($"KEY-VALUE 쌍 추가: 키={dynamicKey}, 값={value}");
+            }
+        }
+        
+        // 노드에서 키 가져오기
+        private string GetNodeKey(SchemeNode node, IXLRow row)
+        {
+            // 노드 자체에 키가 있는 경우 직접 사용
+            if (!string.IsNullOrEmpty(node.Key))
+            {
+                return node.Key;
+            }
+            
+            // KEY 타입 노드는 GetKey 메서드로 키를 가져옴
+            if (node.NodeType == SchemeNode.SchemeNodeType.KEY)
+            {
+                return node.GetKey(row);
+            }
+            
+            // 노드에 키가 지정된 자식이 있는 경우 (MAP, ARRAY 타입에서 사용)
+            var keyChild = node.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.KEY);
+            if (keyChild != null)
+            {
+                return keyChild.GetKey(row);
+            }
+            
+            // 스키마 이름이 있으면 키로 사용
+            if (!string.IsNullOrEmpty(node.SchemeName))
+            {
+                return node.SchemeName;
+            }
+            
+            return string.Empty;
+        }
+        
+        // 문자열 값 포맷
+        private object FormatStringValue(object value)
+        {
+            if (value == null)
+                return null;
+                
+            string strValue = value.ToString();
+            if (string.IsNullOrEmpty(strValue))
+                return strValue;
+                
+            // 개행 문자 포함 여부 확인 및 처리
+            if (strValue.Contains('\n') || strValue.Contains('\r'))
+            {
+                // 개행 문자가 이미 이스케이프되어 있는지 확인
+                if (!strValue.Contains("\\n") && !strValue.Contains("\\r"))
+                {
+                    // 새 줄 문자를 이스케이프 처리하지 않고 보존하면
+                    // YAML에서 자동으로 블록 스타일을 적용하므로 그대로 반환
+                    return strValue;
                 }
             }
             
-            return result;
+            return strValue;
         }
         
-        private void AddChildProperties(SchemeNode node, YamlObject parent, IXLRow row)
-        {
-            foreach (var child in node.Children)
-            {
-                string key = GetNodeKey(child, row);
-                if (string.IsNullOrEmpty(key)) continue;
-                
-                // PROPERTY 노드 처리
-                if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
-                {
-                    object value = child.GetValue(row);
-                    if (value != null && !string.IsNullOrEmpty(value.ToString()))
-                    {
-                        parent.Add(key, value);
-                    }
-                }
-                // MAP 노드 처리
-                else if (child.NodeType == SchemeNode.SchemeNodeType.MAP)
-                {
-                    YamlObject childMap = OrderedYamlFactory.CreateObject();
-                    AddChildProperties(child, childMap, row);
-                    if (childMap.HasValues)
-                    {
-                        parent.Add(key, childMap);
-                    }
-                }
-                // ARRAY 노드 처리
-                else if (child.NodeType == SchemeNode.SchemeNodeType.ARRAY)
-                {
-                    YamlArray childArray = ProcessArrayItems(child, row);
-                    if (childArray.HasValues)
-                    {
-                        parent.Add(key, childArray);
-                    }
-                }
-            }
-        }
-        
-        private string GetNodeKey(SchemeNode node, IXLRow row)
-        {
-            string key = node.Key;
-            if (node.IsKeyProvidable)
-            {
-                string rowKey = node.GetKey(row);
-                if (!string.IsNullOrEmpty(rowKey))
-                {
-                    key = rowKey;
-                }
-            }
-            return key;
-        }
-        
+        // 빈 속성 제거
         private bool RemoveEmptyAttributes(object arg)
         {
             bool valueExist = false;
@@ -556,57 +426,6 @@ namespace ExcelToJsonAddin.Core
             }
             
             return valueExist;
-        }
-
-        /// <summary>
-        /// 문자열 값을 YAML 형식에 맞게 처리합니다.
-        /// 한글이 포함된 경우와 개행 문자가 있는 경우를 처리합니다.
-        /// </summary>
-        /// <param name="value">처리할 문자열 값</param>
-        /// <returns>처리된 문자열 값</returns>
-        private object FormatStringValue(object value)
-        {
-            if (value == null)
-                return null;
-                
-            string strValue = value.ToString();
-            if (string.IsNullOrEmpty(strValue))
-                return strValue;
-                
-            // 개행 문자 포함 여부 확인 및 처리
-            if (strValue.Contains('\n') || strValue.Contains('\r'))
-            {
-                // 개행 문자가 이미 이스케이프되어 있는지 확인
-                if (!strValue.Contains("\\n") && !strValue.Contains("\\r"))
-                {
-                    // 새 줄 문자를 이스케이프 처리하지 않고 보존하면
-                    // YAML에서 자동으로 블록 스타일을 적용하므로 그대로 반환
-                    return strValue;
-                }
-            }
-            
-            return strValue;
-        }
-
-        // YAML 객체 생성을 위한 메서드
-        public object ProcessRootNode()
-        {
-            SchemeNode rootNode = _scheme.Root;
-            Logger.Debug("루트 노드 처리: 타입={0}", rootNode.NodeType);
-            
-            if (rootNode.NodeType == SchemeNode.SchemeNodeType.MAP)
-            {
-                return ProcessMapNode(rootNode);
-            }
-            else if (rootNode.NodeType == SchemeNode.SchemeNodeType.ARRAY)
-            {
-                return ProcessArrayNode(rootNode);
-            }
-            else
-            {
-                Logger.Warning("지원하지 않는 루트 노드 타입: {0}", rootNode.NodeType);
-                return OrderedYamlFactory.CreateObject(); // 기본 빈 객체 반환
-            }
         }
     }
 } 

@@ -321,22 +321,35 @@ namespace ExcelToJsonAddin.Config
                     LazyLoadSheetPaths()[workbookKey] = new Dictionary<string, SheetPathInfo>();
                 }
 
-                // 해당 시트 항목이 없으면 생성
+                // 해당 시트 항목이 없으면 생성 - 활성화 상태를 자동으로 변경하지 않음
+                bool currentEnabled = false; // 기본값은 비활성화
                 if (!LazyLoadSheetPaths()[workbookKey].ContainsKey(sheetName))
                 {
-                    LazyLoadSheetPaths()[workbookKey][sheetName] = new SheetPathInfo();
+                    LazyLoadSheetPaths()[workbookKey][sheetName] = new SheetPathInfo 
+                    {
+                        SavePath = "",
+                        Enabled = false, // 시트를 새로 추가할 때는 기본적으로 비활성화 상태로 설정
+                        YamlEmptyFields = false
+                    };
+                    Debug.WriteLine($"[SetSheetPathInternal] 시트 '{sheetName}'이 사전에 없어 새로 생성했으며 기본적으로 비활성화 상태로 설정");
+                }
+                else
+                {
+                    // 기존 활성화 상태 유지
+                    currentEnabled = LazyLoadSheetPaths()[workbookKey][sheetName].Enabled;
+                    Debug.WriteLine($"[SetSheetPathInternal] 시트 '{sheetName}'의 기존 활성화 상태({currentEnabled})를 유지합니다");
                 }
 
-                // 경로 설정
+                // 경로 설정 - 활성화 상태는 변경하지 않음
                 if (path != null)
                 {
                     LazyLoadSheetPaths()[workbookKey][sheetName].SavePath = path;
-                    Debug.WriteLine($"[SetSheetPathInternal] 시트 경로 설정됨: workbookKey='{workbookKey}', sheetName='{sheetName}', path='{path}'");
+                    Debug.WriteLine($"[SetSheetPathInternal] 시트 경로 설정됨: workbookKey='{workbookKey}', sheetName='{sheetName}', path='{path}', 활성화 상태: {LazyLoadSheetPaths()[workbookKey][sheetName].Enabled}");
                 }
                 else
                 {
                     LazyLoadSheetPaths()[workbookKey][sheetName].SavePath = "";
-                    Debug.WriteLine($"[SetSheetPathInternal] 시트 경로 초기화됨: workbookKey='{workbookKey}', sheetName='{sheetName}'");
+                    Debug.WriteLine($"[SetSheetPathInternal] 시트 경로 초기화됨: workbookKey='{workbookKey}', sheetName='{sheetName}', 활성화 상태: {LazyLoadSheetPaths()[workbookKey][sheetName].Enabled}");
                 }
 
                 return true;
@@ -588,35 +601,31 @@ namespace ExcelToJsonAddin.Config
         }
 
         // 특정 워크북의 시트에 대한 활성화 상태 설정
-        public void SetSheetEnabled(string sheetName, bool enabled)
-        {
-            if (string.IsNullOrEmpty(_currentWorkbookPath))
-            {
-                Debug.WriteLine("[SheetPathManager] SetSheetEnabled: 현재 워크북이 설정되지 않음");
-                return;
-            }
-
-            string workbookName = Path.GetFileName(_currentWorkbookPath);
-            Debug.WriteLine($"[SheetPathManager] SetSheetEnabled 호출: 워크북={_currentWorkbookPath}, 시트={sheetName}, Enabled={enabled}");
-
-            // 파일명과 전체 경로로 모두 업데이트
-            SetSheetEnabledInternal(workbookName, sheetName, enabled);
-            SetSheetEnabledInternal(_currentWorkbookPath, sheetName, enabled);
-            
-            // 활성화 상태 변경 후 즉시 저장
-            SaveSheetPaths();
-        }
-
-        /// <summary>
-        /// 특정 워크북의 시트에 대한 활성화 상태를 설정합니다. (오버로드)
-        /// </summary>
-        /// <param name="workbookName">워크북 경로 또는 이름</param>
-        /// <param name="sheetName">시트 이름</param>
-        /// <param name="enabled">활성화 여부</param>
         public void SetSheetEnabled(string workbookName, string sheetName, bool enabled)
         {
             Debug.WriteLine($"[SheetPathManager] SetSheetEnabled 오버로드 호출: 워크북={workbookName}, 시트={sheetName}, Enabled={enabled}");
             SetSheetEnabledInternal(workbookName, sheetName, enabled);
+            
+            // 변경 후 즉시 저장하여 설정이 유지되도록 함
+            Debug.WriteLine($"[SheetPathManager] SetSheetEnabled 후 즉시 SaveSettings 호출");
+            SaveSettings();
+        }
+
+        // 현재 워크북의 시트에 대한 활성화 상태 설정 (오버로드)
+        public void SetSheetEnabled(string sheetName, bool enabled)
+        {
+            // 현재 워크북 이름 가져오기
+            string currentWorkbook = _currentWorkbookPath;
+            if (string.IsNullOrEmpty(currentWorkbook))
+            {
+                Debug.WriteLine($"[SheetPathManager] 경고: 현재 워크북 경로가 없습니다. 시트={sheetName}, Enabled={enabled}");
+                return;
+            }
+            
+            Debug.WriteLine($"[SheetPathManager] SetSheetEnabled(2-param) 호출: 현재 워크북={currentWorkbook}, 시트={sheetName}, Enabled={enabled}");
+            
+            // 3-parameter 오버로드 호출
+            SetSheetEnabled(currentWorkbook, sheetName, enabled);
         }
 
         // 특정 워크북의 시트에 대한 활성화 상태 설정 (내부용)
@@ -651,6 +660,18 @@ namespace ExcelToJsonAddin.Config
                 // 기존 시트 정보가 있으면 활성화 상태만 업데이트
                 LazyLoadSheetPaths()[workbookName][sheetName].Enabled = enabled;
                 Debug.WriteLine($"[SetSheetEnabledInternal] 시트 '{sheetName}'의 활성화 상태 업데이트: {enabled}");
+            }
+            
+            // 활성화 상태 저장 후 사전 내용 출력
+            Debug.WriteLine($"[SetSheetEnabledInternal] 워크북 '{workbookName}'의 시트 '{sheetName}' 저장 후 상태:");
+            if (LazyLoadSheetPaths().ContainsKey(workbookName) && LazyLoadSheetPaths()[workbookName].ContainsKey(sheetName))
+            {
+                var info = LazyLoadSheetPaths()[workbookName][sheetName];
+                Debug.WriteLine($"[SetSheetEnabledInternal] 경로='{info.SavePath}', 활성화={info.Enabled}, YAML빈필드={info.YamlEmptyFields}");
+            }
+            else
+            {
+                Debug.WriteLine($"[SetSheetEnabledInternal] 사전에서 항목을 찾을 수 없음");
             }
         }
 
@@ -876,27 +897,55 @@ namespace ExcelToJsonAddin.Config
         // 특정 시트의 경로 정보 삭제
         public void RemoveSheetPath(string workbookName, string sheetName)
         {
-            if (string.IsNullOrEmpty(workbookName) ||
-                !LazyLoadSheetPaths().ContainsKey(workbookName) ||
-                !LazyLoadSheetPaths()[workbookName].ContainsKey(sheetName))
+            Debug.WriteLine($"[RemoveSheetPath] 호출 시작: 워크북='{workbookName}', 시트='{sheetName}'");
+            if (string.IsNullOrEmpty(workbookName) || string.IsNullOrEmpty(sheetName))
             {
+                Debug.WriteLine($"[RemoveSheetPath] 오류: 워크북이나 시트 이름이 비어 있음");
                 return;
             }
 
+            if (!LazyLoadSheetPaths().ContainsKey(workbookName))
+            {
+                Debug.WriteLine($"[RemoveSheetPath] 오류: 워크북 '{workbookName}'을 찾을 수 없음");
+                return;
+            }
+
+            if (!LazyLoadSheetPaths()[workbookName].ContainsKey(sheetName))
+            {
+                Debug.WriteLine($"[RemoveSheetPath] 오류: 워크북 '{workbookName}'에서 시트 '{sheetName}'을 찾을 수 없음");
+                return;
+            }
+
+            Debug.WriteLine($"[RemoveSheetPath] 워크북 '{workbookName}'에서 시트 '{sheetName}' 제거");
             LazyLoadSheetPaths()[workbookName].Remove(sheetName);
+            Debug.WriteLine($"[RemoveSheetPath] 제거 완료");
         }
 
         // 기존 메서드도 남겨두기 (호환성을 위해)
         public void RemoveSheetPath(string sheetName)
         {
-            if (string.IsNullOrEmpty(_currentWorkbookPath) ||
-                !LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath) ||
-                !LazyLoadSheetPaths()[_currentWorkbookPath].ContainsKey(sheetName))
+            Debug.WriteLine($"[RemoveSheetPath] 현재 워크북에서 시트 '{sheetName}' 제거 시도");
+            if (string.IsNullOrEmpty(_currentWorkbookPath))
             {
+                Debug.WriteLine($"[RemoveSheetPath] 오류: 현재 워크북이 설정되지 않음");
+                return;
+            }
+            
+            if (!LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath))
+            {
+                Debug.WriteLine($"[RemoveSheetPath] 오류: 현재 워크북 '{_currentWorkbookPath}'을 찾을 수 없음");
+                return;
+            }
+            
+            if (!LazyLoadSheetPaths()[_currentWorkbookPath].ContainsKey(sheetName))
+            {
+                Debug.WriteLine($"[RemoveSheetPath] 오류: 현재 워크북 '{_currentWorkbookPath}'에서 시트 '{sheetName}'을 찾을 수 없음");
                 return;
             }
 
+            Debug.WriteLine($"[RemoveSheetPath] 현재 워크북 '{_currentWorkbookPath}'에서 시트 '{sheetName}' 제거");
             LazyLoadSheetPaths()[_currentWorkbookPath].Remove(sheetName);
+            Debug.WriteLine($"[RemoveSheetPath] 제거 완료 및 설정 저장");
             SaveSheetPaths();
         }
 
@@ -907,65 +956,83 @@ namespace ExcelToJsonAddin.Config
         {
             try
             {
-                // 설정 디렉토리가 없으면 생성
-                if (!Directory.Exists(GetSettingsDirectory()))
-                {
-                    Directory.CreateDirectory(GetSettingsDirectory());
-                    Debug.WriteLine($"[SaveSheetPaths] 설정 디렉토리 생성: {GetSettingsDirectory()}");
-                }
-
-                List<SheetPathData> allPaths = new List<SheetPathData>();
-                Debug.WriteLine($"[SaveSheetPaths] 저장 시작: 워크북 수={LazyLoadSheetPaths().Count}");
-
-                // 모든 워크북에 대해 반복
-                foreach (var workbookEntry in LazyLoadSheetPaths())
-                {
-                    string workbookKey = workbookEntry.Key;
-                    
-                    // OneDrive URL이면 정규화 적용
-                    if (IsOneDrivePath(workbookKey))
-                    {
-                        workbookKey = NormalizeWorkbookPath(workbookKey);
-                    }
-                    
-                    Dictionary<string, SheetPathInfo> sheetInfos = workbookEntry.Value;
-                    Debug.WriteLine($"[SaveSheetPaths] 워크북 '{workbookKey}': 시트 수={sheetInfos.Count}");
-
-                    // 각 워크북의 모든 시트에 대해 반복
-                    foreach (var sheetEntry in sheetInfos)
-                    {
-                        string sheetName = sheetEntry.Key;
-                        SheetPathInfo info = sheetEntry.Value;
-
-                        if (info != null) 
-                        {
-                            SheetPathData data = new SheetPathData()
-                            {
-                                WorkbookPath = workbookKey,
-                                SheetName = sheetName, 
-                                SavePath = info.SavePath,
-                                Enabled = info.Enabled
-                            };
-                            
-                            // XML에는 기본 설정만 저장 (YAML 관련 설정은 Excel에 저장)
-                            // info.YamlEmptyFields는 Excel에 저장되므로 여기에 포함하지 않음
-                            
-                            allPaths.Add(data);
-                            Debug.WriteLine($"[SaveSheetPaths] 추가: 워크북='{workbookKey}', 시트='{sheetName}', 경로='{info.SavePath}', 활성화={info.Enabled}");
-                        }
-                    }
-                }
-
-                // 직렬화 설정
-                XmlSerializer serializer = new XmlSerializer(typeof(List<SheetPathData>));
+                Debug.WriteLine($"[SaveSheetPaths] 시트 경로 설정 저장 시작");
                 
-                // XML 파일에 저장
+                // 설정 디렉토리가 없으면 생성
+                string settingsDir = GetSettingsDirectory();
+                if (!Directory.Exists(settingsDir))
+                {
+                    Debug.WriteLine($"[SaveSheetPaths] 설정 디렉토리 생성: {settingsDir}");
+                    Directory.CreateDirectory(settingsDir);
+                }
+
+                // 중복 데이터 방지를 위한 사전 - 시트이름을 키로 사용
+                Dictionary<string, SheetPathData> uniqueEntries = new Dictionary<string, SheetPathData>();
+                
+                // 데이터 변환 및 디버깅 출력
+                foreach (var workbook in LazyLoadSheetPaths())
+                {
+                    string workbookKey = workbook.Key;
+                    bool isFullPath = workbookKey.Contains("/") || workbookKey.Contains("\\") || workbookKey.Contains(":");
+                    string fileName = isFullPath ? Path.GetFileName(workbookKey) : workbookKey;
+                    
+                    Debug.WriteLine($"[SaveSheetPaths] 워크북 '{workbookKey}' 처리 중 ({workbook.Value.Count}개 시트)");
+                    Debug.WriteLine($"[SaveSheetPaths] 워크북 타입: {(isFullPath ? "전체 경로" : "파일명")}, 파일명: {fileName}");
+                    
+                    foreach (var sheet in workbook.Value)
+                    {
+                        var sheetName = sheet.Key;
+                        var sheetInfo = sheet.Value;
+                        
+                        // 이미 이 시트가 등록되어 있고, 현재 항목이 파일명만 사용한 경우 우선 등록
+                        string uniqueKey = sheetName; // 시트 이름을 키로 사용
+                        
+                        if (uniqueEntries.ContainsKey(uniqueKey))
+                        {
+                            // 이미 등록된 항목이 파일명이고 현재 항목이 전체 경로인 경우 건너뜀
+                            if (!isFullPath && uniqueEntries[uniqueKey].WorkbookPath.Contains("/"))
+                            {
+                                Debug.WriteLine($"[SaveSheetPaths] 시트 '{sheetName}'는 이미 전체 경로 항목이 등록되어 있어 파일명 항목은 무시합니다.");
+                                continue;
+                            }
+                            
+                            // 이미 등록된 항목이 전체 경로이고 현재 항목이 파일명인 경우 덮어씀
+                            if (isFullPath)
+                            {
+                                Debug.WriteLine($"[SaveSheetPaths] 시트 '{sheetName}'의 기존 항목을 전체 경로 항목으로 교체합니다.");
+                            }
+                        }
+                        
+                        // 새 항목 생성
+                        SheetPathData pathData = new SheetPathData
+                        {
+                            // 항상 파일명만 저장하여 중복 방지
+                            WorkbookPath = fileName,
+                            SheetName = sheetName,
+                            SavePath = sheetInfo.SavePath,
+                            Enabled = sheetInfo.Enabled,
+                            YamlEmptyFields = sheetInfo.YamlEmptyFields,
+                            MergeKeyPaths = "", // XML에는 저장하지 않음
+                            FlowStyleConfig = "" // XML에는 저장하지 않음
+                        };
+                        
+                        uniqueEntries[uniqueKey] = pathData;
+                        Debug.WriteLine($"[SaveSheetPaths] 저장할 항목: 워크북='{fileName}', 시트='{sheetName}', 경로='{sheetInfo.SavePath}', 활성화={sheetInfo.Enabled}");
+                    }
+                }
+
+                // 중복 제거된 항목을 리스트로 변환
+                List<SheetPathData> pathsToSave = uniqueEntries.Values.ToList();
+                Debug.WriteLine($"[SaveSheetPaths] 총 {pathsToSave.Count}개 항목 저장 준비 완료 (중복 제거 후)");
+                
+                // XML로 직렬화하여 저장
+                XmlSerializer serializer = new XmlSerializer(typeof(List<SheetPathData>));
                 using (StreamWriter writer = new StreamWriter(GetSettingsFilePath()))
                 {
-                    serializer.Serialize(writer, allPaths);
+                    serializer.Serialize(writer, pathsToSave);
                 }
 
-                Debug.WriteLine($"[SaveSheetPaths] 시트 경로 설정이 저장되었습니다: {GetSettingsFilePath()}, 총 항목 수: {allPaths.Count}");
+                Debug.WriteLine($"[SaveSheetPaths] 설정 파일에 저장 완료: {GetSettingsFilePath()}");
             }
             catch (Exception ex)
             {
@@ -976,7 +1043,9 @@ namespace ExcelToJsonAddin.Config
         // 외부에서 접근 가능한 설정 저장 메서드
         public void SaveSettings()
         {
+            Debug.WriteLine($"[SaveSettings] 설정 저장 시작");
             SaveSheetPaths();
+            Debug.WriteLine($"[SaveSettings] 설정 저장 완료");
         }
 
         // 설정 파일 로드
@@ -984,94 +1053,126 @@ namespace ExcelToJsonAddin.Config
         {
             try
             {
-                if (File.Exists(GetSettingsFilePath()))
+                _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
+                string settingsPath = GetSettingsFilePath();
+                
+                if (!File.Exists(settingsPath))
                 {
-                    Debug.WriteLine($"[LoadSheetPaths] 시트 경로 설정 파일 로드 시작: {GetSettingsFilePath()}");
-                    XmlSerializer serializer = new XmlSerializer(typeof(List<SheetPathData>));
-                    List<SheetPathData> loadedPaths;
+                    Debug.WriteLine($"[LoadSheetPaths] 설정 파일이 존재하지 않습니다: {settingsPath}");
+                    return;
+                }
+                
+                Debug.WriteLine($"[LoadSheetPaths] 설정 파일 로드 시작: {settingsPath}");
+                
+                List<SheetPathData> loadedPaths = null;
+                XmlSerializer serializer = new XmlSerializer(typeof(List<SheetPathData>));
+                
+                using (StreamReader reader = new StreamReader(settingsPath))
+                {
+                    loadedPaths = (List<SheetPathData>)serializer.Deserialize(reader);
+                }
+                
+                if (loadedPaths == null)
+                {
+                    Debug.WriteLine($"[LoadSheetPaths] 설정 파일에서 로드된 데이터가 없습니다.");
+                    return;
+                }
 
-                    using (StreamReader reader = new StreamReader(GetSettingsFilePath()))
-                    {
-                        loadedPaths = (List<SheetPathData>)serializer.Deserialize(reader);
-                    }
-
-                    Debug.WriteLine($"[LoadSheetPaths] 로드된 항목 수: {loadedPaths.Count}");
-
-                    // 로드된 데이터를 딕셔너리에 추가
-                    foreach (var pathData in loadedPaths)
-                    {
-                        // 워크북 경로가 없으면 건너뜀
-                        if (string.IsNullOrEmpty(pathData.WorkbookPath))
-                        {
-                            Debug.WriteLine("[LoadSheetPaths] 워크북 경로가 없는 항목 발견, 건너뜀");
-                            continue;
-                        }
-
-                        // 시트 이름이 없으면 건너뜀
-                        if (string.IsNullOrEmpty(pathData.SheetName))
-                        {
-                            Debug.WriteLine($"[LoadSheetPaths] 시트 이름이 없는 항목 발견, 워크북: {pathData.WorkbookPath}, 건너뜀");
-                            continue;
-                        }
-
-                        // 워크북 경로 정규화
-                        string normalizedPath = NormalizeWorkbookPath(pathData.WorkbookPath);
+                Debug.WriteLine($"[LoadSheetPaths] 로드된 항목 수: {loadedPaths.Count}");
+                
+                // 시트 이름별 중복 제거를 위한 사전
+                Dictionary<string, SheetPathData> uniqueEntries = new Dictionary<string, SheetPathData>();
+                
+                // 첫 번째 패스: 중복 엔트리 처리
+                foreach (SheetPathData pathData in loadedPaths)
+                {
+                    string sheetName = pathData.SheetName;
+                    
+                    // 워크북 경로가 파일명인지 전체 경로인지 확인
+                    bool isFullPath = pathData.WorkbookPath.Contains("/") || 
+                                      pathData.WorkbookPath.Contains("\\") || 
+                                      pathData.WorkbookPath.Contains(":");
+                                      
+                    // 항상 파일명 부분만 추출
+                    string fileName = isFullPath ? 
+                        Path.GetFileName(pathData.WorkbookPath) : 
+                        pathData.WorkbookPath;
                         
-                        // 워크북 항목이 없으면 생성
-                        if (!_sheetPaths.ContainsKey(normalizedPath))
-                        {
-                            _sheetPaths[normalizedPath] = new Dictionary<string, SheetPathInfo>();
-                            Debug.WriteLine($"[LoadSheetPaths] 워크북 '{normalizedPath}'에 대한 새 사전 생성");
-                        }
-
-                        // 시트 정보 생성
-                        SheetPathInfo info = new SheetPathInfo
-                        {
-                            SavePath = pathData.SavePath ?? "",
-                            Enabled = pathData.Enabled,
-                            YamlEmptyFields = pathData.YamlEmptyFields
-                        };
-
-                        // 시트 정보 추가
-                        _sheetPaths[normalizedPath][pathData.SheetName] = info;
-                        Debug.WriteLine($"[LoadSheetPaths] 시트 경로 추가: 워크북='{normalizedPath}', 시트='{pathData.SheetName}', 경로='{info.SavePath}', 활성화={info.Enabled}");
-
-                        // 파일명만으로도 추가 (중복 방지를 위해 파일명이 이미 키로 존재하는지 확인)
-                        string fileName = Path.GetFileName(pathData.WorkbookPath);
-                        if (!string.IsNullOrEmpty(fileName))
-                        {
-                            // 파일명 항목이 없으면 생성
-                            if (!_sheetPaths.ContainsKey(fileName))
-                            {
-                                _sheetPaths[fileName] = new Dictionary<string, SheetPathInfo>();
-                                Debug.WriteLine($"[LoadSheetPaths] 파일명 '{fileName}'에 대한 새 사전 생성");
-                            }
-
-                            // 시트 정보 복제
-                            _sheetPaths[fileName][pathData.SheetName] = new SheetPathInfo
-                            {
-                                SavePath = info.SavePath,
-                                Enabled = info.Enabled,
-                                YamlEmptyFields = info.YamlEmptyFields
-                            };
-                            Debug.WriteLine($"[LoadSheetPaths] 파일명으로 시트 경로 추가: 파일명='{fileName}', 시트='{pathData.SheetName}', 경로='{info.SavePath}', 활성화={info.Enabled}");
-                        }
-                    }
-
-                    Debug.WriteLine($"[LoadSheetPaths] 시트 경로 설정 로드 완료: 워크북 수={_sheetPaths.Count}");
-                    foreach (var wb in _sheetPaths.Keys)
+                    // 중복 항목이 있는 경우 처리
+                    if (uniqueEntries.ContainsKey(sheetName))
                     {
-                        Debug.WriteLine($"[LoadSheetPaths] 로드된 워크북: {wb}, 시트 수: {_sheetPaths[wb].Count}");
+                        // 이미 등록된 항목의 워크북 경로가 파일명인지 확인
+                        bool existingIsFullPath = uniqueEntries[sheetName].WorkbookPath.Contains("/") || 
+                                                 uniqueEntries[sheetName].WorkbookPath.Contains("\\") || 
+                                                 uniqueEntries[sheetName].WorkbookPath.Contains(":");
+                                                 
+                        // 기존 파일명 항목이 있고 현재 전체 경로인 경우, 전체 경로 우선
+                        if (isFullPath && !existingIsFullPath)
+                        {
+                            Debug.WriteLine($"[LoadSheetPaths] 시트 '{sheetName}'에 대해 전체 경로 항목으로 교체합니다.");
+                            uniqueEntries[sheetName] = pathData;
+                        }
+                        else if (!isFullPath && existingIsFullPath)
+                        {
+                            // 현재 항목이 파일명이고 기존 항목이 전체 경로인 경우, 기존 항목 유지
+                            Debug.WriteLine($"[LoadSheetPaths] 시트 '{sheetName}'에 대해 기존 전체 경로 항목을 유지합니다.");
+                            continue;
+                        }
+                        else
+                        {
+                            // 둘 다 같은 타입이면 나중에 로드된 항목(현재 항목) 사용
+                            Debug.WriteLine($"[LoadSheetPaths] 시트 '{sheetName}'에 대해 중복 항목을 교체합니다.");
+                            uniqueEntries[sheetName] = pathData;
+                        }
+                    }
+                    else
+                    {
+                        // 새 항목 추가
+                        uniqueEntries[sheetName] = pathData;
                     }
                 }
-                else
+                
+                // 두 번째 패스: 정리된 데이터를 _sheetPaths에 로드
+                foreach (var entry in uniqueEntries.Values)
                 {
-                    Debug.WriteLine($"[LoadSheetPaths] 시트 경로 설정 파일이 존재하지 않습니다: {GetSettingsFilePath()}");
+                    string workbookPath = entry.WorkbookPath;
+                    string sheetName = entry.SheetName;
+                    
+                    // 워크북 경로 정규화
+                    bool isFullPath = workbookPath.Contains("/") || 
+                                     workbookPath.Contains("\\") || 
+                                     workbookPath.Contains(":");
+                                     
+                    // 파일명만 저장하여 중복 방지
+                    string normalizedWorkbookPath = isFullPath ? 
+                        Path.GetFileName(workbookPath) : 
+                        workbookPath;
+                    
+                    if (!_sheetPaths.ContainsKey(normalizedWorkbookPath))
+                    {
+                        _sheetPaths[normalizedWorkbookPath] = new Dictionary<string, SheetPathInfo>();
+                    }
+                    
+                    _sheetPaths[normalizedWorkbookPath][sheetName] = new SheetPathInfo
+                    {
+                        SavePath = entry.SavePath,
+                        Enabled = entry.Enabled,
+                        YamlEmptyFields = entry.YamlEmptyFields
+                    };
+                    
+                    Debug.WriteLine($"[LoadSheetPaths] 로드된 항목: 워크북='{normalizedWorkbookPath}', 시트='{sheetName}', 경로='{entry.SavePath}', 활성화={entry.Enabled}");
                 }
+                
+                // 로드 후 데이터를 저장하여 중복 제거
+                Debug.WriteLine($"[LoadSheetPaths] 중복 제거 후 다시 저장합니다.");
+                SaveSheetPaths();
+                
+                Debug.WriteLine($"[LoadSheetPaths] 설정 로드 완료. 총 {_sheetPaths.Count}개 워크북, {uniqueEntries.Count}개 시트 로드됨.");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[LoadSheetPaths] 시트 경로 설정 로드 중 오류 발생: {ex.Message}\n{ex.StackTrace}");
+                Debug.WriteLine($"[LoadSheetPaths] 설정 로드 중 오류 발생: {ex.Message}\n{ex.StackTrace}");
+                _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
             }
         }
 
@@ -1093,54 +1194,35 @@ namespace ExcelToJsonAddin.Config
         {
             try
             {
-                // 설정 디렉토리가 없으면 생성
-                string settingsDirectory = GetSettingsDirectory();
-                if (!Directory.Exists(settingsDirectory))
+                Debug.WriteLine($"[Initialize] SheetPathManager 초기화 시작");
+                
+                // 설정 디렉토리 생성
+                string settingsDir = GetSettingsDirectory();
+                if (!Directory.Exists(settingsDir))
                 {
-                    Directory.CreateDirectory(settingsDirectory);
-                    Debug.WriteLine($"[Initialize] 설정 디렉토리 생성: {settingsDirectory}");
+                    Debug.WriteLine($"[Initialize] 설정 디렉토리 생성: {settingsDir}");
+                    Directory.CreateDirectory(settingsDir);
                 }
                 
-                // 설정 파일 로드
-                LoadSheetPaths();
-                Debug.WriteLine("[Initialize] 시트 경로 설정 로드 완료");
-                
-                // 현재 워크북이 설정되어 있으면 출력
-                if (!string.IsNullOrEmpty(_currentWorkbookPath))
+                // 설정 파일이 없으면 생성
+                string settingsPath = GetSettingsFilePath();
+                if (!File.Exists(settingsPath))
                 {
-                    Debug.WriteLine($"[Initialize] 현재 워크북 경로: {_currentWorkbookPath}");
+                    Debug.WriteLine($"[Initialize] 설정 파일이 없어 새로 생성합니다: {settingsPath}");
+                    SaveSheetPaths();
+                }
+                else
+                {
+                    // 설정 파일이 있으면 로드하여 중복 항목 정리
+                    Debug.WriteLine($"[Initialize] 기존 설정 파일이 있어 중복 항목을 정리합니다: {settingsPath}");
+                    LoadSheetPaths(); // 로드 후 자동으로 중복 제거 및 저장됨
                 }
                 
-                // 현재 로드된 워크북 정보 출력
-                string fileName = !string.IsNullOrEmpty(_currentWorkbookPath) ? Path.GetFileName(_currentWorkbookPath) : "";
-                
-                Debug.WriteLine($"[Initialize] 현재 로드된 워크북 수: {LazyLoadSheetPaths().Count}");
-                foreach (var wb in LazyLoadSheetPaths().Keys)
-                {
-                    Debug.WriteLine($"[Initialize] 워크북: {wb}, 시트 수: {LazyLoadSheetPaths()[wb].Count}");
-                    
-                    // 현재 워크북이거나 같은 파일명이면 시트 정보도 출력
-                    if (wb == _currentWorkbookPath || 
-                        (!string.IsNullOrEmpty(fileName) && Path.GetFileName(wb) == fileName))
-                    {
-                        DumpSheetInfo(LazyLoadSheetPaths()[wb]);
-                    }
-                }
-                
-                // 설정 저장 (데이터 동기화 및 정합성 유지)
-                SaveSettings();
-                Debug.WriteLine("[Initialize] 설정 저장 완료");
+                Debug.WriteLine($"[Initialize] SheetPathManager 초기화 완료");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Initialize] 오류 발생: {ex.Message}");
-                
-                // 설정 초기화 실패시 기본 빈 사전으로 초기화
-                if (_sheetPaths == null)
-                {
-                    _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
-                    Debug.WriteLine("[Initialize] 오류로 인해 빈 사전으로 초기화");
-                }
+                Debug.WriteLine($"[Initialize] 초기화 중 오류 발생: {ex.Message}");
             }
         }
 
@@ -1507,17 +1589,17 @@ namespace ExcelToJsonAddin.Config
     public class SheetPathInfo
     {
         /// <summary>
-        /// 시트의 저장 경로
+        /// 저장 경로
         /// </summary>
         public string SavePath { get; set; } = "";
-
+        
         /// <summary>
         /// 활성화 여부
         /// </summary>
-        public bool Enabled { get; set; } = true;
-
+        public bool Enabled { get; set; } = false; // 기본값을 false로 변경
+        
         /// <summary>
-        /// YAML 선택적 필드 처리 여부 (더 이상 XML에 저장되지 않음, ExcelConfigManager에서 관리)
+        /// YAML 빈 필드 처리 옵션
         /// </summary>
         public bool YamlEmptyFields { get; set; } = false;
     }

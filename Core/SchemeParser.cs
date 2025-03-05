@@ -110,95 +110,19 @@ namespace ExcelToJsonAddin.Core
         {
             Logger.Information("Scheme parsing started");
 
-            // 처음부터 끝까지 모든 셀을 검사하여 스키마 구조 파악
-            SchemeNode rootNode = null;
-
-            // 스키마 시작 행부터 스키마 끝 행까지 검사
-            for (int rowNum = _schemeStartRow.RowNumber(); rowNum < _schemeEndRowNum; rowNum++)
-            {
-                IXLRow row = _sheet.Row(rowNum);
-                if (row == null || !row.CellsUsed().Any())
-                {
-                    continue;
-                }
-
-                // 첫 번째 유효한 행에서 루트 노드 생성 시도
-                if (rootNode == null)
-                {
-                    // 첫 번째 셀 검사
-                    for (int cellNum = _firstCellNum; cellNum <= _lastCellNum; cellNum++)
-                    {
-                        IXLCell cell = row.Cell(cellNum);
-                        if (cell == null || cell.IsEmpty())
-                        {
-                            continue;
-                        }
-
-                        string value = cell.GetString();
-                        if (string.IsNullOrEmpty(value))
-                        {
-                            continue;
-                        }
-
-                        // 루트 노드 생성
-                        if (value.StartsWith("$"))
-                        {
-                            // 기본적으로 MAP 타입으로 설정
-                            Logger.Information($"Default MAP type root node created: value={value}");
-                            try
-                            {
-                                rootNode = new SchemeNode(_sheet, rowNum, cellNum, value.Contains("{}") ? value : value + "${}");
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.Error($"루트 노드 생성 중 오류: {ex.Message}");
-                                // 안전한 기본값으로 설정
-                                rootNode = new SchemeNode(_sheet, rowNum, cellNum, "${}");
-                            }
-                            break;
-                        }
-                        else
-                        {
-                            // 기본적으로 MAP 타입으로 설정
-                            Logger.Information($"Default MAP type root node created: value={value}");
-                            rootNode = new SchemeNode(_sheet, rowNum, cellNum, value + "${}");
-                            break;
-                        }
-                    }
-
-                    if (rootNode != null)
-                    {
-                        // 루트 노드를 찾았으므로 하위 구조 파싱
-                        Parse(rootNode, rowNum, _firstCellNum, _lastCellNum);
-                        break;
-                    }
-                }
-            }
-
-            // 루트 노드가 여전히 null이면 기본 ARRAY 노드 생성
+            // 자바 코드와 유사하게 단일 호출로 전체 파싱 처리
+            SchemeNode rootNode = Parse(null, _schemeStartRow.RowNumber(), _firstCellNum, _lastCellNum);
+            
             if (rootNode == null)
             {
                 Logger.Error("Root node is null. Creating default ARRAY node.");
                 try {
-                    Logger.Debug("ARRAY 형식의 루트 노드 생성 시도");
                     rootNode = new SchemeNode(_sheet, _schemeStartRow.RowNumber(), _firstCellNum, "$[]");
-                    Logger.Debug("ARRAY 형식의 루트 노드 생성 성공");
-                    // 추가로 루트 노드의 자식 노드를 파싱
-                    Parse(rootNode, _schemeStartRow.RowNumber(), _firstCellNum, _lastCellNum);
+                    Logger.Debug("기본 ARRAY 형식의 루트 노드 생성");
                 }
                 catch (Exception ex) {
                     Logger.Error("루트 노드 생성 중 오류: " + ex.Message);
-                    Logger.Error("예외 스택 트레이스: " + ex.StackTrace);
-                    // 안전한 기본값으로 설정
-                    try {
-                        Logger.Debug("기본 MAP 노드 생성 시도 (예외 복구)");
-                        rootNode = new SchemeNode(_sheet, _schemeStartRow.RowNumber(), _firstCellNum, "${}");
-                        Logger.Debug("기본 MAP 노드 생성 성공 (예외 복구)");
-                    }
-                    catch (Exception fallbackEx) {
-                        Logger.Error("기본 노드 생성 중 추가 오류: " + fallbackEx.Message);
-                        throw new Exception("스키마 파싱 중 복구할 수 없는 오류: " + ex.Message + ", 추가 오류: " + fallbackEx.Message, ex);
-                    }
+                    throw new InvalidOperationException("스키마 파싱 실패", ex);
                 }
             }
 
@@ -210,7 +134,8 @@ namespace ExcelToJsonAddin.Core
             };
 
             // 결과 로깅
-            Logger.Information($"Scheme parsing completed: root={rootNode.Key}, data start row={result.ContentStartRowNum}, end row={result.EndRowNum}");
+            Logger.Information($"Scheme parsing completed: root={rootNode.Key}, type={rootNode.NodeType}, data start row={result.ContentStartRowNum}, end row={result.EndRowNum}");
+            Logger.Debug($"Root node child count: {rootNode.ChildCount}");
 
             return result;
         }
@@ -221,7 +146,10 @@ namespace ExcelToJsonAddin.Core
 
             for (int cellNum = startCellNum; cellNum <= endCellNum; cellNum++)
             {
-                IXLCell cell = _sheet.Cell(rowNum, cellNum);
+                IXLRow currentRow = _sheet.Row(rowNum);
+                if (currentRow == null) continue;
+                
+                IXLCell cell = currentRow.Cell(cellNum);
 
                 if (cell == null || cell.IsEmpty())
                 {
@@ -245,10 +173,12 @@ namespace ExcelToJsonAddin.Core
                 }
                 else
                 {
+                    // 자바 코드와 유사하게 자식 노드 추가 처리
                     parent.AddChild(child);
                     child.SetParent(parent);
                     Logger.Debug($"Child node added: parent={parent.Key} ({parent.NodeType}), child={child.Key} ({child.NodeType})");
 
+                    // KEY 타입 노드 처리 - 즉시 다음 셀 처리로 이동
                     if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
                     {
                         cellNum++;
@@ -257,13 +187,16 @@ namespace ExcelToJsonAddin.Core
                     }
                 }
 
+                // 병합된 셀 영역 확인
                 List<IXLRange> mergedRegionsInRow = GetMergedRegionsInRow(rowNum);
 
+                // 컨테이너 타입 노드(MAP, ARRAY) 처리
                 if (child.IsContainer)
                 {
                     int firstCellInRange = cellNum;
                     int lastCellInRange = cellNum;
 
+                    // 병합된 셀 영역 확인
                     foreach (var region in mergedRegionsInRow)
                     {
                         if (region.Contains(cell))
@@ -275,13 +208,14 @@ namespace ExcelToJsonAddin.Core
                         }
                     }
 
-                    // 다음 행에서 자식 노드 파싱
+                    // 컨테이너 노드는 항상 다음 행에서 자식 파싱 수행
                     if (rowNum + 1 < _schemeEndRowNum)
                     {
+                        // 자바 코드와 유사하게 단순화된 호출로 변경
                         Parse(child, rowNum + 1, firstCellInRange, lastCellInRange);
                     }
 
-                    cellNum = lastCellInRange;
+                    cellNum = lastCellInRange; // 병합된 셀 영역 끝까지 이동
                 }
             }
 
