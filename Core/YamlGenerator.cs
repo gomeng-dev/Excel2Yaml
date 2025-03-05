@@ -153,7 +153,7 @@ namespace ExcelToJsonAddin.Core
                             object value = child.GetValue(row);
                             if (value != null && !string.IsNullOrEmpty(value.ToString()))
                             {
-                                rowObj.Add(key, value);
+                                rowObj.Add(key, FormatStringValue(value));
                                 hasValues = true;
                             }
                         }
@@ -176,6 +176,53 @@ namespace ExcelToJsonAddin.Core
                             {
                                 rowObj.Add(key, childArray);
                                 hasValues = true;
+                            }
+                        }
+                        // KEY 노드 처리 추가
+                        else if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
+                        {
+                            Logger.Debug($"ProcessArrayNode: KEY 노드 처리 - {key} (스키마 이름: {child.SchemeName})");
+                            string dynamicKey = child.GetKey(row);
+                            Logger.Debug($"ProcessArrayNode: 동적 키 값: '{dynamicKey}'");
+                            
+                            // KEY 노드에 대응하는 VALUE 노드 찾기
+                            SchemeNode valueNode = child.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.VALUE);
+                            if (valueNode != null)
+                            {
+                                object value = valueNode.GetValue(row);
+                                if (!string.IsNullOrEmpty(dynamicKey) && value != null && !string.IsNullOrEmpty(value.ToString()))
+                                {
+                                    Logger.Debug($"ProcessArrayNode: KEY-VALUE 쌍 추가 - {dynamicKey}={value}");
+                                    // 동적으로 생성된 키를 사용
+                                    rowObj.Add(dynamicKey, FormatStringValue(value));
+                                    hasValues = true;
+                                }
+                            }
+                            else
+                            {
+                                // VALUE 노드가 없는 경우 KEY 자체를 키로 사용
+                                if (!string.IsNullOrEmpty(dynamicKey))
+                                {
+                                    // 키만 있고 값이 없는 경우 빈 값을 추가
+                                    Logger.Debug($"ProcessArrayNode: 키만 추가 - {dynamicKey}");
+                                    rowObj.Add(dynamicKey, "");
+                                    hasValues = true;
+                                }
+                            }
+                        }
+                        // VALUE 노드 처리 (KEY의 자식이 아닌 경우)
+                        else if (child.NodeType == SchemeNode.SchemeNodeType.VALUE)
+                        {
+                            if (child.Parent == null || child.Parent.NodeType != SchemeNode.SchemeNodeType.KEY)
+                            {
+                                Logger.Debug($"ProcessArrayNode: 독립 VALUE 노드 처리 - {key}");
+                                object value = child.GetValue(row);
+                                if (value != null && !string.IsNullOrEmpty(value.ToString()))
+                                {
+                                    rowObj.Add(key, FormatStringValue(value));
+                                    hasValues = true;
+                                    Logger.Debug($"ProcessArrayNode: VALUE 값 추가 - {key}={value}");
+                                }
                             }
                         }
                     }
@@ -220,6 +267,52 @@ namespace ExcelToJsonAddin.Core
                                 }
                             }
                         }
+                        // KEY 노드 처리 추가 (키가 없는 경우)
+                        else if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
+                        {
+                            Logger.Debug($"ProcessArrayNode(key없음): KEY 노드 처리 - 스키마 이름: {child.SchemeName}");
+                            string dynamicKey = child.GetKey(row);
+                            Logger.Debug($"ProcessArrayNode(key없음): 동적 키 값: '{dynamicKey}'");
+                            
+                            if (!string.IsNullOrEmpty(dynamicKey))
+                            {
+                                // KEY 노드에 대응하는 VALUE 노드 찾기
+                                SchemeNode valueNode = child.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.VALUE);
+                                if (valueNode != null)
+                                {
+                                    object value = valueNode.GetValue(row);
+                                    if (value != null && !string.IsNullOrEmpty(value.ToString()))
+                                    {
+                                        Logger.Debug($"ProcessArrayNode(key없음): KEY-VALUE 쌍 추가 - {dynamicKey}={value}");
+                                        rowObj.Add(dynamicKey, FormatStringValue(value));
+                                        hasValues = true;
+                                    }
+                                }
+                                else
+                                {
+                                    // VALUE 노드가 없는 경우 빈 값으로 처리
+                                    Logger.Debug($"ProcessArrayNode(key없음): 키만 추가 - {dynamicKey}");
+                                    rowObj.Add(dynamicKey, "");
+                                    hasValues = true;
+                                }
+                            }
+                        }
+                        // VALUE 노드 처리 추가 (키가 없는 경우, KEY의 자식이 아닌 경우)
+                        else if (child.NodeType == SchemeNode.SchemeNodeType.VALUE)
+                        {
+                            if (child.Parent == null || child.Parent.NodeType != SchemeNode.SchemeNodeType.KEY)
+                            {
+                                Logger.Debug($"ProcessArrayNode(key없음): VALUE 노드 처리");
+                                object value = child.GetValue(row);
+                                if (value != null && !string.IsNullOrEmpty(value.ToString()))
+                                {
+                                    // 키가 없는 VALUE는 기본 키와 함께 추가
+                                    Logger.Debug($"ProcessArrayNode(key없음): VALUE 값 추가 - {value}");
+                                    rowObj.Add("value", FormatStringValue(value));
+                                    hasValues = true;
+                                }
+                            }
+                        }
                     }
                 }
                 
@@ -256,25 +349,59 @@ namespace ExcelToJsonAddin.Core
                             if (!string.IsNullOrEmpty(childKey))
                             {
                                 YamlObject childObj = OrderedYamlFactory.CreateObject();
-                                childObj.Add(childKey, value);
+                                childObj.Add(childKey, FormatStringValue(value));
                                 result.Add(childObj);
                             }
                             else
                             {
-                                result.Add(value);
+                                result.Add(FormatStringValue(value));
                             }
+                        }
+                    }
+                    else if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
+                    {
+                        // KEY 노드 처리
+                        Logger.Debug($"KEY 타입 노드 처리: {child.Key} (스키마 이름: {child.SchemeName})");
+                        string keyValue = child.GetKey(row);
+                        Logger.Debug($"KEY 노드의 실제 키 값: '{keyValue}'");
+                        
+                        // KEY 노드의 자식 중 VALUE 노드 찾기
+                        SchemeNode valueNode = child.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.VALUE);
+                        if (valueNode != null)
+                        {
+                            // VALUE 노드가 있으면 키-값 쌍으로 처리
+                            object value = valueNode.GetValue(row);
+                            if (!string.IsNullOrEmpty(keyValue) && value != null && !string.IsNullOrEmpty(value.ToString()))
+                            {
+                                Logger.Debug($"KEY-VALUE 쌍 생성: '{keyValue}'={value}");
+                                YamlObject keyValueObj = OrderedYamlFactory.CreateObject();
+                                keyValueObj.Add(keyValue, FormatStringValue(value));
+                                result.Add(keyValueObj);
+                            }
+                        }
+                        else if (!string.IsNullOrEmpty(keyValue))
+                        {
+                            // VALUE 노드가 없으면 KEY 자체 값을 사용
+                            // 키 값이 있으면 빈 값과 함께 객체로 추가
+                            Logger.Debug($"KEY 값만 사용: '{keyValue}'");
+                            YamlObject keyObj = OrderedYamlFactory.CreateObject();
+                            keyObj.Add(keyValue, "");
+                            result.Add(keyObj);
                         }
                     }
                     else if (child.NodeType == SchemeNode.SchemeNodeType.VALUE)
                     {
-                        // VALUE 노드 처리 - 이 부분이 누락되었던 문제
-                        Logger.Debug($"VALUE 타입 노드 처리: {child.Key}");
-                        object value = child.GetValue(row);
-                        if (value != null && !string.IsNullOrEmpty(value.ToString()))
+                        // VALUE 노드 처리 (부모가 KEY가 아닌 경우)
+                        if (child.Parent == null || child.Parent.NodeType != SchemeNode.SchemeNodeType.KEY)
                         {
-                            // VALUE 타입은 배열 항목에 직접 값을 추가
-                            result.Add(value);
-                            Logger.Debug($"VALUE 추가됨: {value}");
+                            Logger.Debug($"독립 VALUE 타입 노드 처리: {child.Key}");
+                            object value = child.GetValue(row);
+                            if (value != null && !string.IsNullOrEmpty(value.ToString()))
+                            {
+                                // VALUE 타입은 배열 항목에 직접 값을 추가
+                                Logger.Debug($"VALUE 값 추가: {value}");
+                                result.Add(FormatStringValue(value));
+                            }
                         }
                     }
                     else if (child.NodeType == SchemeNode.SchemeNodeType.MAP)
@@ -429,6 +556,36 @@ namespace ExcelToJsonAddin.Core
             }
             
             return valueExist;
+        }
+
+        /// <summary>
+        /// 문자열 값을 YAML 형식에 맞게 처리합니다.
+        /// 한글이 포함된 경우와 개행 문자가 있는 경우를 처리합니다.
+        /// </summary>
+        /// <param name="value">처리할 문자열 값</param>
+        /// <returns>처리된 문자열 값</returns>
+        private object FormatStringValue(object value)
+        {
+            if (value == null)
+                return null;
+                
+            string strValue = value.ToString();
+            if (string.IsNullOrEmpty(strValue))
+                return strValue;
+                
+            // 개행 문자 포함 여부 확인 및 처리
+            if (strValue.Contains('\n') || strValue.Contains('\r'))
+            {
+                // 개행 문자가 이미 이스케이프되어 있는지 확인
+                if (!strValue.Contains("\\n") && !strValue.Contains("\\r"))
+                {
+                    // 새 줄 문자를 이스케이프 처리하지 않고 보존하면
+                    // YAML에서 자동으로 블록 스타일을 적용하므로 그대로 반환
+                    return strValue;
+                }
+            }
+            
+            return strValue;
         }
 
         // YAML 객체 생성을 위한 메서드

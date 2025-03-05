@@ -211,7 +211,19 @@ namespace ExcelToJsonAddin.Core
                 return;
             }
             
+            // 한글 문자 포함 여부 확인
+            bool containsKorean = false;
+            foreach (char c in value)
+            {
+                if (c >= '\uAC00' && c <= '\uD7A3')  // 한글 유니코드 범위 (가-힣)
+                {
+                    containsKorean = true;
+                    break;
+                }
+            }
+            
             bool needQuotes = preserveQuotes || 
+                              containsKorean ||  // 한글 포함 시 따옴표 추가
                               value.Contains(':') || 
                               value.Contains('#') || 
                               value.Contains(',') ||
@@ -221,6 +233,13 @@ namespace ExcelToJsonAddin.Core
                               value == "false" || 
                               value == "null" ||
                               (value.Length > 0 && char.IsDigit(value[0]));
+                              
+            // 개행 문자 포함 여부 확인
+            bool containsNewline = value.Contains('\n') || value.Contains('\r');
+            if (containsNewline)
+            {
+                needQuotes = true;  // 개행 포함 시 무조건 따옴표 필요
+            }
                               
             if (needQuotes)
             {
@@ -235,8 +254,8 @@ namespace ExcelToJsonAddin.Core
                         case '\\':
                             sb.Append("\\\\");
                             break;
-                        case '\n': sb.Append("\\n"); break;
-                        case '\r': sb.Append("\\r"); break;
+                        case '\n': sb.Append("\\n"); break;  // 항상 개행을 \n으로 치환
+                        case '\r': sb.Append("\\r"); break;  // 항상 캐리지리턴을 \r로 치환
                         case '\t': sb.Append("\\t"); break;
                         default: sb.Append(c.ToString()); break;
                     }

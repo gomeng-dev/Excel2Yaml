@@ -37,12 +37,14 @@ namespace ExcelToJsonAddin.Core
         private readonly int schemeRowNum;
         private readonly int schemeCellNum;
         private readonly IXLWorksheet sheet;
+        private readonly string schemeName;
 
         public SchemeNode(IXLWorksheet sheet, int rowNum, int cellNum, string schemeName)
         {
             this.sheet = sheet;
             this.schemeRowNum = rowNum;
             this.schemeCellNum = cellNum;
+            this.schemeName = schemeName;
 
             Logger.Debug("SchemeNode 생성: 이름=" + schemeName + ", 행=" + rowNum + ", 열=" + cellNum);
 
@@ -223,13 +225,26 @@ namespace ExcelToJsonAddin.Core
                 return string.Empty;
             }
 
-            // 1. 키가 이미 있으면 그대로 사용 (Java와 동일)
+            // 1. $key 이름을 가진 노드는 항상 셀 값을 키로 사용
+            if (type == SchemeNodeType.KEY && !string.IsNullOrEmpty(this.schemeName) && this.schemeName.Contains("$key"))
+            {
+                IXLCell cell = row.Cell(schemeCellNum);
+                if (cell != null && !cell.IsEmpty())
+                {
+                    object cellValue = ExcelCellValueResolver.GetCellValue(cell);
+                    string cellValueStr = cellValue != null ? cellValue.ToString() : string.Empty;
+                    Logger.Debug("$key 노드의 실제 셀 값: " + cellValueStr);
+                    return cellValueStr;
+                }
+            }
+
+            // 2. 키가 이미 있으면 그대로 사용 (Java와 동일)
             if (!string.IsNullOrEmpty(key))
             {
                 return key;
             }
 
-            // 2. KEY 노드인 경우 셀 값 또는 자식 노드 값 사용 (Java와 동일)
+            // 3. KEY 노드인 경우 셀 값 또는 자식 노드 값 사용 (Java와 동일)
             if (type == SchemeNodeType.KEY)
             {
                 // 값 노드가 있는 경우 해당 값을 사용
@@ -253,7 +268,7 @@ namespace ExcelToJsonAddin.Core
                 }
             }
 
-            // 3. 부모가 있고 부모가 키를 제공할 수 있는 경우 부모의 키 사용 (Java와 동일)
+            // 4. 부모가 있고 부모가 키를 제공할 수 있는 경우 부모의 키 사용 (Java와 동일)
             if (parent != null && parent.IsKeyProvidable)
             {
                 // 부모의 키가 비어있는 경우 부모 셀의 값 사용
@@ -273,7 +288,7 @@ namespace ExcelToJsonAddin.Core
                 return parent.GetKey(row);
             }
 
-            // 4. 기본값
+            // 5. 기본값
             Logger.Warning("키를 결정할 수 없음: " + this + ", 부모=" + parent);
             return string.Empty;
         }
@@ -291,6 +306,7 @@ namespace ExcelToJsonAddin.Core
         public SchemeNodeType NodeType => type;
         public IEnumerable<SchemeNode> Children => children;
         public int ChildCount => children.Count;
+        public string SchemeName => schemeName;
 
         public bool IsContainer =>
             type == SchemeNodeType.MAP ||
