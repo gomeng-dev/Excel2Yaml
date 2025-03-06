@@ -1,6 +1,6 @@
 using System;
 
-namespace ExcelToJsonAddin.Logging
+namespace ExcelToYamlAddin.Logging
 {
     public interface ISimpleLogger
     {

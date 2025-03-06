@@ -10,10 +10,10 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
 using Microsoft.Office.Interop.Excel;
-using ExcelToJsonAddin.Core;
-using ExcelToJsonAddin.Config;
+using ExcelToYamlAddin.Core;
+using ExcelToYamlAddin.Config;
 
-namespace ExcelToJsonAddin.Forms
+namespace ExcelToYamlAddin.Forms
 {
     public partial class SheetPathSettingsForm : Form
     {

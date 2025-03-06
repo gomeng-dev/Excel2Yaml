@@ -2,14 +2,14 @@ using System;
 using System.Diagnostics;
 using System.IO;
 
-namespace ExcelToJsonAddin.Logging
+namespace ExcelToYamlAddin.Logging
 {
     public class SimpleLogger : ISimpleLogger
     {
         private readonly string _categoryName;
         private static readonly string LogDirectory = 
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
-                       "ExcelToJsonAddin", "Logs");
+                       "ExcelToYamlAddin", "Logs");
         
         public SimpleLogger(string categoryName)
         {

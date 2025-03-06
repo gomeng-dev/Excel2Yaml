@@ -2,19 +2,19 @@ using System;
 using System.IO;
 using System.Windows.Forms;
 using Microsoft.Office.Tools.Ribbon;
-using ExcelToJsonAddin.Config;
-using ExcelToJsonAddin.Core;
-using ExcelToJsonAddin.Core.YamlPostProcessors;
+using ExcelToYamlAddin.Config;
+using ExcelToYamlAddin.Core;
+using ExcelToYamlAddin.Core.YamlPostProcessors;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 using Microsoft.Office.Core;
 using System.Reflection;
-using ExcelToJsonAddin.Properties;
-using ExcelToJsonAddin.Forms;
+using ExcelToYamlAddin.Properties;
+using ExcelToYamlAddin.Forms;
 using Microsoft.Office.Interop.Excel;
 
-namespace ExcelToJsonAddin
+namespace ExcelToYamlAddin
 {
     public partial class Ribbon : RibbonBase
     {
@@ -50,7 +50,7 @@ namespace ExcelToJsonAddin
                 Debug.WriteLine("리본 로드 시작");
                 
                 // SheetPathManager 인스턴스 초기화
-                var pathManager = ExcelToJsonAddin.Config.SheetPathManager.Instance;
+                var pathManager = ExcelToYamlAddin.Config.SheetPathManager.Instance;
                 if (pathManager == null)
                 {
                     Debug.WriteLine("[Ribbon_Load] SheetPathManager 인스턴스를 가져올 수 없습니다.");
@@ -147,7 +147,7 @@ namespace ExcelToJsonAddin
                 // XML 설정에서 Excel 설정으로 마이그레이션 (최초 1회)
                 if (Properties.Settings.Default.FirstConfigMigration)
                 {
-                    ExcelConfigManager.Instance.MigrateFromXmlSettings(ExcelToJsonAddin.Config.SheetPathManager.Instance);
+                    ExcelConfigManager.Instance.MigrateFromXmlSettings(ExcelToYamlAddin.Config.SheetPathManager.Instance);
                     Properties.Settings.Default.FirstConfigMigration = false;
                     Properties.Settings.Default.Save();
                     Debug.WriteLine("[Ribbon] XML 설정을 Excel 설정으로 마이그레이션 완료");

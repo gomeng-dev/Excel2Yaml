@@ -3,11 +3,11 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Collections.Generic;
-using ExcelToJsonAddin.Config;
-using ExcelToJsonAddin.Core;
+using ExcelToYamlAddin.Config;
+using ExcelToYamlAddin.Core;
 using Newtonsoft.Json;
 
-namespace ExcelToJsonAddin
+namespace ExcelToYamlAddin
 {
     public class ExcelReader
     {

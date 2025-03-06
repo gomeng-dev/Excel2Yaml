@@ -5,11 +5,11 @@ using System.Linq;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
-using ExcelToJsonAddin.Config;  // YamlStyle 열거형을 사용하기 위한 네임스페이스 추가
-using YamlObject = ExcelToJsonAddin.Core.YamlObject;  // YamlObject 클래스 명시적 참조
-using YamlArray = ExcelToJsonAddin.Core.YamlArray;  // YamlArray 클래스 명시적 참조
+using ExcelToYamlAddin.Config;  // YamlStyle 열거형을 사용하기 위한 네임스페이스 추가
+using YamlObject = ExcelToYamlAddin.Core.YamlObject;  // YamlObject 클래스 명시적 참조
+using YamlArray = ExcelToYamlAddin.Core.YamlArray;  // YamlArray 클래스 명시적 참조
 
-namespace ExcelToJsonAddin.Core.YamlPostProcessors
+namespace ExcelToYamlAddin.Core.YamlPostProcessors
 {
     /// <summary>
     /// YAML 파일의 특정 필드를 Flow 스타일로 변환하는 프로세서입니다.

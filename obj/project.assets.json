@@ -1493,9 +1493,9 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToJsonAddin.csproj",
-      "projectName": "ExcelToJsonAddin",
-      "projectPath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToJsonAddin.csproj",
+      "projectUniqueName": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToYamlAddin.csproj",
+      "projectName": "ExcelToYamlAddin",
+      "projectPath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToYamlAddin.csproj",
       "packagesPath": "C:\\Users\\정영훈\\.nuget\\packages\\",
       "outputPath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\obj\\",
       "projectStyle": "PackageReference",

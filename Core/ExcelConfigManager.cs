@@ -6,9 +6,9 @@ using System.Diagnostics;
 using Microsoft.Office.Interop.Excel;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
-using ExcelToJsonAddin.Config;
+using ExcelToYamlAddin.Config;
 
-namespace ExcelToJsonAddin.Core
+namespace ExcelToYamlAddin.Core
 {
     /// <summary>
     /// Excel 파일 내의 !excel2yamlconfig 시트에 설정을 저장하고 로드하는 관리자 클래스
@@ -445,7 +445,7 @@ namespace ExcelToJsonAddin.Core
         /// XML 설정을 Excel 설정으로 마이그레이션
         /// </summary>
         /// <param name="sheetPathManager">시트 경로 매니저</param>
-        public void MigrateFromXmlSettings(ExcelToJsonAddin.Config.SheetPathManager sheetPathManager)
+        public void MigrateFromXmlSettings(ExcelToYamlAddin.Config.SheetPathManager sheetPathManager)
         {
             try
             {
@@ -504,7 +504,7 @@ namespace ExcelToJsonAddin.Core
         /// Excel 설정을 XML 설정으로 내보내기
         /// </summary>
         /// <param name="sheetPathManager">시트 경로 매니저</param>
-        public void ExportToXmlSettings(ExcelToJsonAddin.Config.SheetPathManager sheetPathManager)
+        public void ExportToXmlSettings(ExcelToYamlAddin.Config.SheetPathManager sheetPathManager)
         {
             try
             {

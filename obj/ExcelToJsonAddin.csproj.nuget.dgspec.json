@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToJsonAddin.csproj": {}
+    "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToYamlAddin\\ExcelToYamlAddin.csproj": {}
   },
   "projects": {
-    "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToJsonAddin.csproj": {
+    "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToYamlAddin\\ExcelToYamlAddin.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToJsonAddin.csproj",
-        "projectName": "ExcelToJsonAddin",
-        "projectPath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToJsonAddin.csproj",
+        "projectUniqueName": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToYamlAddin\\ExcelToYamlAddin.csproj",
+        "projectName": "ExcelToYamlAddin",
+        "projectPath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToYamlAddin\\ExcelToYamlAddin.csproj",
         "packagesPath": "C:\\Users\\정영훈\\.nuget\\packages\\",
-        "outputPath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\obj\\",
+        "outputPath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToYamlAddin\\obj\\",
         "projectStyle": "PackageReference",
         "skipContentFileWrite": true,
         "fallbackFolders": [

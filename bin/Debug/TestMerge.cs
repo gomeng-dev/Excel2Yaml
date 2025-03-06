@@ -1,9 +1,9 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using ExcelToJsonAddin.Core.YamlPostProcessors;
+using ExcelToYamlAddin.Core.YamlPostProcessors;
 
-namespace ExcelToJsonAddin
+namespace ExcelToYamlAddin
 {
     class TestMerge
     {

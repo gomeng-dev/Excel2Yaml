@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <asmv1:assembly xsi:schemaLocation="urn:schemas-microsoft-com:asm.v1 assembly.adaptive.xsd" manifestVersion="1.0" xmlns:asmv1="urn:schemas-microsoft-com:asm.v1" xmlns="urn:schemas-microsoft-com:asm.v2" xmlns:asmv2="urn:schemas-microsoft-com:asm.v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:co.v1="urn:schemas-microsoft-com:clickonce.v1" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3" xmlns:dsig="http://www.w3.org/2000/09/xmldsig#" xmlns:co.v2="urn:schemas-microsoft-com:clickonce.v2">
-  <asmv1:assemblyIdentity name="ExcelToJsonAddin.dll" version="1.0.0.0" publicKeyToken="c4a4fc0f4c04e760" language="neutral" processorArchitecture="msil" type="win32" />
-  <description xmlns="urn:schemas-microsoft-com:asm.v1">ExcelToJsonAddin</description>
+  <asmv1:assemblyIdentity name="ExcelToYamlAddin.dll" version="1.0.0.0" publicKeyToken="c4a4fc0f4c04e760" language="neutral" processorArchitecture="msil" type="win32" />
+  <description xmlns="urn:schemas-microsoft-com:asm.v1">ExcelToYamlAddin</description>
   <application />
   <entryPoint>
     <co.v1:customHostSpecified />
@@ -207,14 +207,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="ExcelToJsonAddin.dll" size="147968">
-      <assemblyIdentity name="ExcelToJsonAddin" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="ExcelToYamlAddin.dll" size="146944">
+      <assemblyIdentity name="ExcelToYamlAddin" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>4QtVChldoecceq60ajRIljXxZmlmxpcIxrny2lHr4CI=</dsig:DigestValue>
+        <dsig:DigestValue>De0PniVTi6S5OrA0wNyDLPXEYO9rhcrkEM4RQIuTQc0=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -422,7 +422,7 @@
       </hash>
     </dependentAssembly>
   </dependency>
-  <file name="ExcelToJsonAddin.dll.config" size="3638">
+  <file name="ExcelToYamlAddin.dll.config" size="3638">
     <hash>
       <dsig:Transforms>
         <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
@@ -434,8 +434,8 @@
   <vstav3:addIn xmlns:vstav3="urn:schemas-microsoft-com:vsta.v3">
     <vstav3:entryPointsCollection>
       <vstav3:entryPoints>
-        <vstav3:entryPoint class="ExcelToJsonAddin.ThisAddIn">
-          <assemblyIdentity name="ExcelToJsonAddin" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
+        <vstav3:entryPoint class="ExcelToYamlAddin.ThisAddIn">
+          <assemblyIdentity name="ExcelToYamlAddin" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
         </vstav3:entryPoint>
       </vstav3:entryPoints>
     </vstav3:entryPointsCollection>
@@ -445,15 +445,15 @@
     <vstav3:application>
       <vstov4:customizations xmlns:vstov4="urn:schemas-microsoft-com:vsto.v4">
         <vstov4:customization>
-          <vstov4:appAddIn application="Excel" loadBehavior="3" keyName="ExcelToJsonAddin">
-            <vstov4:friendlyName>ExcelToJsonAddin</vstov4:friendlyName>
-            <vstov4:description>ExcelToJsonAddin</vstov4:description>
+          <vstov4:appAddIn application="Excel" loadBehavior="3" keyName="ExcelToYamlAddin">
+            <vstov4:friendlyName>ExcelToYamlAddin</vstov4:friendlyName>
+            <vstov4:description>ExcelToYamlAddin</vstov4:description>
             <vstov4.1:ribbonTypes xmlns:vstov4.1="urn:schemas-microsoft-com:vsto.v4.1">
-              <vstov4.1:ribbonType name="ExcelToJsonAddin.Ribbon, ExcelToJsonAddin, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" />
+              <vstov4.1:ribbonType name="ExcelToYamlAddin.Ribbon, ExcelToYamlAddin, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" />
             </vstov4.1:ribbonTypes>
           </vstov4:appAddIn>
         </vstov4:customization>
       </vstov4:customizations>
     </vstav3:application>
   </vstav3:addIn>
-<publisherIdentity name="CN=AzureAD\정영훈" issuerKeyHash="ad7ac86af3abaf7ce4563ce68b54c92d8f839347" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>fLgnV6eqrOyXB0KLMC+V0Q8VVnXaHfJICYQl3C8ukzQ=</DigestValue></Reference></SignedInfo><SignatureValue>EvqK18RBNJYD7wLonXRtKvm/SeDqx88Tk1hHVn3Hig/PWT7IAi+jRcifXLG8V1Wq3tdHIRc5Pb1zQgRLQpS7MpdZjMXvZx/wZl2ti6OGIpbiCcpi0rylAj074dMu5nS2L7oQUbmSndG/s8xUp1T8Vjp3b0SCmL5wvbhbdxKzjTA=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>tVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="34932e2fdc25840948f21dda7556150fd1952f308b420797ecacaaa75727b87c" Description="" Url=""><as:assemblyIdentity name="ExcelToJsonAddin.dll" version="1.0.0.0" publicKeyToken="c4a4fc0f4c04e760" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=AzureAD\정영훈</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>+7PbgA7JWM54tcKcf8WrliZSvBD/4qTULXdDwTnOcEI=</DigestValue></Reference></SignedInfo><SignatureValue>bu1RiPnN3Dd+VTcMrny7NQRwdgns49vMO2wq985uskxflziRwrUUE68HLDmHzck7llnYELOVoVJmpztGINe8U3a3Y/m1VFq0Wdw2QJgbu956X9hOVN8mdCHkZ/NYaQ+g56OHEf2tgi5p+YYmn5C0qUW1qIpjw6jxD8bEx/o77do=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>tVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBxTCCAS6gAwIBAgIQLdFSvraOu6lGAhY/0xR2cDANBgkqhkiG9w0BAQsFADAhMR8wHQYDVQQDHhYAQQB6AHUAcgBlAEEARABcyBXGAdbIMB4XDTI1MDIyNjAyMzIyOVoXDTI2MDIyNjA4MzIyOVowITEfMB0GA1UEAx4WAEEAegB1AHIAZQBBAEQAXMgVxgHWyDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAtVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlkCAwEAATANBgkqhkiG9w0BAQsFAAOBgQA9MsTDw3NB75x/5lSQ8YhpTHX8MI5JrncLOQ0kSMgpnx9YS35LhbdD75Wcu61lSjH2r5us3Ku1Yaq1BMSMZ+KN2JmrIULhk7KgLIXFLMAcLxf2tw+XDKQkJkEDbCJqXiMMiQsG1+I3tn9wmBt3Tr5NtjmjK5cUXZ3AmmNzUDoqmw==</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>
+<publisherIdentity name="CN=AzureAD\정영훈" issuerKeyHash="ad7ac86af3abaf7ce4563ce68b54c92d8f839347" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>1U62MToUzYHcYCGW11OzriYHav/JqLploLSL4MroCQY=</DigestValue></Reference></SignedInfo><SignatureValue>iQ8M6K0bfvVQj0Ln78X8/PrTJ7Y3xVw8c4h2WEiAbhaP3Qdycipo46R/apkq6MIFjjhkIZIR7ChR0tERiKa3aFcx37NsOvrLMJMhlVpUkRQAjOrOCsgjnZzl9+cqK1aFo9h+l/2er4ID7mQGGm6dnPXF63wL3UF25NL1K824I88=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>tVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="0609e8cae08bb4a065baa8c9ff6a0726aeb353d7962160dc81cd143a31b64ed5" Description="" Url=""><as:assemblyIdentity name="ExcelToYamlAddin.dll" version="1.0.0.0" publicKeyToken="c4a4fc0f4c04e760" language="neutral" processorArchitecture="msil" type="win32" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=AzureAD\정영훈</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" /><DigestValue>q3IUzGw4+kO3XugbjKasubKZ/iT9SjtGXgvJNuFbK2E=</DigestValue></Reference></SignedInfo><SignatureValue>QjEqCXn+puqgqnQZhCsXORdy7b57Sn6eIbDhzeaZAQfL/PdVEnCZh4ApE3mH8g0/RZIQP+IPcA/d8Cd0hCsm4DWyszu+dVreRBUI/pN4dfAox08A56BdlxOxvBpzjKQmdk87WFdtE7un94BIJ38i9bTz1CbWZVQ621OLeWkeWoU=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>tVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlk=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIBxTCCAS6gAwIBAgIQLdFSvraOu6lGAhY/0xR2cDANBgkqhkiG9w0BAQsFADAhMR8wHQYDVQQDHhYAQQB6AHUAcgBlAEEARABcyBXGAdbIMB4XDTI1MDIyNjAyMzIyOVoXDTI2MDIyNjA4MzIyOVowITEfMB0GA1UEAx4WAEEAegB1AHIAZQBBAEQAXMgVxgHWyDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAtVXZ6kPORbgdk2R0c593Q51xqd5UCeO5bT2IYc4LrNERd4D0UNOxx+dYM6dz7Fdfzk3Erzpcz6F9GrVoeC9i0yELrohbaJKu0/oTgU0eseC/1TGvmm3qy4xeiUt0wWTwXw8Sy8YXAQpIcXM6uC4mdQn4EFNadIRQkfz3lUxtFlkCAwEAATANBgkqhkiG9w0BAQsFAAOBgQA9MsTDw3NB75x/5lSQ8YhpTHX8MI5JrncLOQ0kSMgpnx9YS35LhbdD75Wcu61lSjH2r5us3Ku1Yaq1BMSMZ+KN2JmrIULhk7KgLIXFLMAcLxf2tw+XDKQkJkEDbCJqXiMMiQsG1+I3tn9wmBt3Tr5NtjmjK5cUXZ3AmmNzUDoqmw==</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>

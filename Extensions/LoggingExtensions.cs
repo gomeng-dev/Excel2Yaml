@@ -1,4 +1,4 @@
-using ExcelToJsonAddin.Logging;
+using ExcelToYamlAddin.Logging;
 
 namespace ExcelToJsonCSharp.Extensions
 {

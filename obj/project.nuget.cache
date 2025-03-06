@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "WxnS11eanR0=",
+  "dgSpecHash": "lMMxbUYEJ8M=",
   "success": true,
-  "projectFilePath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToJsonAddin.csproj",
+  "projectFilePath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToYamlAddin.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\정영훈\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\9.0.2\\microsoft.bcl.asyncinterfaces.9.0.2.nupkg.sha512",
     "C:\\Users\\정영훈\\.nuget\\packages\\sharpyaml\\2.1.1\\sharpyaml.2.1.1.nupkg.sha512",

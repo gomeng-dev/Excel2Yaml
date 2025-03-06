@@ -1,4 +1,4 @@
-using ExcelToJsonAddin.Logging;
+using ExcelToYamlAddin.Logging;
 using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.IO;
 using System.Diagnostics;
 
-namespace ExcelToJsonAddin.Core
+namespace ExcelToYamlAddin.Core
 {
     public class Generator
     {

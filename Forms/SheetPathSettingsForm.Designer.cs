@@ -1,4 +1,4 @@
-namespace ExcelToJsonAddin.Forms
+namespace ExcelToYamlAddin.Forms
 {
     partial class SheetPathSettingsForm
     {

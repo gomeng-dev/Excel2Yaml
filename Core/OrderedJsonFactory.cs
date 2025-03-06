@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 
-namespace ExcelToJsonAddin.Core
+namespace ExcelToYamlAddin.Core
 {
     public class JsonObject
     {

@@ -7,10 +7,10 @@ using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
 using Office = Microsoft.Office.Core;
 using Microsoft.Office.Tools.Excel;
-using ExcelToJsonAddin.Logging;
-using ExcelToJsonAddin.Config;
+using ExcelToYamlAddin.Logging;
+using ExcelToYamlAddin.Config;
 
-namespace ExcelToJsonAddin
+namespace ExcelToYamlAddin
 {
     public partial class ThisAddIn
     {
@@ -25,13 +25,13 @@ namespace ExcelToJsonAddin
                 Logger.Debug("Excel To JSON Add-in 시작");
                 
                 // SheetPathManager 초기화 및 설정 미리 로드
-                ExcelToJsonAddin.Config.SheetPathManager.Instance.Initialize();
+                ExcelToYamlAddin.Config.SheetPathManager.Instance.Initialize();
                 
                 // 현재 워크북 설정
                 if (this.Application.ActiveWorkbook != null)
                 {
                     string workbookPath = this.Application.ActiveWorkbook.FullName;
-                    ExcelToJsonAddin.Config.SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
+                    ExcelToYamlAddin.Config.SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
                     Logger.Information("현재 워크북 설정: {0}", workbookPath);
                 }
                 

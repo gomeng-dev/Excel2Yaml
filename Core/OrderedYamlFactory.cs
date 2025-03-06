@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using ExcelToJsonAddin.Config;
+using ExcelToYamlAddin.Config;
 using System.Linq;
 
-namespace ExcelToJsonAddin.Core
+namespace ExcelToYamlAddin.Core
 {
     public class YamlObject
     {
@@ -257,7 +257,6 @@ namespace ExcelToJsonAddin.Core
                               value.Contains(':') || 
                               value.Contains('#') || 
                               value.Contains(',') ||
-                              value.Contains('_') ||
                               value.StartsWith(" ") || 
                               value.EndsWith(" ") ||
                               value == "true" || 

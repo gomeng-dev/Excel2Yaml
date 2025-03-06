@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using ExcelToJsonAddin.Logging;
+using ExcelToYamlAddin.Logging;
 using Microsoft.Office.Interop.Excel;
 using System.Diagnostics;
 
-namespace ExcelToJsonAddin.Core
+namespace ExcelToYamlAddin.Core
 {
     /// <summary>
     /// 시트 분석 및 변환 가능 여부 판단 클래스

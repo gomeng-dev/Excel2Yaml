@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
-using ExcelToJsonAddin.Properties;
+using ExcelToYamlAddin.Properties;
 using System.Diagnostics;
 using System.Xml;
 
-namespace ExcelToJsonAddin.Config
+namespace ExcelToYamlAddin.Config
 {
     /// <summary>
     /// 시트별 경로 관리를 위한 클래스
@@ -16,7 +16,7 @@ namespace ExcelToJsonAddin.Config
     {
         private static readonly string ConfigFilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "ExcelToJsonAddin",
+            "ExcelToYamlAddin",
             "SheetPaths.xml");
 
         // 싱글톤 인스턴스

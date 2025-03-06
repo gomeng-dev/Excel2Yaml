@@ -12,10 +12,10 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Text;
 using YamlDotNet.Serialization.ObjectFactories;
-using ExcelToJsonAddin.Core;
-using ExcelToJsonAddin.Config;
+using ExcelToYamlAddin.Core;
+using ExcelToYamlAddin.Config;
 
-namespace ExcelToJsonAddin.Core.YamlPostProcessors
+namespace ExcelToYamlAddin.Core.YamlPostProcessors
 {
     /// <summary>
     /// YAML 파일의 항목들을 지정된 키 경로를 기반으로 병합하는 후처리기입니다.

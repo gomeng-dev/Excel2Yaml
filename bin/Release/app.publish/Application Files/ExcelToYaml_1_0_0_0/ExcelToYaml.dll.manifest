@@ -434,7 +434,7 @@
   <vstav3:addIn xmlns:vstav3="urn:schemas-microsoft-com:vsta.v3">
     <vstav3:entryPointsCollection>
       <vstav3:entryPoints>
-        <vstav3:entryPoint class="ExcelToJsonAddin.ThisAddIn">
+        <vstav3:entryPoint class="ExcelToYamlAddin.ThisAddIn">
           <assemblyIdentity name="ExcelToYaml" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
         </vstav3:entryPoint>
       </vstav3:entryPoints>
@@ -446,10 +446,10 @@
       <vstov4:customizations xmlns:vstov4="urn:schemas-microsoft-com:vsto.v4">
         <vstov4:customization>
           <vstov4:appAddIn application="Excel" loadBehavior="3" keyName="ExcelToYaml">
-            <vstov4:friendlyName>ExcelToJsonAddin</vstov4:friendlyName>
+            <vstov4:friendlyName>ExcelToYamlAddin</vstov4:friendlyName>
             <vstov4:description>ExcelToYaml</vstov4:description>
             <vstov4.1:ribbonTypes xmlns:vstov4.1="urn:schemas-microsoft-com:vsto.v4.1">
-              <vstov4.1:ribbonType name="ExcelToJsonAddin.Ribbon, ExcelToYaml, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" />
+              <vstov4.1:ribbonType name="ExcelToYamlAddin.Ribbon, ExcelToYaml, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" />
             </vstov4.1:ribbonTypes>
           </vstov4:appAddIn>
         </vstov4:customization>

@@ -9,7 +9,7 @@ using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Core.Events;
 
-namespace ExcelToJsonAddin.Core.YamlPostProcessors
+namespace ExcelToYamlAddin.Core.YamlPostProcessors
 {
     /// <summary>
     /// YAML 파일의 특정 필드를 Flow 스타일로 변환하는 프로세서입니다.

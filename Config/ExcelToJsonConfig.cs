@@ -1,4 +1,4 @@
-namespace ExcelToJsonAddin.Config
+namespace ExcelToYamlAddin.Config
 {
     public enum OutputFormat
     {

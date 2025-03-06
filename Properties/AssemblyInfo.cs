@@ -6,11 +6,11 @@ using System.Security;
 // 어셈블리에 대한 일반 정보는 다음 특성 집합을 통해 
 // 제어됩니다. 어셈블리와 관련된 정보를 수정하려면
 // 이러한 특성 값을 변경하세요.
-[assembly: AssemblyTitle("ExcelToJsonAddin")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("ExcelToYamlAddin")]
+[assembly: AssemblyDescription("엑셀을 YAML로 변경해주는 확장 프로그램")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("ExcelToJsonAddin")]
+[assembly: AssemblyCompany("Gomeng")]
+[assembly: AssemblyProduct("ExcelToYamlAddin")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

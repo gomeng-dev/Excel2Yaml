@@ -1,11 +1,11 @@
-using ExcelToJsonAddin.Logging;
+using ExcelToYamlAddin.Logging;
 using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
 
-namespace ExcelToJsonAddin.Core
+namespace ExcelToYamlAddin.Core
 {
     public class SchemeParser
     {
