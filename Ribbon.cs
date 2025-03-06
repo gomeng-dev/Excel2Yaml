@@ -281,141 +281,216 @@ namespace ExcelToYamlAddin
                         Debug.WriteLine($"[Ribbon] YAML 후처리 확인: {convertedFiles.Count}개 파일");
                         successCount = convertedFiles.Count;
                         
-                        foreach (var filePath in convertedFiles)
+                        // 후처리를 위한 프로그레스 바 표시
+                        using (var progressForm = new Forms.ProgressForm())
                         {
-                            if (File.Exists(filePath) && Path.GetExtension(filePath).ToLower() == ".yaml")
+                            progressForm.RunOperation((progress) =>
                             {
-                                // 파일 경로에서 시트 이름 추출
-                                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                                string workbookName = Path.GetFileName(Globals.ThisAddIn.Application.ActiveWorkbook.FullName);
+                                int totalFiles = convertedFiles.Count;
+                                int processedFiles = 0;
                                 
-                                // 가능한 시트 이름 형식
-                                List<string> possibleSheetNames = new List<string>
+                                // 초기 프로그레스 업데이트
+                                progress.Report(new Forms.ProgressForm.ProgressInfo
                                 {
-                                    fileName,                  // 파일명 그대로
-                                    "!" + fileName,            // !접두사 추가
-                                    fileName.StartsWith("!") ? fileName.Substring(1) : fileName   // !접두사 제거
-                                };
+                                    Percentage = 0,
+                                    StatusMessage = "YAML 후처리 준비 중..."
+                                });
                                 
-                                Debug.WriteLine($"[Ribbon] YAML 파일 처리: {filePath}");
-                                
-                                // 찾은 실제 시트 이름
-                                string matchedSheetName = null;
-                                
-                                // YAML 선택적 필드 후처리
-                                // 워크북 내 시트 이름 매칭
-                                foreach (var sheet in convertibleSheets)
+                                foreach (var filePath in convertedFiles)
                                 {
-                                    string currentSheetName = sheet.Name;
-                                    if (currentSheetName.StartsWith("!"))
-                                        currentSheetName = currentSheetName.Substring(1);
-                                    
-                                    if (string.Compare(currentSheetName, fileName, true) == 0)
+                                    // 작업 취소 확인
+                                    if (progressForm.IsCancellationRequested)
                                     {
-                                        matchedSheetName = sheet.Name;
-                                        break;
-                                    }
-                                }
-                                
-                                // YAML 선택적 필드 처리
-                                if (matchedSheetName != null)
-                                {
-                                    // Excel !Config 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
-                                    bool option = ExcelConfigManager.Instance.GetConfigBool(matchedSheetName, "YamlEmptyFields", false);
-                                    
-                                    // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                    if (!option)
-                                    {
-                                        option = SheetPathManager.Instance.GetYamlEmptyFieldsOption(matchedSheetName);
-                                    }
-                                    
-                                    // 둘 다 없으면 기본 설정 사용
-                                    if (!option && addEmptyYamlFields)
-                                    {
-                                        option = addEmptyYamlFields;
-                                    }
-                                    
-                                    // 빈 필드 처리는 이제 불필요함 - SerializeToYaml 메서드가 직접 처리
-                                    // config.IncludeEmptyFields 옵션을 통해 빈 필드를 유지하거나 제거하도록 설정됨
-                                    
-                                    // 키 경로 병합 후처리
-                                    if (matchedSheetName != null)
-                                    {
-                                        // Excel !Config 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
-                                        string sheetMergeKeyPaths = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "MergeKeyPaths", "");
-                                        
-                                        // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                        if (string.IsNullOrEmpty(sheetMergeKeyPaths))
+                                        progress.Report(new Forms.ProgressForm.ProgressInfo
                                         {
-                                            sheetMergeKeyPaths = SheetPathManager.Instance.GetMergeKeyPaths(matchedSheetName);
+                                            Percentage = 100,
+                                            StatusMessage = "후처리가 취소되었습니다.",
+                                            IsCompleted = true
+                                        });
+                                        return;
+                                    }
+                                    
+                                    if (File.Exists(filePath) && Path.GetExtension(filePath).ToLower() == ".yaml")
+                                    {
+                                        // 파일 이름 정보 추출
+                                        string fileName = Path.GetFileNameWithoutExtension(filePath);
+                                        
+                                        progress.Report(new Forms.ProgressForm.ProgressInfo
+                                        {
+                                            Percentage = (int)((double)processedFiles / totalFiles * 100),
+                                            StatusMessage = $"'{fileName}' 파일 처리 중..."
+                                        });
+                                        
+                                        // 파일 경로에서 시트 이름 추출
+                                        string workbookName = Path.GetFileName(Globals.ThisAddIn.Application.ActiveWorkbook.FullName);
+                                        
+                                        // 가능한 시트 이름 형식
+                                        List<string> possibleSheetNames = new List<string>
+                                        {
+                                            fileName,                  // 파일명 그대로
+                                            "!" + fileName,            // !접두사 추가
+                                            fileName.StartsWith("!") ? fileName.Substring(1) : fileName   // !접두사 제거
+                                        };
+                                        
+                                        Debug.WriteLine($"[Ribbon] YAML 파일 처리: {filePath}");
+                                        
+                                        // 찾은 실제 시트 이름
+                                        string matchedSheetName = null;
+                                        
+                                        // YAML 선택적 필드 후처리
+                                        // 워크북 내 시트 이름 매칭
+                                        foreach (var sheet in convertibleSheets)
+                                        {
+                                            string currentSheetName = sheet.Name;
+                                            if (currentSheetName.StartsWith("!"))
+                                                currentSheetName = currentSheetName.Substring(1);
+                                            
+                                            if (string.Compare(currentSheetName, fileName, true) == 0)
+                                            {
+                                                matchedSheetName = sheet.Name;
+                                                break;
+                                            }
                                         }
                                         
-                                        // YAML 병합 키 경로 처리 실행 (YamlMergeKeyPathsProcessor 사용)
-                                        if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
+                                        // 1단계: YAML 선택적 필드 처리
+                                        progress.Report(new Forms.ProgressForm.ProgressInfo
                                         {
-                                            Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실행: {filePath}, 설정: {sheetMergeKeyPaths}");
+                                            StatusMessage = $"'{fileName}' - 선택적 필드 처리 중..."
+                                        });
+                                        
+                                        // YAML 선택적 필드 처리
+                                        if (matchedSheetName != null)
+                                        {
+                                            // Excel !Config 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
+                                            bool option = ExcelConfigManager.Instance.GetConfigBool(matchedSheetName, "YamlEmptyFields", false);
                                             
-                                            // 개선된 YamlMergeKeyPathsProcessor를 사용하여 병합 처리
-                                            // YamlEmptyFields 옵션이 true이면 빈 필드를 유지하도록 includeEmptyFields 매개변수를 전달
-                                            bool success = YamlMergeKeyPathsProcessor.ProcessYamlFileFromConfig(
-                                                filePath, 
-                                                sheetMergeKeyPaths,
-                                                option // YamlEmptyFields 옵션 전달
-                                            );
-                                            
-                                            if (success)
+                                            // Excel에 설정이 없으면 SheetPathManager에서 확인
+                                            if (!option)
                                             {
-                                                Debug.WriteLine($"[Ribbon] YAML 병합 후처리 완료: {filePath}");
-                                                mergeKeyPathsSuccessCount++;
+                                                option = SheetPathManager.Instance.GetYamlEmptyFieldsOption(matchedSheetName);
+                                            }
+                                            
+                                            // 둘 다 없으면 기본 설정 사용
+                                            if (!option && addEmptyYamlFields)
+                                            {
+                                                option = addEmptyYamlFields;
+                                            }
+                                            
+                                            // 2단계: 키 경로 병합 처리
+                                            progress.Report(new Forms.ProgressForm.ProgressInfo
+                                            {
+                                                StatusMessage = $"'{fileName}' - 키 경로 병합 처리 중..."
+                                            });
+                                            
+                                            // 키 경로 병합 후처리
+                                            if (matchedSheetName != null)
+                                            {
+                                                // Excel !Config 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
+                                                string sheetMergeKeyPaths = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "MergeKeyPaths", "");
+                                                
+                                                // Excel에 설정이 없으면 SheetPathManager에서 확인
+                                                if (string.IsNullOrEmpty(sheetMergeKeyPaths))
+                                                {
+                                                    sheetMergeKeyPaths = SheetPathManager.Instance.GetMergeKeyPaths(matchedSheetName);
+                                                }
+                                                
+                                                // YAML 병합 키 경로 처리 실행 (YamlMergeKeyPathsProcessor 사용)
+                                                if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
+                                                {
+                                                    Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실행: {filePath}, 설정: {sheetMergeKeyPaths}");
+                                                    
+                                                    // 개선된 YamlMergeKeyPathsProcessor를 사용하여 병합 처리
+                                                    // YamlEmptyFields 옵션이 true이면 빈 필드를 유지하도록 includeEmptyFields 매개변수를 전달
+                                                    bool success = YamlMergeKeyPathsProcessor.ProcessYamlFileFromConfig(
+                                                        filePath, 
+                                                        sheetMergeKeyPaths,
+                                                        option // YamlEmptyFields 옵션 전달
+                                                    );
+                                                    
+                                                    if (success)
+                                                    {
+                                                        Debug.WriteLine($"[Ribbon] YAML 병합 후처리 완료: {filePath}");
+                                                        mergeKeyPathsSuccessCount++;
+                                                    }
+                                                    else
+                                                    {
+                                                        Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실패: {filePath}");
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        // 3단계: Flow Style 처리
+                                        progress.Report(new Forms.ProgressForm.ProgressInfo
+                                        {
+                                            StatusMessage = $"'{fileName}' - Flow Style 처리 중..."
+                                        });
+                                        
+                                        // Flow Style 처리
+                                        if (matchedSheetName != null)
+                                        {
+                                            // 시트 이름을 로깅하여 디버깅을 돕습니다
+                                            Debug.WriteLine($"[Ribbon] Flow Style 처리 검사 중: 파일 경로={filePath}, 파일 이름={fileName}, 매칭된 시트 이름={matchedSheetName}");
+                                            
+                                            // Excel !Config 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
+                                            string sheetFlowStyle = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "FlowStyle", "");
+                                            Debug.WriteLine($"[Ribbon] ExcelConfigManager Flow Style 설정 값: '{sheetFlowStyle}'");
+                                            
+                                            // Excel에 설정이 없으면 SheetPathManager에서 확인
+                                            if (string.IsNullOrEmpty(sheetFlowStyle))
+                                            {
+                                                sheetFlowStyle = SheetPathManager.Instance.GetFlowStyleConfig(matchedSheetName ?? fileName);
+                                                Debug.WriteLine($"[Ribbon] SheetPathManager Flow Style 설정 값: '{sheetFlowStyle}'");
+                                            }
+                                            
+                                            // YAML 흐름 스타일 처리 실행
+                                            if (!string.IsNullOrEmpty(sheetFlowStyle))
+                                            {
+                                                Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 실행: {filePath}, 설정: {sheetFlowStyle}");
+                                                bool success = YamlFlowStyleProcessor.ProcessYamlFileFromConfig(filePath, sheetFlowStyle);
+                                                if (success)
+                                                {
+                                                    Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 완료: {filePath}");
+                                                    flowStyleSuccessCount++;
+                                                }
                                             }
                                             else
                                             {
-                                                Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실패: {filePath}");
+                                                Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 건너뜀: {filePath}");
+                                                Debug.WriteLine($"[Ribbon] 설정 값: '{sheetFlowStyle}'");
                                             }
                                         }
                                     }
+                                    
+                                    processedFiles++;
+                                    progress.Report(new Forms.ProgressForm.ProgressInfo
+                                    {
+                                        Percentage = (int)((double)processedFiles / totalFiles * 100),
+                                        StatusMessage = $"'{Path.GetFileNameWithoutExtension(filePath)}' 처리 완료"
+                                    });
                                 }
                                 
-                                // Flow Style 처리
-                                if (matchedSheetName != null)
+                                // 작업 완료 알림
+                                progress.Report(new Forms.ProgressForm.ProgressInfo
                                 {
-                                    // 시트 이름을 로깅하여 디버깅을 돕습니다
-                                    Debug.WriteLine($"[Ribbon] Flow Style 처리 검사 중: 파일 경로={filePath}, 파일 이름={fileName}, 매칭된 시트 이름={matchedSheetName}");
-                                    
-                                    // Excel !Config 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
-                                    string sheetFlowStyle = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "FlowStyle", "");
-                                    Debug.WriteLine($"[Ribbon] ExcelConfigManager Flow Style 설정 값: '{sheetFlowStyle}'");
-                                    
-                                    // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                    if (string.IsNullOrEmpty(sheetFlowStyle))
-                                    {
-                                        sheetFlowStyle = SheetPathManager.Instance.GetFlowStyleConfig(matchedSheetName ?? fileName);
-                                        Debug.WriteLine($"[Ribbon] SheetPathManager Flow Style 설정 값: '{sheetFlowStyle}'");
-                                    }
-                                    
-                                    // YAML 흐름 스타일 처리 실행
-                                    if (!string.IsNullOrEmpty(sheetFlowStyle))
-                                    {
-                                        Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 실행: {filePath}, 설정: {sheetFlowStyle}");
-                                        bool success = YamlFlowStyleProcessor.ProcessYamlFileFromConfig(filePath, sheetFlowStyle);
-                                        if (success)
-                                        {
-                                            Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 완료: {filePath}");
-                                            flowStyleSuccessCount++;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 건너뜀: {filePath}");
-                                        Debug.WriteLine($"[Ribbon] 설정 값: '{sheetFlowStyle}'");
-                                    }
-                                }
+                                    Percentage = 100,
+                                    StatusMessage = $"후처리 완료: {mergeKeyPathsSuccessCount}개 병합, {flowStyleSuccessCount}개 Flow Style 적용",
+                                    IsCompleted = true
+                                });
+                                
+                                Debug.WriteLine($"[Ribbon] YAML 선택적 필드 후처리 완료: {successCount}/{convertedFiles.Count} 파일 처리됨");
+                                Debug.WriteLine($"[Ribbon] YAML 키 경로 병합 후처리 완료: {mergeKeyPathsSuccessCount}/{convertedFiles.Count} 파일 처리됨");
+                                Debug.WriteLine($"[Ribbon] YAML Flow Style 후처리 완료: {flowStyleSuccessCount}/{convertedFiles.Count} 파일 처리됨");
+                            }, "YAML 후처리 중");
+                            
+                            progressForm.ShowDialog();
+                            
+                            // 취소된 경우
+                            if (progressForm.IsCancellationRequested)
+                            {
+                                MessageBox.Show("후처리 작업이 취소되었습니다.", "작업 취소", MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
                         }
-                        
-                        Debug.WriteLine($"[Ribbon] YAML 선택적 필드 후처리 완료: {successCount}/{convertedFiles.Count} 파일 처리됨");
-                        Debug.WriteLine($"[Ribbon] YAML 키 경로 병합 후처리 완료: {mergeKeyPathsSuccessCount}/{convertedFiles.Count} 파일 처리됨");
-                        Debug.WriteLine($"[Ribbon] YAML Flow Style 후처리 완료: {flowStyleSuccessCount}/{convertedFiles.Count} 파일 처리됨");
                     }
                     catch (Exception ex)
                     {
@@ -459,6 +534,188 @@ namespace ExcelToYamlAddin
                     "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Debug.WriteLine($"[Ribbon] YAML 변환 오류: {ex.Message}");
                 Debug.WriteLine($"[Ribbon] 스택 트레이스: {ex.StackTrace}");
+            }
+        }
+
+        // JSON으로 변환 버튼 클릭
+        public void OnConvertToJsonClick(object sender, RibbonControlEventArgs e)
+        {
+            try
+            {
+                // 설정 초기화 및 다시 로드
+                SheetPathManager.Instance.Initialize();
+                Debug.WriteLine("[OnConvertToJsonClick] SheetPathManager 초기화 완료");
+                
+                // 현재 워크북 가져오기
+                var addIn = Globals.ThisAddIn;
+                var app = addIn.Application;
+                var activeWorkbook = app.ActiveWorkbook;
+                
+                if (activeWorkbook == null)
+                {
+                    MessageBox.Show("활성 워크북이 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                
+                // 워크북 경로 설정
+                string workbookPath = activeWorkbook.FullName;
+                SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
+                
+                // Excel 설정 관리자 초기화
+                ExcelConfigManager.Instance.SetCurrentWorkbook(workbookPath);
+                
+                // 변환 가능한 시트 찾기
+                var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(activeWorkbook);
+                
+                if (convertibleSheets.Count == 0)
+                {
+                    MessageBox.Show("변환 가능한 시트가 없습니다. 변환하려는 시트 이름 앞에 '!'를 추가하세요.", 
+                        "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                
+                // '!'로 시작하는 시트가 있으면 !Config 시트 확인/생성
+                ExcelConfigManager.Instance.EnsureConfigSheetExists();
+                
+                // XML 설정에서 Excel 설정으로 마이그레이션 (최초 1회)
+                if (Properties.Settings.Default.FirstConfigMigration)
+                {
+                    ExcelConfigManager.Instance.MigrateFromXmlSettings(ExcelToYamlAddin.Config.SheetPathManager.Instance);
+                    Properties.Settings.Default.FirstConfigMigration = false;
+                    Properties.Settings.Default.Save();
+                    Debug.WriteLine("[Ribbon] XML 설정을 Excel 설정으로 마이그레이션 완료");
+                }
+                
+                // 활성화된 시트 수 확인
+                int enabledSheetsCount = 0;
+                Debug.WriteLine($"[OnConvertToJsonClick] 변환 가능한 시트 수: {convertibleSheets.Count}");
+                foreach (var sheet in convertibleSheets)
+                {
+                    string currentSheetName = sheet.Name;
+                    bool isEnabled = SheetPathManager.Instance.IsSheetEnabled(currentSheetName);
+                    Debug.WriteLine($"[OnConvertToJsonClick] 시트 '{currentSheetName}' 활성화 상태: {isEnabled}");
+                    
+                    if (isEnabled)
+                    {
+                        enabledSheetsCount++;
+                    }
+                }
+                
+                Debug.WriteLine($"[OnConvertToJsonClick] 활성화된 시트 수: {enabledSheetsCount}, 비활성화된 시트 수: {convertibleSheets.Count - enabledSheetsCount}");
+                
+                // 활성화된 시트가 없는 경우 처리
+                if (enabledSheetsCount == 0)
+                {
+                    Debug.WriteLine("[OnConvertToJsonClick] 경고: 활성화된 시트가 없습니다. 시트 활성화 상태 상세 정보 출력:");
+                    
+                    // 활성화 상태 자세히 확인 (디버그용)
+                    Dictionary<string, string> allEnabledPaths = SheetPathManager.Instance.GetAllEnabledSheetPaths();
+                    Debug.WriteLine($"[OnConvertToJsonClick] GetAllEnabledSheetPaths 결과: {allEnabledPaths.Count}개 시트");
+                    foreach (var kvp in allEnabledPaths)
+                    {
+                        Debug.WriteLine($"[OnConvertToJsonClick] 활성화된 시트: '{kvp.Key}', 경로: '{kvp.Value}'");
+                    }
+                    
+                    foreach (var sheet in convertibleSheets)
+                    {
+                        string sheetName = sheet.Name;
+                        bool isEnabled = SheetPathManager.Instance.IsSheetEnabled(sheetName);
+                        string sheetPath = SheetPathManager.Instance.GetSheetPath(sheetName);
+                        
+                        Debug.WriteLine($"[OnConvertToJsonClick] 시트 '{sheetName}' - 활성화: {isEnabled}, 경로: '{sheetPath}'");
+                        
+                        // 활성화 상태가 믿을 수 없는 경우 해당 시트를 강제로 활성화
+                        if (isEnabled && !allEnabledPaths.ContainsKey(sheetName))
+                        {
+                            Debug.WriteLine($"[OnConvertToJsonClick] 활성화 상태 불일치 감지. 시트 '{sheetName}'를 강제로 활성화합니다.");
+                            SheetPathManager.Instance.SetSheetEnabled(sheetName, true);
+                            enabledSheetsCount++;
+                        }
+                    }
+                    
+                    // 다시 활성화된 시트 수 확인
+                    if (enabledSheetsCount == 0)
+                    {
+                        MessageBox.Show("활성화된 시트가 없어 변환을 취소합니다.\n\n시트 설정 창에서 시트를 활성화하십시오.", 
+                            "변환 취소", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        // 시트별 경로 설정 창 열기
+                        using (var form = new Forms.SheetPathSettingsForm(convertibleSheets))
+                        {
+                            form.ShowDialog();
+                        }
+                        return;
+                    }
+                }
+                
+                // 활성화된 시트 수가 탐지된 시트 수보다 적은 경우 확인창 표시
+                if (enabledSheetsCount < convertibleSheets.Count)
+                {
+                    int disabledCount = convertibleSheets.Count - enabledSheetsCount;
+                    string message = $"{convertibleSheets.Count}개의 변환 가능한 시트 중 {disabledCount}개의 시트가 비활성화되어 있습니다.\n\n" +
+                                    $"활성화된 {enabledSheetsCount}개의 시트만 변환하시겠습니까?\n\n" +
+                                    "아니오를 선택하면 시트별 경로 설정 창이 열립니다.";
+                    
+                    DialogResult result = MessageBox.Show(message, "시트 활성화 확인", 
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    
+                    if (result == DialogResult.No)
+                    {
+                        // 시트별 경로 설정 창 열기
+                        using (var form = new Forms.SheetPathSettingsForm(convertibleSheets))
+                        {
+                            form.ShowDialog();
+                            
+                            // 설정 후 다시 활성화된 시트 수 확인
+                            enabledSheetsCount = 0;
+                            foreach (var sheet in convertibleSheets)
+                            {
+                                if (SheetPathManager.Instance.IsSheetEnabled(sheet.Name))
+                                {
+                                    enabledSheetsCount++;
+                                }
+                            }
+                            
+                            // 활성화된 시트가 없으면 변환 취소
+                            if (enabledSheetsCount == 0)
+                            {
+                                MessageBox.Show("활성화된 시트가 없어 변환을 취소합니다.", 
+                                    "변환 취소", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                return;
+                            }
+                        }
+                    }
+                }
+                
+                // 설정 적용 - JSON 변환으로 설정
+                config.IncludeEmptyFields = includeEmptyFields;
+                config.EnableHashGen = enableHashGen;
+                config.OutputFormat = OutputFormat.Json;
+                
+                // 변환 전 설정 다시 로드 및 동기화
+                SheetPathManager.Instance.Initialize();
+                Debug.WriteLine("[OnConvertToJsonClick] 변환 전 SheetPathManager 재초기화 완료");
+                
+                // 변환 처리
+                List<string> convertedFiles = ConvertExcelFile(config);
+                
+                // 변환 결과 메시지 표시
+                if (convertedFiles != null && convertedFiles.Count > 0)
+                {
+                    MessageBox.Show($"{convertedFiles.Count}개의 파일이 성공적으로 변환되었습니다.", 
+                        "변환 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("변환된 파일이 없습니다.", 
+                        "변환 완료", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"변환 중 오류가 발생했습니다: {ex.Message}", 
+                    "변환 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Debug.WriteLine($"[OnConvertToJsonClick] 오류: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -661,129 +918,172 @@ namespace ExcelToYamlAddin
                     return convertedFiles;
                 }
 
-                int successCount = 0;
-                int skipCount = 0;
-                // 선택적 필드 처리가 SerializeToYaml에 통합되어 제거
-                //bool processYamlEmptyFields = false;
-                
-                // 모든 변환 가능한 시트에 대해 처리
-                foreach (var sheet in convertibleSheets)
+                // 프로그레스 바 표시 및 변환 작업 수행
+                string outputFormat = config.OutputFormat == OutputFormat.Json ? "JSON" : "YAML";
+                using (var progressForm = new Forms.ProgressForm())
                 {
-                    string sheetName = sheet.Name;
-                    Debug.WriteLine($"처리 중인 시트: {sheetName}");
-                    
-                    // 앞의 '!' 문자 제거 (표시용)
-                    string fileName = sheetName.StartsWith("!") ? sheetName.Substring(1) : sheetName;
-                    
-                    // 시트별 저장 경로 가져오기 - 원래 이름 유지
-                    string savePath = SheetPathManager.Instance.GetSheetPath(sheetName);
-                    
-                    // 디버깅을 위한 로그 추가
-                    Debug.WriteLine($"시트 '{sheetName}'의 저장 경로: {savePath ?? "설정되지 않음"}");
-                    
-                    // 저장 경로가 없으면 '!'가 없는 이름으로도 시도
-                    if (string.IsNullOrEmpty(savePath) && sheetName.StartsWith("!"))
+                    progressForm.RunOperation((progress) =>
                     {
-                        string altSheetName = sheetName.Substring(1);
-                        savePath = SheetPathManager.Instance.GetSheetPath(altSheetName);
-                        Debug.WriteLine($"대체 시트명 '{altSheetName}'으로 경로 검색 결과: {savePath ?? "설정되지 않음"}");
-                    }
-                    
-                    // 저장 경로가 유효하지 않으면 건너뛰기
-                    if (string.IsNullOrEmpty(savePath))
-                    {
-                        Debug.WriteLine($"시트 '{sheetName}'의 저장 경로가 설정되지 않았습니다. 건너뛰기");
-                        
-                        // 활성화 상태 확인 - 활성화된 시트인데 경로가 없는 경우 사용자에게 알림
-                        bool sheetIsEnabled = SheetPathManager.Instance.IsSheetEnabled(sheetName);
-                        if (sheetIsEnabled)
+                        int totalSheets = convertibleSheets.Count;
+                        int processedSheets = 0;
+                        int successCount = 0;
+                        int skipCount = 0;
+
+                        // 초기 프로그레스 업데이트
+                        progress.Report(new Forms.ProgressForm.ProgressInfo
                         {
-                            // 활성화된 모든 시트 경로 가져오기
-                            var allEnabledPaths = SheetPathManager.Instance.GetAllEnabledSheetPaths();
-                            Debug.WriteLine($"GetAllEnabledSheetPaths 결과: {allEnabledPaths.Count}개의 활성화된 시트");
-                            
-                            // GetAllEnabledSheetPaths에 포함되어 있지만 저장 경로가 비어있는지 확인
-                            if (allEnabledPaths.ContainsKey(sheetName) && string.IsNullOrEmpty(allEnabledPaths[sheetName]))
+                            Percentage = 0,
+                            StatusMessage = "Excel 데이터 분석 중..."
+                        });
+
+                        // 처리할 시트 목록 계산
+                        var sheetsToProcess = new List<Worksheet>();
+                        foreach (var sheet in convertibleSheets)
+                        {
+                            string sheetName = sheet.Name;
+                            bool isEnabled = SheetPathManager.Instance.IsSheetEnabled(sheetName);
+                            string savePath = SheetPathManager.Instance.GetSheetPath(sheetName);
+
+                            if (isEnabled && !string.IsNullOrEmpty(savePath))
                             {
-                                Debug.WriteLine($"활성화된 시트 '{sheetName}'은 저장 경로가 비어있습니다.");
+                                sheetsToProcess.Add(sheet);
+                            }
+                        }
+
+                        // 처리할 시트가 없으면 종료
+                        if (sheetsToProcess.Count == 0)
+                        {
+                            progress.Report(new Forms.ProgressForm.ProgressInfo
+                            {
+                                Percentage = 100,
+                                StatusMessage = "처리할 시트가 없습니다.",
+                                IsCompleted = true
+                            });
+                            return;
+                        }
+
+                        // 모든 변환 가능한 시트에 대해 처리
+                        foreach (var sheet in sheetsToProcess)
+                        {
+                            // 작업 취소 확인
+                            if (progressForm.IsCancellationRequested)
+                            {
+                                progress.Report(new Forms.ProgressForm.ProgressInfo
+                                {
+                                    Percentage = 100,
+                                    StatusMessage = "작업이 취소되었습니다.",
+                                    IsCompleted = true
+                                });
+                                return;
+                            }
+
+                            string sheetName = sheet.Name;
+                            progress.Report(new Forms.ProgressForm.ProgressInfo
+                            {
+                                Percentage = (int)((double)processedSheets / sheetsToProcess.Count * 100),
+                                StatusMessage = $"'{sheetName}' 시트 변환 중..."
+                            });
+
+                            // 앞의 '!' 문자 제거 (표시용)
+                            string fileName = sheetName.StartsWith("!") ? sheetName.Substring(1) : sheetName;
+                            
+                            // 시트별 저장 경로 가져오기 - 원래 이름 유지
+                            string savePath = SheetPathManager.Instance.GetSheetPath(sheetName);
+                            
+                            // 디버깅을 위한 로그 추가
+                            Debug.WriteLine($"시트 '{sheetName}'의 저장 경로: {savePath ?? "설정되지 않음"}");
+                            
+                            // 저장 경로가 없으면 '!'가 없는 이름으로도 시도
+                            if (string.IsNullOrEmpty(savePath) && sheetName.StartsWith("!"))
+                            {
+                                string altSheetName = sheetName.Substring(1);
+                                savePath = SheetPathManager.Instance.GetSheetPath(altSheetName);
+                                Debug.WriteLine($"대체 시트명 '{altSheetName}'으로 경로 검색 결과: {savePath ?? "설정되지 않음"}");
                             }
                             
-                            MessageBox.Show($"시트 '{sheetName}'이 활성화되어 있지만 저장 경로가 설정되지 않았습니다.\n" +
-                                           "경로를 설정하시겠습니까?", "경로 설정 필요", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            
-                            // 경로 설정 창 열기
-                            using (var form = new Forms.SheetPathSettingsForm(convertibleSheets))
+                            // 저장 경로가 유효하지 않으면 건너뛰기
+                            if (string.IsNullOrEmpty(savePath))
                             {
-                                form.ShowDialog();
-                                
-                                // 경로 설정 후 다시 확인
-                                savePath = SheetPathManager.Instance.GetSheetPath(sheetName);
-                                Debug.WriteLine($"경로 설정 후 시트 '{sheetName}'의 저장 경로: {savePath ?? "설정되지 않음"}");
-                                
-                                if (string.IsNullOrEmpty(savePath))
+                                processedSheets++;
+                                skipCount++;
+                                continue;
+                            }
+                            
+                            // 활성화 상태 확인 - 비활성화된 시트는 건너뛰기
+                            bool isEnabled = SheetPathManager.Instance.IsSheetEnabled(sheetName);
+                            if (!isEnabled)
+                            {
+                                processedSheets++;
+                                skipCount++;
+                                continue;
+                            }
+                            
+                            // 경로 존재 확인 및 생성
+                            if (!Directory.Exists(savePath))
+                            {
+                                try 
                                 {
-                                    Debug.WriteLine($"시트 '{sheetName}'의 저장 경로가 여전히 설정되지 않았습니다. 건너뛰기");
+                                    Debug.WriteLine($"경로가 존재하지 않아 생성합니다: {savePath}");
+                                    Directory.CreateDirectory(savePath);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"경로 생성 실패: {ex.Message}");
+                                    processedSheets++;
                                     skipCount++;
                                     continue;
                                 }
                             }
+                            
+                            // 파일 확장자 결정
+                            string ext = config.OutputFormat == OutputFormat.Json ? ".json" : ".yaml";
+                            
+                            // 결과 파일 경로
+                            string resultFile = Path.Combine(savePath, $"{fileName}{ext}");
+                            
+                            try
+                            {
+                                // 변환 처리 - 시트 이름 지정
+                                var excelReader = new ExcelReader(config);
+                                excelReader.ProcessExcelFile(tempFile, resultFile, sheetName);
+                                
+                                successCount++;
+                                convertedFiles.Add(resultFile);
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"시트 '{sheetName}' 변환 중 오류 발생: {ex.Message}");
+                                skipCount++;
+                            }
+
+                            processedSheets++;
+                            progress.Report(new Forms.ProgressForm.ProgressInfo
+                            {
+                                Percentage = (int)((double)processedSheets / sheetsToProcess.Count * 100),
+                                StatusMessage = $"'{sheetName}' 시트 변환 완료"
+                            });
                         }
-                        else
-                        {
-                            skipCount++;
-                            continue;
-                        }
-                    }
-                    
-                    // 활성화 상태 확인 - 비활성화된 시트는 건너뛰기
-                    bool isEnabled = SheetPathManager.Instance.IsSheetEnabled(sheetName);
-                    if (!isEnabled)
-                    {
-                        Debug.WriteLine($"시트 '{sheetName}'은 비활성화 상태입니다. 건너뛰기");
-                        skipCount++;
-                        continue;
-                    }
-                    
-                    // 경로 존재 확인 및 생성
-                    if (!Directory.Exists(savePath))
-                    {
-                        try 
-                        {
-                            Debug.WriteLine($"경로가 존재하지 않아 생성합니다: {savePath}");
-                            Directory.CreateDirectory(savePath);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"경로 생성 실패: {ex.Message}");
-                            skipCount++;
-                            continue;
-                        }
-                    }
-                    
-                    // 파일 확장자 결정
-                    string ext = config.OutputFormat == OutputFormat.Json ? ".json" : ".yaml";
-                    
-                    // 결과 파일 경로
-                    string resultFile = Path.Combine(savePath, $"{fileName}{ext}");
-                    
-                    try
-                    {
-                        // 변환 처리 - 시트 이름 지정
-                        var excelReader = new ExcelReader(config);
-                        excelReader.ProcessExcelFile(tempFile, resultFile, sheetName);
                         
-                        successCount++;
-                        convertedFiles.Add(resultFile);
-                    }
-                    catch (Exception ex)
+                        // 변환 결과 로그 작성
+                        Debug.WriteLine($"변환 완료: {successCount}개 성공, {skipCount}개 실패");
+                        
+                        // 작업 완료 알림
+                        progress.Report(new Forms.ProgressForm.ProgressInfo
+                        {
+                            Percentage = 100,
+                            StatusMessage = $"변환 완료: {successCount}개 시트 변환 성공",
+                            IsCompleted = true
+                        });
+                    }, $"Excel → {outputFormat} 변환 중");
+
+                    progressForm.ShowDialog();
+
+                    // 취소된 경우
+                    if (progressForm.IsCancellationRequested)
                     {
-                        Debug.WriteLine($"시트 '{sheetName}' 변환 중 오류 발생: {ex.Message}");
-                        skipCount++;
+                        MessageBox.Show("변환 작업이 취소되었습니다.", "작업 취소", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
-                
-                // 변환 결과 로그 작성
-                Debug.WriteLine($"변환 완료: {successCount}개 성공, {skipCount}개 실패");
                 
                 return convertedFiles;
             }

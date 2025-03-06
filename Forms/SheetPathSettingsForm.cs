@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
-using Microsoft.Office.Interop.Excel;
+using Excel = Microsoft.Office.Interop.Excel;
 using ExcelToYamlAddin.Core;
 using ExcelToYamlAddin.Config;
 
@@ -17,16 +17,19 @@ namespace ExcelToYamlAddin.Forms
 {
     public partial class SheetPathSettingsForm : Form
     {
-        private List<Worksheet> convertibleSheets;
+        private List<Excel.Worksheet> convertibleSheets;
         
         // Excel 설정 관리자 추가
         private ExcelConfigManager excelConfigManager;
 
-        public SheetPathSettingsForm(List<Worksheet> sheets)
+        public SheetPathSettingsForm(List<Excel.Worksheet> sheets)
         {
             InitializeComponent();
             
             Debug.WriteLine("[SheetPathSettingsForm] 생성자 시작");
+            
+            // 모던 스타일 적용
+            ApplyModernStyle();
             
             // 데이터 그리드 셀 포맷 설정
             ConfigureDataGridCellFormatting();
@@ -197,7 +200,7 @@ namespace ExcelToYamlAddin.Forms
                 var pathManager = SheetPathManager.Instance;
                 bool showExtraColumns = true;
                 
-                foreach (Worksheet sheet in convertibleSheets)
+                foreach (Excel.Worksheet sheet in convertibleSheets)
                 {
                     if (sheet == null)
                         continue;
@@ -371,23 +374,17 @@ namespace ExcelToYamlAddin.Forms
         {
             Debug.WriteLine($"[ShowFolderBrowserDialog] 시작: 제목='{title}', 초기 폴더='{initialFolder}'");
             
-            // Windows 탐색기 스타일 폴더 선택 다이얼로그
-            using (OpenFileDialog folderBrowser = new OpenFileDialog())
+            // 전용 폴더 브라우저 다이얼로그 사용
+            using (FolderBrowserDialog folderBrowser = new FolderBrowserDialog())
             {
-                // 폴더 선택을 위한 설정
-                folderBrowser.ValidateNames = false;
-                folderBrowser.CheckFileExists = false;
-                folderBrowser.CheckPathExists = true;
-                folderBrowser.FileName = "폴더 선택";
-
-                // 파일이 아닌 폴더만 선택하도록 함
-                folderBrowser.Filter = "폴더|*.";
-                folderBrowser.Title = title;
+                // 다이얼로그 설정
+                folderBrowser.Description = title;
+                folderBrowser.ShowNewFolderButton = true;
 
                 // 초기 폴더 설정
                 if (!string.IsNullOrEmpty(initialFolder) && Directory.Exists(initialFolder))
                 {
-                    folderBrowser.InitialDirectory = initialFolder;
+                    folderBrowser.SelectedPath = initialFolder;
                     Debug.WriteLine($"[ShowFolderBrowserDialog] 초기 폴더 설정: '{initialFolder}'");
                 }
                 else
@@ -395,7 +392,7 @@ namespace ExcelToYamlAddin.Forms
                     string defaultDir = Properties.Settings.Default.LastExportPath;
                     if (!string.IsNullOrEmpty(defaultDir) && Directory.Exists(defaultDir))
                     {
-                        folderBrowser.InitialDirectory = defaultDir;
+                        folderBrowser.SelectedPath = defaultDir;
                         Debug.WriteLine($"[ShowFolderBrowserDialog] 기본 폴더 설정: '{defaultDir}'");
                     }
                     else
@@ -406,9 +403,13 @@ namespace ExcelToYamlAddin.Forms
 
                 if (folderBrowser.ShowDialog() == DialogResult.OK)
                 {
-                    // 선택된 파일이 아닌 선택된 폴더 경로 반환
-                    string selectedPath = Path.GetDirectoryName(folderBrowser.FileName);
+                    string selectedPath = folderBrowser.SelectedPath;
                     Debug.WriteLine($"[ShowFolderBrowserDialog] 폴더 선택 완료: '{selectedPath}'");
+                    
+                    // 마지막 경로 저장
+                    Properties.Settings.Default.LastExportPath = selectedPath;
+                    Properties.Settings.Default.Save();
+                    
                     return selectedPath;
                 }
 
@@ -722,11 +723,38 @@ namespace ExcelToYamlAddin.Forms
         {
             try
             {
-                // "찾아보기" 버튼 열의 인덱스 확인
-                if (e.ColumnIndex == dataGridView.Columns["BrowseColumn"].Index && e.RowIndex >= 0)
+                Debug.WriteLine($"[DataGridView_CellContentClick] 열 {e.ColumnIndex}, 행 {e.RowIndex} 클릭됨");
+                
+                if (e.RowIndex < 0 || e.ColumnIndex < 0)
+                    return;
+                
+                // 경로 버튼 열 클릭 처리
+                if (dataGridView.Columns[e.ColumnIndex] is DataGridViewButtonColumn)
                 {
-                    // 선택한 행에 대한 경로 선택 다이얼로그 표시
-                    SelectPath(e.RowIndex);
+                    // 클릭 효과를 위한 시각적 피드백
+                    DataGridViewCell cell = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                    Color originalColor = cell.Style.BackColor;
+                    cell.Style.BackColor = Color.FromArgb(0, 120, 215);
+                    cell.Style.ForeColor = Color.White;
+                    
+                    // UI 스레드에서 작업 실행 및 시각적 효과 복원
+                    this.BeginInvoke(new System.Action(() => {
+                        // 경로 선택 대화상자 열기
+                        OpenFolderSelectionDialog(e.RowIndex);
+                        
+                        // 약간의 지연 후 셀 색상 복원 (클릭 효과)
+                        System.Threading.Timer timer = null;
+                        timer = new System.Threading.Timer(state => {
+                            this.BeginInvoke(new System.Action(() => {
+                                if (dataGridView.Rows.Count > e.RowIndex && dataGridView.Columns.Count > e.ColumnIndex)
+                                {
+                                    cell.Style.BackColor = originalColor;
+                                    cell.Style.ForeColor = Color.Black;
+                                }
+                                timer?.Dispose();
+                            }));
+                        }, null, 150, System.Threading.Timeout.Infinite);
+                    }));
                 }
             }
             catch (Exception ex)
@@ -811,10 +839,50 @@ namespace ExcelToYamlAddin.Forms
         {
             try
             {
+                // 기본 그리드 스타일 설정
+                dataGridView.BackgroundColor = Color.White;
+                dataGridView.BorderStyle = BorderStyle.None;
+                dataGridView.GridColor = Color.FromArgb(230, 230, 230);
+                dataGridView.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+                
+                // 헤더 스타일 설정
+                dataGridView.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(45, 66, 91);
+                dataGridView.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+                dataGridView.ColumnHeadersDefaultCellStyle.Font = new System.Drawing.Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+                dataGridView.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                dataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+                dataGridView.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+                dataGridView.ColumnHeadersHeight = 35;
+                
+                // 셀 스타일 설정
+                dataGridView.DefaultCellStyle.BackColor = Color.White;
+                dataGridView.DefaultCellStyle.ForeColor = Color.FromArgb(40, 40, 40);
+                dataGridView.DefaultCellStyle.SelectionBackColor = Color.FromArgb(230, 244, 255);
+                dataGridView.DefaultCellStyle.SelectionForeColor = Color.FromArgb(40, 40, 40);
+                dataGridView.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 9F);
+                dataGridView.DefaultCellStyle.Padding = new Padding(5);
+                dataGridView.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+                
                 // 데이터 그리드 뷰의 CellFormatting 이벤트 핸들러 추가
                 dataGridView.CellFormatting += (sender, e) => {
                     if (e.RowIndex < 0 || e.ColumnIndex < 0)
                         return;
+                        
+                    // 행 색상 교차 적용 (얼룩무늬 효과)
+                    if (e.RowIndex % 2 == 0)
+                    {
+                        e.CellStyle.BackColor = Color.FromArgb(245, 245, 245);
+                    }
+                    else
+                    {
+                        e.CellStyle.BackColor = Color.White;
+                    }
+                    
+                    // 체크박스 열인 경우 (Enabled 열)
+                    if (dataGridView.Columns[e.ColumnIndex] is DataGridViewCheckBoxColumn)
+                    {
+                        e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    }
                         
                     // 셀 값 로깅 (필요시)
                     if (Debug.Listeners.Count > 0 && e.Value != null)
@@ -826,14 +894,129 @@ namespace ExcelToYamlAddin.Forms
                 };
                 
                 // 셀 스타일 설정
-                dataGridView.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
                 dataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+                
+                // 선택 모드 설정
+                dataGridView.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+                
+                // 스크롤바 스타일 설정
+                dataGridView.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+                
+                // 로우 헤더 숨기기
+                dataGridView.RowHeadersVisible = false;
                 
                 Debug.WriteLine("[ConfigureDataGridCellFormatting] 데이터 그리드 셀 포맷 설정 완료");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[ConfigureDataGridCellFormatting] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
+        /// <summary>
+        /// 폼에 모던한 스타일을 적용합니다.
+        /// </summary>
+        private void ApplyModernStyle()
+        {
+            try
+            {
+                // 폼 스타일 설정
+                this.BackColor = Color.White;
+                this.Font = new System.Drawing.Font("Segoe UI", 9F);
+                this.FormBorderStyle = FormBorderStyle.FixedDialog;
+                this.MaximizeBox = false;
+                this.MinimizeBox = true;
+                this.ShowIcon = true;
+                this.StartPosition = FormStartPosition.CenterScreen;
+                this.Text = "시트 저장 경로 설정";
+                
+                // 버튼 스타일 설정
+                foreach (Control control in this.Controls)
+                {
+                    if (control is System.Windows.Forms.Button button)
+                    {
+                        StyleButton(button);
+                    }
+                    else if (control is System.Windows.Forms.Label label)
+                    {
+                        if (label.Name == "lblConfigPath")
+                        {
+                            // 경로 라벨 스타일 조정
+                            label.Font = new System.Drawing.Font("Segoe UI", 8F);
+                            label.ForeColor = Color.Gray;
+                        }
+                    }
+                }
+                
+                // 툴팁 추가
+                ToolTip toolTip = new ToolTip();
+                toolTip.AutoPopDelay = 5000;
+                toolTip.InitialDelay = 500;
+                toolTip.ReshowDelay = 500;
+                toolTip.ShowAlways = true;
+                
+                // 저장 버튼에 툴팁 추가
+                foreach (Control control in this.Controls)
+                {
+                    if (control is System.Windows.Forms.Button button && button.Name == "SaveButton")
+                    {
+                        toolTip.SetToolTip(button, "변경된 설정을 저장합니다");
+                    }
+                    else if (control is System.Windows.Forms.Button cancelButton && cancelButton.Name == "CancelButton")
+                    {
+                        toolTip.SetToolTip(cancelButton, "변경 사항을 취소하고 닫습니다");
+                    }
+                }
+                
+                Debug.WriteLine("[ApplyModernStyle] 모던 스타일 적용 완료");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ApplyModernStyle] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+        
+        /// <summary>
+        /// 버튼에 모던한 스타일을 적용합니다.
+        /// </summary>
+        private void StyleButton(System.Windows.Forms.Button button)
+        {
+            // 저장 버튼은 강조 스타일로 적용
+            if (button.Name == "SaveButton")
+            {
+                button.BackColor = Color.FromArgb(0, 120, 215);
+                button.ForeColor = Color.White;
+                button.FlatStyle = FlatStyle.Flat;
+                button.FlatAppearance.BorderSize = 0;
+                button.Font = new System.Drawing.Font("Segoe UI", 9F, FontStyle.Bold);
+                button.Cursor = Cursors.Hand;
+                
+                // 마우스 이벤트로 버튼 효과 추가
+                button.MouseEnter += (s, e) => {
+                    button.BackColor = Color.FromArgb(0, 102, 204);
+                };
+                button.MouseLeave += (s, e) => {
+                    button.BackColor = Color.FromArgb(0, 120, 215);
+                };
+            }
+            // 취소 버튼은 마이너 스타일로 적용
+            else if (button.Name == "CancelButton")
+            {
+                button.BackColor = Color.FromArgb(245, 245, 245);
+                button.ForeColor = Color.FromArgb(50, 50, 50);
+                button.FlatStyle = FlatStyle.Flat;
+                button.FlatAppearance.BorderColor = Color.FromArgb(200, 200, 200);
+                button.FlatAppearance.BorderSize = 1;
+                button.Font = new System.Drawing.Font("Segoe UI", 9F);
+                button.Cursor = Cursors.Hand;
+                
+                // 마우스 이벤트로 버튼 효과 추가
+                button.MouseEnter += (s, e) => {
+                    button.BackColor = Color.FromArgb(230, 230, 230);
+                };
+                button.MouseLeave += (s, e) => {
+                    button.BackColor = Color.FromArgb(245, 245, 245);
+                };
             }
         }
 
