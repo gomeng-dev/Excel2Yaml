@@ -364,14 +364,22 @@ namespace ExcelToJsonAddin
                                         sheetMergeKeyPaths = SheetPathManager.Instance.GetMergeKeyPaths(matchedSheetName);
                                     }
                                     
-                                    // YAML 병합 키 경로 처리 실행
+                                    // YAML 병합 키 경로 처리 실행 (YamlMergeKeyPathsProcessor 사용)
                                     if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
                                     {
-                                        Debug.WriteLine($"[Ribbon] YAML 병합 키 경로 후처리 실행: {filePath}, 설정: {sheetMergeKeyPaths}");
+                                        Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실행: {filePath}, 설정: {sheetMergeKeyPaths}");
+                                        
+                                        // 개선된 YamlMergeKeyPathsProcessor를 사용하여 병합 처리
                                         bool success = YamlMergeKeyPathsProcessor.ProcessYamlFileFromConfig(filePath, sheetMergeKeyPaths);
+                                        
                                         if (success)
                                         {
+                                            Debug.WriteLine($"[Ribbon] YAML 병합 후처리 완료: {filePath}");
                                             mergeKeyPathsSuccessCount++;
+                                        }
+                                        else
+                                        {
+                                            Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실패: {filePath}");
                                         }
                                     }
                                 }

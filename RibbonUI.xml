@@ -2,7 +2,7 @@
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
   <ribbon>
     <tabs>
-      <tab id="tabExcelToJson" label="Excel2Json">
+      <tab id="tabExcelToYaml" label="Excel2Yaml">
         <group id="groupConvert" label="변환">
           <button id="btnConvertToJson" 
                   label="JSON 변환" 

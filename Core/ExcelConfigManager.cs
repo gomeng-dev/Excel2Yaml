@@ -19,7 +19,7 @@ namespace ExcelToJsonAddin.Core
         private static ExcelConfigManager _instance;
         
         // 설정 시트 이름 상수
-        public const string CONFIG_SHEET_NAME = "excel2jsonconfig";
+        public const string CONFIG_SHEET_NAME = "excel2yamlconfig";
         
         // 현재 워크북 경로
         private string _currentWorkbookPath;

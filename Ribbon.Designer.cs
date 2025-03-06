@@ -49,8 +49,8 @@ namespace ExcelToJsonAddin
             this.tabExcelToJson.ControlId.ControlIdType = Microsoft.Office.Tools.Ribbon.RibbonControlIdType.Office;
             this.tabExcelToJson.Groups.Add(this.groupConvert);
             this.tabExcelToJson.Groups.Add(this.groupSettings);
-            this.tabExcelToJson.Label = "Excel2Json";
-            this.tabExcelToJson.Name = "tabExcelToJson";
+            this.tabExcelToJson.Label = "Excel2Yaml";
+            this.tabExcelToJson.Name = "tabExcelToYaml";
             // 
             // groupConvert
             // 

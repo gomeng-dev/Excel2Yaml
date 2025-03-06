@@ -56,8 +56,8 @@ namespace ExcelToJsonAddin.Forms
                 // 설정 로드
                 excelConfigManager.LoadAllSettings();
                 
-                // 디버깅: excel2jsonconfig 시트에서 로드한 값 확인
-                Debug.WriteLine("[SheetPathSettingsForm] excel2jsonconfig 시트에서 로드한 값 확인");
+                // 디버깅: excel2yamlconfig 시트에서 로드한 값 확인
+                Debug.WriteLine("[SheetPathSettingsForm] excel2yamlconfig 시트에서 로드한 값 확인");
                 foreach (var sheet in sheets)
                 {
                     string sheetName = sheet.Name;
