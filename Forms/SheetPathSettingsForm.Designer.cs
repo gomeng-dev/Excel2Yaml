@@ -37,9 +37,9 @@ namespace ExcelToJsonAddin.Forms
             this.IdPathColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.MergePathsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.KeyPathsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.ArrayFieldPathsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.FlowStyleFieldsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.FlowStyleItemsFieldsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.CompareFieldsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.saveButton = new System.Windows.Forms.Button();
             this.cancelButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
@@ -64,9 +64,9 @@ namespace ExcelToJsonAddin.Forms
             this.IdPathColumn,
             this.MergePathsColumn,
             this.KeyPathsColumn,
+            this.ArrayFieldPathsColumn,
             this.FlowStyleFieldsColumn,
-            this.FlowStyleItemsFieldsColumn,
-            this.CompareFieldsColumn});
+            this.FlowStyleItemsFieldsColumn});
             this.dataGridView.Location = new System.Drawing.Point(17, 70);
             this.dataGridView.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.dataGridView.Name = "dataGridView";
@@ -138,6 +138,14 @@ namespace ExcelToJsonAddin.Forms
             this.KeyPathsColumn.ToolTipText = "키 경로:전략 문자열 (예: level:merge;achievement:append)";
             this.KeyPathsColumn.Width = 120;
             // 
+            // ArrayFieldPathsColumn
+            // 
+            this.ArrayFieldPathsColumn.HeaderText = "배열 필드 경로";
+            this.ArrayFieldPathsColumn.MinimumWidth = 8;
+            this.ArrayFieldPathsColumn.Name = "ArrayFieldPathsColumn";
+            this.ArrayFieldPathsColumn.ToolTipText = "배열 필드 경로:전략 문자열 (예: results;append)";
+            this.ArrayFieldPathsColumn.Width = 150;
+            // 
             // FlowStyleFieldsColumn
             // 
             this.FlowStyleFieldsColumn.HeaderText = "Flow 필드";
@@ -151,13 +159,6 @@ namespace ExcelToJsonAddin.Forms
             this.FlowStyleItemsFieldsColumn.MinimumWidth = 8;
             this.FlowStyleItemsFieldsColumn.Name = "FlowStyleItemsFieldsColumn";
             this.FlowStyleItemsFieldsColumn.Width = 150;
-            // 
-            // CompareFieldsColumn
-            // 
-            this.CompareFieldsColumn.HeaderText = "비교 필드";
-            this.CompareFieldsColumn.MinimumWidth = 8;
-            this.CompareFieldsColumn.Name = "CompareFieldsColumn";
-            this.CompareFieldsColumn.Width = 150;
             // 
             // saveButton
             // 
@@ -243,6 +244,6 @@ namespace ExcelToJsonAddin.Forms
         private System.Windows.Forms.DataGridViewTextBoxColumn KeyPathsColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn FlowStyleFieldsColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn FlowStyleItemsFieldsColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn CompareFieldsColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn ArrayFieldPathsColumn;
     }
 }

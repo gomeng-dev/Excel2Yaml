@@ -141,51 +141,93 @@ namespace ExcelToJsonAddin.Config
             if (!string.IsNullOrEmpty(fileName))
                 paths.Add(fileName);
                 
-            // 모든 경로 조합에 대해 서로 데이터 동기화
-            for (int i = 0; i < paths.Count; i++)
+            // 먼저 모든 시트 이름 수집
+            HashSet<string> allSheetNames = new HashSet<string>();
+            foreach (string path in paths)
             {
-                for (int j = 0; j < paths.Count; j++)
+                if (LazyLoadSheetPaths().ContainsKey(path))
                 {
-                    if (i == j) continue; // 같은 경로는 스킵
-                    
-                    string sourcePath = paths[i];
-                    string targetPath = paths[j];
-                    
-                    // 소스 경로에 시트 정보가 있으면 대상 경로로 복사
-                    if (LazyLoadSheetPaths().ContainsKey(sourcePath) && LazyLoadSheetPaths()[sourcePath].Count > 0)
+                    foreach (string sheetName in LazyLoadSheetPaths()[path].Keys)
                     {
-                        foreach (var sheet in LazyLoadSheetPaths()[sourcePath])
+                        allSheetNames.Add(sheetName);
+                    }
+                }
+            }
+            
+            // 각 시트에 대해 모든 경로에 대한 시트 정보 동기화
+            foreach (string sheetName in allSheetNames)
+            {
+                // 각 시트의 모든 경로에 대한 활성화 상태 확인
+                bool anyEnabled = false;
+                
+                // 먼저 어떤 경로에서든 해당 시트가 활성화되어 있는지 확인
+                foreach (string path in paths)
+                {
+                    if (LazyLoadSheetPaths().ContainsKey(path) && 
+                        LazyLoadSheetPaths()[path].ContainsKey(sheetName) &&
+                        LazyLoadSheetPaths()[path][sheetName].Enabled)
+                    {
+                        anyEnabled = true;
+                        Debug.WriteLine($"[SynchronizeWorkbookData] 경로 '{path}'의 시트 '{sheetName}'이 활성화 상태입니다.");
+                        break;
+                    }
+                }
+                
+                // 시트의 SavePath 및 기타 정보를 위한 참조 경로와 정보 찾기
+                string referencePath = null;
+                SheetPathInfo referenceInfo = null;
+                
+                foreach (string path in paths)
+                {
+                    if (LazyLoadSheetPaths().ContainsKey(path) && 
+                        LazyLoadSheetPaths()[path].ContainsKey(sheetName))
+                    {
+                        referencePath = path;
+                        referenceInfo = LazyLoadSheetPaths()[path][sheetName];
+                        break;
+                    }
+                }
+                
+                if (referencePath != null && referenceInfo != null)
+                {
+                    // 참조 정보를 기반으로 모든 경로에 대해 시트 정보 동기화
+                    foreach (string path in paths)
+                    {
+                        if (!LazyLoadSheetPaths().ContainsKey(path))
                         {
-                            string sheetName = sheet.Key;
-                            SheetPathInfo sheetInfo = sheet.Value;
+                            LazyLoadSheetPaths()[path] = new Dictionary<string, SheetPathInfo>();
+                            Debug.WriteLine($"[SynchronizeWorkbookData] 경로 '{path}'에 대한 새 사전 생성");
+                        }
+                        
+                        if (!LazyLoadSheetPaths()[path].ContainsKey(sheetName))
+                        {
+                            // 시트가 없으면 새로 추가
+                            LazyLoadSheetPaths()[path][sheetName] = new SheetPathInfo
+                            {
+                                SavePath = referenceInfo.SavePath,
+                                Enabled = anyEnabled, // 활성화 상태 동기화 - 어느 하나라도 활성화되어 있으면 활성화
+                                YamlEmptyFields = referenceInfo.YamlEmptyFields
+                            };
+                            Debug.WriteLine($"[SynchronizeWorkbookData] 경로 '{path}'에 시트 '{sheetName}' 정보 추가 (활성화={anyEnabled})");
+                        }
+                        else
+                        {
+                            // 시트가 있으면 정보 업데이트 (활성화 상태 동기화)
+                            bool oldEnabled = LazyLoadSheetPaths()[path][sheetName].Enabled;
+                            LazyLoadSheetPaths()[path][sheetName].SavePath = referenceInfo.SavePath;
+                            LazyLoadSheetPaths()[path][sheetName].Enabled = anyEnabled; // 활성화 상태 동기화
+                            LazyLoadSheetPaths()[path][sheetName].YamlEmptyFields = referenceInfo.YamlEmptyFields;
                             
-                            // 대상 경로에 시트 정보가 없거나 다른 경우 복사
-                            if (!LazyLoadSheetPaths()[targetPath].ContainsKey(sheetName))
+                            if (oldEnabled != anyEnabled)
                             {
-                                LazyLoadSheetPaths()[targetPath][sheetName] = sheetInfo;
-                                Debug.WriteLine($"[SynchronizeWorkbookData] '{sourcePath}'에서 '{targetPath}'로 시트 '{sheetName}' 정보 복사");
-                            }
-                            else
-                            {
-                                // 활성화 상태 확인 및 업데이트
-                                if (LazyLoadSheetPaths()[targetPath][sheetName].Enabled != sheetInfo.Enabled)
-                                {
-                                    bool sourceEnabled = sheetInfo.Enabled;
-                                    bool targetEnabled = LazyLoadSheetPaths()[targetPath][sheetName].Enabled;
-                                    
-                                    // 둘 중 하나라도 활성화되어 있으면 모두 활성화
-                                    if (sourceEnabled || targetEnabled)
-                                    {
-                                        LazyLoadSheetPaths()[sourcePath][sheetName].Enabled = true;
-                                        LazyLoadSheetPaths()[targetPath][sheetName].Enabled = true;
-                                        Debug.WriteLine($"[SynchronizeWorkbookData] 시트 '{sheetName}'의 활성화 상태 동기화 (true로 설정)");
-                                    }
-                                }
+                                Debug.WriteLine($"[SynchronizeWorkbookData] 경로 '{path}'의 시트 '{sheetName}' 활성화 상태 변경: {oldEnabled} -> {anyEnabled}");
                             }
                         }
                     }
                 }
             }
+            
+            Debug.WriteLine($"[SynchronizeWorkbookData] 모든 경로 간 시트 정보 동기화 완료");
             
             // 설정 저장
             SaveSettings();
@@ -662,6 +704,52 @@ namespace ExcelToJsonAddin.Config
                 Debug.WriteLine($"[SetSheetEnabledInternal] 시트 '{sheetName}'의 활성화 상태 업데이트: {enabled}");
             }
             
+            // 워크북 경로 처리에 필요한 변수들
+            string normalizedPath = NormalizeWorkbookPath(workbookName);
+            string fileName = Path.GetFileName(workbookName);
+            
+            // 다른 형태의 워크북 경로에 대해서도 동일한 시트의 활성화 상태 동기화
+            List<string> pathsToSync = new List<string>();
+            
+            // 원본 경로와 다른 형태들을 리스트에 추가
+            if (normalizedPath != workbookName && !string.IsNullOrEmpty(normalizedPath))
+            {
+                pathsToSync.Add(normalizedPath);
+            }
+            
+            if (!string.IsNullOrEmpty(fileName) && fileName != workbookName && fileName != normalizedPath)
+            {
+                pathsToSync.Add(fileName);
+            }
+            
+            // 다른 형태의 경로에 대해 동일한 시트 활성화 상태 설정
+            foreach (var path in pathsToSync)
+            {
+                if (!LazyLoadSheetPaths().ContainsKey(path))
+                {
+                    LazyLoadSheetPaths()[path] = new Dictionary<string, SheetPathInfo>();
+                    Debug.WriteLine($"[SetSheetEnabledInternal] 관련 경로 '{path}'에 대한 새 사전 생성");
+                }
+                
+                if (!LazyLoadSheetPaths()[path].ContainsKey(sheetName))
+                {
+                    // 관련 경로에 시트가 없으면 새로 추가
+                    LazyLoadSheetPaths()[path][sheetName] = new SheetPathInfo
+                    {
+                        SavePath = LazyLoadSheetPaths()[workbookName][sheetName].SavePath,
+                        Enabled = enabled,
+                        YamlEmptyFields = LazyLoadSheetPaths()[workbookName][sheetName].YamlEmptyFields
+                    };
+                    Debug.WriteLine($"[SetSheetEnabledInternal] 관련 경로 '{path}'에 시트 '{sheetName}' 새로 추가: Enabled={enabled}");
+                }
+                else
+                {
+                    // 관련 경로에 시트가 있으면 활성화 상태만 업데이트
+                    LazyLoadSheetPaths()[path][sheetName].Enabled = enabled;
+                    Debug.WriteLine($"[SetSheetEnabledInternal] 관련 경로 '{path}'의 시트 '{sheetName}' 활성화 상태 업데이트: {enabled}");
+                }
+            }
+            
             // 활성화 상태 저장 후 사전 내용 출력
             Debug.WriteLine($"[SetSheetEnabledInternal] 워크북 '{workbookName}'의 시트 '{sheetName}' 저장 후 상태:");
             if (LazyLoadSheetPaths().ContainsKey(workbookName) && LazyLoadSheetPaths()[workbookName].ContainsKey(sheetName))
@@ -966,7 +1054,10 @@ namespace ExcelToJsonAddin.Config
                     Directory.CreateDirectory(settingsDir);
                 }
 
-                // 중복 데이터 방지를 위한 사전 - 시트이름을 키로 사용
+                // 저장 전에 워크북 형식 간에 활성화 상태 동기화 수행
+                SynchronizeAllWorkbookPaths();
+
+                // 중복 데이터 방지를 위한 사전 - 워크북명 + 시트이름을 키로 사용
                 Dictionary<string, SheetPathData> uniqueEntries = new Dictionary<string, SheetPathData>();
                 
                 // 데이터 변환 및 디버깅 출력
@@ -984,26 +1075,11 @@ namespace ExcelToJsonAddin.Config
                         var sheetName = sheet.Key;
                         var sheetInfo = sheet.Value;
                         
-                        // 이미 이 시트가 등록되어 있고, 현재 항목이 파일명만 사용한 경우 우선 등록
-                        string uniqueKey = sheetName; // 시트 이름을 키로 사용
+                        // 워크북 파일명 + 시트이름을 고유 키로 사용
+                        string uniqueKey = fileName + "|" + sheetName;
                         
-                        if (uniqueEntries.ContainsKey(uniqueKey))
-                        {
-                            // 이미 등록된 항목이 파일명이고 현재 항목이 전체 경로인 경우 건너뜀
-                            if (!isFullPath && uniqueEntries[uniqueKey].WorkbookPath.Contains("/"))
-                            {
-                                Debug.WriteLine($"[SaveSheetPaths] 시트 '{sheetName}'는 이미 전체 경로 항목이 등록되어 있어 파일명 항목은 무시합니다.");
-                                continue;
-                            }
-                            
-                            // 이미 등록된 항목이 전체 경로이고 현재 항목이 파일명인 경우 덮어씀
-                            if (isFullPath)
-                            {
-                                Debug.WriteLine($"[SaveSheetPaths] 시트 '{sheetName}'의 기존 항목을 전체 경로 항목으로 교체합니다.");
-                            }
-                        }
-                        
-                        // 새 항목 생성
+                        // 여기서는 동일한 워크북(파일명)과 시트 조합에 대해 마지막 항목이 우선함
+                        // 그러나 동기화가 제대로 되었다면 모든 항목의 활성화 상태는 동일해야 함
                         SheetPathData pathData = new SheetPathData
                         {
                             // 항상 파일명만 저장하여 중복 방지
@@ -1011,13 +1087,27 @@ namespace ExcelToJsonAddin.Config
                             SheetName = sheetName,
                             SavePath = sheetInfo.SavePath,
                             Enabled = sheetInfo.Enabled,
-                            YamlEmptyFields = sheetInfo.YamlEmptyFields,
-                            MergeKeyPaths = "", // XML에는 저장하지 않음
-                            FlowStyleConfig = "" // XML에는 저장하지 않음
+                            // YamlEmptyFields = sheetInfo.YamlEmptyFields, // XML에 저장하지 않음
+                            // MergeKeyPaths = "", // XML에는 저장하지 않음
+                            // FlowStyleConfig = "" // XML에는 저장하지 않음
                         };
                         
+                        // 이전에 등록된 항목이 있으면 둘 중 하나라도 활성화되어 있으면 활성화 상태로 설정
+                        if (uniqueEntries.ContainsKey(uniqueKey))
+                        {
+                            bool previousEnabled = uniqueEntries[uniqueKey].Enabled;
+                            bool newEnabled = pathData.Enabled;
+                            
+                            // 둘 중 하나라도 활성화되어 있으면 항상 활성화 상태로 설정
+                            if (previousEnabled || newEnabled)
+                            {
+                                pathData.Enabled = true;
+                                Debug.WriteLine($"[SaveSheetPaths] 시트 '{sheetName}'의 활성화 상태가 충돌함. 활성화 상태로 설정합니다. (이전: {previousEnabled}, 현재: {newEnabled})");
+                            }
+                        }
+                        
                         uniqueEntries[uniqueKey] = pathData;
-                        Debug.WriteLine($"[SaveSheetPaths] 저장할 항목: 워크북='{fileName}', 시트='{sheetName}', 경로='{sheetInfo.SavePath}', 활성화={sheetInfo.Enabled}");
+                        Debug.WriteLine($"[SaveSheetPaths] 저장할 항목: 워크북='{fileName}', 시트='{sheetName}', 경로='{sheetInfo.SavePath}', 활성화={pathData.Enabled}");
                     }
                 }
 
@@ -1037,6 +1127,95 @@ namespace ExcelToJsonAddin.Config
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SaveSheetPaths] 시트 경로 설정 저장 중 오류 발생: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+        
+        // 모든 워크북 경로 간에 시트 활성화 상태 동기화
+        private void SynchronizeAllWorkbookPaths()
+        {
+            try
+            {
+                Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 모든 워크북 경로 간의 시트 활성화 상태 동기화 시작");
+                
+                // 파일명별로 워크북 경로 그룹화
+                Dictionary<string, List<string>> workbookGroups = new Dictionary<string, List<string>>();
+                
+                foreach (var workbookPath in LazyLoadSheetPaths().Keys)
+                {
+                    string fileName = Path.GetFileName(workbookPath);
+                    if (!string.IsNullOrEmpty(fileName))
+                    {
+                        if (!workbookGroups.ContainsKey(fileName))
+                        {
+                            workbookGroups[fileName] = new List<string>();
+                        }
+                        
+                        workbookGroups[fileName].Add(workbookPath);
+                        Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 파일명 '{fileName}'에 워크북 경로 '{workbookPath}' 추가");
+                    }
+                }
+                
+                // 각 워크북 그룹 내에서 시트별로 활성화 상태 동기화
+                foreach (var group in workbookGroups)
+                {
+                    string fileName = group.Key;
+                    List<string> paths = group.Value;
+                    
+                    if (paths.Count <= 1)
+                    {
+                        Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 파일명 '{fileName}'에 대한 경로가 하나뿐이므로 동기화 불필요");
+                        continue;
+                    }
+                    
+                    Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 파일명 '{fileName}'에 대한 {paths.Count}개 경로 간 동기화 시작");
+                    
+                    // 모든 시트 이름을 수집
+                    HashSet<string> allSheetNames = new HashSet<string>();
+                    foreach (string path in paths)
+                    {
+                        foreach (string sheetName in LazyLoadSheetPaths()[path].Keys)
+                        {
+                            allSheetNames.Add(sheetName);
+                        }
+                    }
+                    
+                    // 각 시트에 대해 활성화 상태 동기화
+                    foreach (string sheetName in allSheetNames)
+                    {
+                        // 시트가 어느 경로에서든 활성화되어 있는지 확인
+                        bool anyEnabled = false;
+                        foreach (string path in paths)
+                        {
+                            if (LazyLoadSheetPaths()[path].ContainsKey(sheetName) && 
+                                LazyLoadSheetPaths()[path][sheetName].Enabled)
+                            {
+                                anyEnabled = true;
+                                Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 시트 '{sheetName}'이 경로 '{path}'에서 활성화됨");
+                                break;
+                            }
+                        }
+                        
+                        // 모든 경로에 대해 동일한 활성화 상태 설정
+                        foreach (string path in paths)
+                        {
+                            if (LazyLoadSheetPaths()[path].ContainsKey(sheetName))
+                            {
+                                bool oldEnabled = LazyLoadSheetPaths()[path][sheetName].Enabled;
+                                if (oldEnabled != anyEnabled)
+                                {
+                                    LazyLoadSheetPaths()[path][sheetName].Enabled = anyEnabled;
+                                    Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 경로 '{path}'의 시트 '{sheetName}' 활성화 상태 변경: {oldEnabled} -> {anyEnabled}");
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 모든 워크북 경로 간의 시트 활성화 상태 동기화 완료");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 동기화 중 오류 발생: {ex.Message}");
             }
         }
 
@@ -1156,8 +1335,7 @@ namespace ExcelToJsonAddin.Config
                     _sheetPaths[normalizedWorkbookPath][sheetName] = new SheetPathInfo
                     {
                         SavePath = entry.SavePath,
-                        Enabled = entry.Enabled,
-                        YamlEmptyFields = entry.YamlEmptyFields
+                        Enabled = entry.Enabled
                     };
                     
                     Debug.WriteLine($"[LoadSheetPaths] 로드된 항목: 워크북='{normalizedWorkbookPath}', 시트='{sheetName}', 경로='{entry.SavePath}', 활성화={entry.Enabled}");
@@ -1612,9 +1790,9 @@ namespace ExcelToJsonAddin.Config
         public string SheetName { get; set; }
         public string SavePath { get; set; }
         public bool Enabled { get; set; } = true;
-        public bool YamlEmptyFields { get; set; } = false;
-        public string MergeKeyPaths { get; set; } = ""; // 후처리용 키 경로 인수
-        public string FlowStyleConfig { get; set; } = ""; // YAML Flow Style 설정
+        // public bool YamlEmptyFields { get; set; } = false; // XML에 저장하지 않음
+        // public string MergeKeyPaths { get; set; } = ""; // 후처리용 키 경로 인수
+        // public string FlowStyleConfig { get; set; } = ""; // YAML Flow Style 설정
     }
 }
 

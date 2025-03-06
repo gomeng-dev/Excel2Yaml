@@ -11,7 +11,7 @@ using ExcelToJsonAddin.Config;
 namespace ExcelToJsonAddin.Core
 {
     /// <summary>
-    /// Excel 파일 내의 !Config 시트에 설정을 저장하고 로드하는 관리자 클래스
+    /// Excel 파일 내의 !excel2yamlconfig 시트에 설정을 저장하고 로드하는 관리자 클래스
     /// </summary>
     public class ExcelConfigManager
     {
@@ -290,12 +290,27 @@ namespace ExcelToJsonAddin.Core
         /// <returns>설정 값 또는 기본값</returns>
         public string GetConfigValue(string sheetName, string configKey, string defaultValue = "")
         {
-            EnsureConfigLoaded();
-            
-            if (_sheetConfigCache.ContainsKey(sheetName) && 
-                _sheetConfigCache[sheetName].ContainsKey(configKey))
+            try
             {
-                return _sheetConfigCache[sheetName][configKey];
+                EnsureConfigLoaded();
+                
+                // 시트 설정이 존재하는지 확인
+                if (_sheetConfigCache.ContainsKey(sheetName))
+                {
+                    // 해당 키에 대한 설정 값이 있는지 확인
+                    if (_sheetConfigCache[sheetName].ContainsKey(configKey))
+                    {
+                        return _sheetConfigCache[sheetName][configKey];
+                    }
+                }
+                
+                // 설정을 찾지 못한 경우 기본값 반환
+                Debug.WriteLine($"[ExcelConfigManager] 설정을 찾지 못함: {sheetName}.{configKey}, 기본값 {defaultValue} 반환");
+                return defaultValue;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ExcelConfigManager] 설정 값을 가져오는 중 예외 발생: {ex.Message}\n{ex.StackTrace}");
             }
             
             return defaultValue;
@@ -379,7 +394,7 @@ namespace ExcelToJsonAddin.Core
                     targetRow = lastRow + 1;
                 }
                 
-                // 설정 값 저장
+                // 설정 값 저장 - 시트 이름을 원본 그대로 유지
                 configSheet.Cells[targetRow, SHEET_NAME_COL] = sheetName;
                 configSheet.Cells[targetRow, CONFIG_KEY_COL] = configKey;
                 configSheet.Cells[targetRow, CONFIG_VALUE_COL] = configValue;
@@ -388,7 +403,7 @@ namespace ExcelToJsonAddin.Core
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("[ExcelConfigManager] 설정 저장 중 오류: " + ex.Message);
+                Debug.WriteLine($"[ExcelConfigManager] 설정 저장 중 예외 발생: {ex.Message}\n{ex.StackTrace}");
             }
         }
         
@@ -501,34 +516,35 @@ namespace ExcelToJsonAddin.Core
                 
                 Debug.WriteLine("[ExcelConfigManager] Excel 설정을 XML 설정으로 내보내기 시작");
                 
-                EnsureConfigLoaded();
+                // XML로 설정을 내보내지 않도록 수정
+                // EnsureConfigLoaded();
                 
-                foreach (var sheetEntry in _sheetConfigCache)
-                {
-                    string sheetName = sheetEntry.Key;
-                    var configs = sheetEntry.Value;
-                    
-                    // YAML 선택적 필드 설정 내보내기
-                    if (configs.ContainsKey("YamlEmptyFields") && 
-                        bool.TryParse(configs["YamlEmptyFields"], out bool yamlOption))
-                    {
-                        sheetPathManager.SetYamlEmptyFieldsOption(sheetName, yamlOption);
-                    }
-                    
-                    // 병합 키 경로 설정 내보내기
-                    if (configs.ContainsKey("MergeKeyPaths"))
-                    {
-                        sheetPathManager.SetMergeKeyPaths(sheetName, configs["MergeKeyPaths"]);
-                    }
-                    
-                    // Flow 스타일 설정 내보내기
-                    if (configs.ContainsKey("FlowStyle"))
-                    {
-                        sheetPathManager.SetFlowStyleConfig(sheetName, configs["FlowStyle"]);
-                    }
-                }
+                // foreach (var sheetEntry in _sheetConfigCache)
+                // {
+                //     string sheetName = sheetEntry.Key;
+                //     var configs = sheetEntry.Value;
+                //     
+                //     // YAML 선택적 필드 설정 내보내기
+                //     if (configs.ContainsKey("YamlEmptyFields") && 
+                //         bool.TryParse(configs["YamlEmptyFields"], out bool yamlOption))
+                //     {
+                //         sheetPathManager.SetYamlEmptyFieldsOption(sheetName, yamlOption);
+                //     }
+                //     
+                //     // 병합 키 경로 설정 내보내기
+                //     if (configs.ContainsKey("MergeKeyPaths"))
+                //     {
+                //         sheetPathManager.SetMergeKeyPaths(sheetName, configs["MergeKeyPaths"]);
+                //     }
+                //     
+                //     // Flow 스타일 설정 내보내기
+                //     if (configs.ContainsKey("FlowStyle"))
+                //     {
+                //         sheetPathManager.SetFlowStyleConfig(sheetName, configs["FlowStyle"]);
+                //     }
+                // }
                 
-                Debug.WriteLine("[ExcelConfigManager] XML 내보내기 완료");
+                Debug.WriteLine("[ExcelConfigManager] XML 내보내기 완료 (Excel 설정은 XML에 저장하지 않습니다)");
             }
             catch (Exception ex)
             {

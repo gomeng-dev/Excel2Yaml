@@ -221,14 +221,6 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                 if (parts.Length >= 4)
                     arrayFieldPaths = parts[3];
             }
-            // else
-            // {
-            //     // 설정이 비어있는 경우 기본값 설정
-            //     idPath = "id";
-            //     mergePaths = "events";
-            //     keyPaths = "trigger.type:match,trigger.target:match";
-            //     arrayFieldPaths = "results;append";
-            // }
             
             var builder = CreateBuilder()
                 .WithIdPath(idPath)
@@ -262,12 +254,11 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                     return false;
                 }
 
-                // 키 경로가 비어있는 경우에도 기본 설정 적용
+                // 키 경로가 비어있는 경우 아무런 처리를 하지 않고 성공으로 반환
                 if (string.IsNullOrWhiteSpace(keyPaths))
                 {
-                    // 키 경로가 비어있으면 기본 키 전략 사용
-                    keyPaths = "trigger.type:match,trigger.target:match";
-                    LogMessage($"키 경로가 비어있어 기본값을 사용합니다: {keyPaths}");
+                    LogMessage("키 경로가 비어있어 YAML 파일을 처리하지 않고 종료합니다.");
+                    return true;
                 }
 
                 // 키 경로:전략 파싱
@@ -302,9 +293,9 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                     LogMessage(firstItemJson.Length <= 500 ? firstItemJson : firstItemJson.Substring(0, 500) + "...");
                     
                     // 디버깅을 위해 임시 파일에 JSON 저장
-                    string jsonDebugPath = Path.Combine(Path.GetDirectoryName(yamlPath), "debug_before_merge.json");
-                    File.WriteAllText(jsonDebugPath, jsonArray.ToString(Formatting.Indented));
-                    LogMessage($"디버깅용 JSON 저장됨: {jsonDebugPath}");
+                    //string jsonDebugPath = Path.Combine(Path.GetDirectoryName(yamlPath), "debug_before_merge.json");
+                    //File.WriteAllText(jsonDebugPath, jsonArray.ToString(Formatting.Indented));
+                    //LogMessage($"디버깅용 JSON 저장됨: {jsonDebugPath}");
                 }
                 
                 // JSON 병합 처리
@@ -321,9 +312,9 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                     LogMessage(firstItemJson.Length <= 500 ? firstItemJson : firstItemJson.Substring(0, 500) + "...");
                     
                     // 디버깅을 위해 임시 파일에 JSON 저장
-                    string jsonDebugPath = Path.Combine(Path.GetDirectoryName(yamlPath), "debug_after_merge.json");
-                    File.WriteAllText(jsonDebugPath, mergedJsonArray.ToString(Formatting.Indented));
-                    LogMessage($"디버깅용 JSON 저장됨: {jsonDebugPath}");
+                    //string jsonDebugPath = Path.Combine(Path.GetDirectoryName(yamlPath), "debug_after_merge.json");
+                    //File.WriteAllText(jsonDebugPath, mergedJsonArray.ToString(Formatting.Indented));
+                    //LogMessage($"디버깅용 JSON 저장됨: {jsonDebugPath}");
                 }
                 
                 // JSON을 YAML로 변환
@@ -377,15 +368,7 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                     if (parts.Length >= 4)
                         arrayFieldPaths = parts[3];
                 }
-                // else
-                // {
-                //     // 설정이 비어있는 경우 기본값 설정
-                //     idPath = "id";
-                //     mergePaths = "events";
-                //     keyPaths = "trigger.type:match,trigger.target:match";
-                //     arrayFieldPaths = "results;append";
-                //     Debug.WriteLine($"[YamlMergeKeyPathsProcessor] 설정 문자열이 비어있어 기본값을 사용합니다: ID 경로={idPath}, 병합 경로={mergePaths}, 키 경로={keyPaths}, 배열 필드 경로={arrayFieldPaths}");
-                // }
+
                 
                 return processor.ProcessYamlFile(yamlPath, keyPaths);
             }

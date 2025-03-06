@@ -148,16 +148,22 @@ namespace ExcelToJsonAddin.Core
             return false;
         }
 
-        public static string SerializeToYaml(object obj, int indentSize = 2, YamlStyle style = YamlStyle.Block, bool preserveQuotes = false)
+        public static string SerializeToYaml(object obj, int indentSize = 2, YamlStyle style = YamlStyle.Block, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
+            // includeEmptyFields가 true일 경우 빈 속성 유지, false일 경우 제거
+            if (!includeEmptyFields)
+            {
+                RemoveEmptyProperties(obj);
+            }
+            
             var sb = new StringBuilder();
             SerializeObject(obj, sb, 0, indentSize, style, preserveQuotes);
             return sb.ToString();
         }
         
-        public static void SaveToYaml(object obj, string filePath, int indentSize = 2, YamlStyle style = YamlStyle.Block, bool preserveQuotes = false)
+        public static void SaveToYaml(object obj, string filePath, int indentSize = 2, YamlStyle style = YamlStyle.Block, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
-            string yaml = SerializeToYaml(obj, indentSize, style, preserveQuotes);
+            string yaml = SerializeToYaml(obj, indentSize, style, preserveQuotes, includeEmptyFields);
             File.WriteAllText(filePath, yaml);
         }
 
@@ -211,6 +217,9 @@ namespace ExcelToJsonAddin.Core
                 return;
             }
             
+            // 숫자로만 이루어진 문자열인지 확인
+            bool isNumericString = !string.IsNullOrEmpty(value) && value.All(char.IsDigit);
+            
             // 한글 문자 포함 여부 확인
             bool containsKorean = false;
             foreach (char c in value)
@@ -232,7 +241,7 @@ namespace ExcelToJsonAddin.Core
                               value == "true" || 
                               value == "false" || 
                               value == "null" ||
-                              (value.Length > 0 && char.IsDigit(value[0]));
+                              (value.Length > 0 && char.IsDigit(value[0]) && !isNumericString);
                               
             // 개행 문자 포함 여부 확인
             bool containsNewline = value.Contains('\n') || value.Contains('\r');
@@ -240,7 +249,7 @@ namespace ExcelToJsonAddin.Core
             {
                 needQuotes = true;  // 개행 포함 시 무조건 따옴표 필요
             }
-                              
+            
             if (needQuotes)
             {
                 sb.Append('"');
@@ -273,6 +282,10 @@ namespace ExcelToJsonAddin.Core
             if (!obj.HasValues)
             {
                 sb.Append("{}");
+                if (style == YamlStyle.Block)
+                {
+                    sb.AppendLine();
+                }
                 return;
             }
             
@@ -312,7 +325,12 @@ namespace ExcelToJsonAddin.Core
                     
                     sb.Append(kvp.Key).Append(": ");
                     
-                    if (kvp.Value is YamlObject || kvp.Value is YamlArray)
+                    // 빈 배열인 경우 바로 개행 처리
+                    if (kvp.Value is YamlArray yamlArray && !yamlArray.HasValues)
+                    {
+                        sb.AppendLine("[]");
+                    }
+                    else if (kvp.Value is YamlObject || kvp.Value is YamlArray)
                     {
                         // MAP 노드의 자식들은 2 레벨 더 들여쓰기
                         SerializeObject(kvp.Value, sb, level + 2, indentSize, style, preserveQuotes);
@@ -333,6 +351,10 @@ namespace ExcelToJsonAddin.Core
             if (!array.HasValues)
             {
                 sb.Append("[]");
+                if (style == YamlStyle.Block)
+                {
+                    sb.AppendLine();
+                }
                 return;
             }
             

@@ -34,6 +34,7 @@ namespace ExcelToJsonAddin
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Ribbon));
             this.tabExcelToJson = this.Factory.CreateRibbonTab();
             this.groupConvert = this.Factory.CreateRibbonGroup();
             this.btnConvertToYaml = this.Factory.CreateRibbonButton();
@@ -50,7 +51,7 @@ namespace ExcelToJsonAddin
             this.tabExcelToJson.Groups.Add(this.groupConvert);
             this.tabExcelToJson.Groups.Add(this.groupSettings);
             this.tabExcelToJson.Label = "Excel2Yaml";
-            this.tabExcelToJson.Name = "tabExcelToYaml";
+            this.tabExcelToJson.Name = "tabExcelToJson";
             // 
             // groupConvert
             // 
@@ -61,6 +62,7 @@ namespace ExcelToJsonAddin
             // btnConvertToYaml
             // 
             this.btnConvertToYaml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnConvertToYaml.Image = ((System.Drawing.Image)(resources.GetObject("btnConvertToYaml.Image")));
             this.btnConvertToYaml.Label = "YAML 변환";
             this.btnConvertToYaml.Name = "btnConvertToYaml";
             this.btnConvertToYaml.ScreenTip = "Excel을 YAML로 변환";
@@ -77,6 +79,7 @@ namespace ExcelToJsonAddin
             // btnSheetPathSettings
             // 
             this.btnSheetPathSettings.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnSheetPathSettings.Image = ((System.Drawing.Image)(resources.GetObject("btnSheetPathSettings.Image")));
             this.btnSheetPathSettings.Label = "시트별 경로 설정";
             this.btnSheetPathSettings.Name = "btnSheetPathSettings";
             this.btnSheetPathSettings.ScreenTip = "시트별 경로 설정";

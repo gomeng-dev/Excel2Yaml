@@ -52,13 +52,10 @@ namespace ExcelToJsonAddin.Core
                 var generator = new YamlGenerator(scheme);
                 object rootObj = generator.ProcessRootNode();
                 
-                // 필요한 경우 빈 속성 제거
-                if (!includeEmptyFields)
-                {
-                    OrderedYamlFactory.RemoveEmptyProperties(rootObj);
-                }
+                // SerializeToYaml에서 includeEmptyFields 매개변수를 통해 빈 속성 처리를 수행하므로
+                // 여기서는 RemoveEmptyProperties 호출을 제거합니다.
                 
-                return OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes);
+                return OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes, includeEmptyFields);
             }
             catch (Exception ex)
             {
@@ -67,15 +64,15 @@ namespace ExcelToJsonAddin.Core
             }
         }
 
-        public string Generate(YamlStyle style = YamlStyle.Block, int indentSize = 2, bool preserveQuotes = false)
+        public string Generate(YamlStyle style = YamlStyle.Block, int indentSize = 2, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
             try
             {
-                Logger.Debug("YAML 생성 시작: 스타일={0}, 들여쓰기={1}", style, indentSize);
+                Logger.Debug("YAML 생성 시작: 스타일={0}, 들여쓰기={1}, 빈 필드 포함={2}", style, indentSize, includeEmptyFields);
                 
                 object rootObj = ProcessRootNode();
                 
-                return OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes);
+                return OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes, includeEmptyFields);
             }
             catch (Exception ex)
             {
@@ -239,16 +236,42 @@ namespace ExcelToJsonAddin.Core
         // 값 노드 처리 (PROPERTY, VALUE)
         private void ProcessValueNode(SchemeNode node, object parentObject, IXLRow row)
         {
-            string key = GetNodeKey(node, row);
+            // KEY 노드의 VALUE 자식인 경우, 이미 KEY 노드에서 처리됐으므로 중복 추가 방지
+            if (node.NodeType == SchemeNode.SchemeNodeType.VALUE && 
+                node.Parent != null && 
+                node.Parent.NodeType == SchemeNode.SchemeNodeType.KEY)
+            {
+                Logger.Debug($"VALUE 노드가 KEY 노드의 자식이므로 중복 추가 방지를 위해 스킵: 부모={node.Parent.GetKey(row)}");
+                return;
+            }
+            
+            // 값 가져오기
             object value = node.GetValue(row);
             
             if (value == null || string.IsNullOrEmpty(value.ToString()))
             {
-                Logger.Debug($"값이 비어 있어 무시: 키={key}");
+                Logger.Debug($"값이 비어 있어 무시: 노드={node.SchemeName}");
                 return;
             }
             
             value = FormatStringValue(value);
+            
+            // VALUE 노드가 직접 ARRAY의 자식인 경우 (독립 $value) - 직접 값 추가
+            if (node.NodeType == SchemeNode.SchemeNodeType.VALUE && 
+                node.Parent != null && 
+                (node.Parent.NodeType == SchemeNode.SchemeNodeType.ARRAY || 
+                 node.Parent.NodeType == SchemeNode.SchemeNodeType.MAP))
+            {
+                if (parentObject is YamlArray parentArray)
+                {
+                    parentArray.Add(value);
+                    Logger.Debug($"배열에 값 직접 추가 (독립 $value): 값={value}");
+                    return;
+                }
+            }
+            
+            // 기존 처리 방식
+            string key = GetNodeKey(node, row);
             
             // 부모가 객체인 경우
             if (parentObject is YamlObject parentMap)
@@ -262,7 +285,14 @@ namespace ExcelToJsonAddin.Core
             // 부모가 배열인 경우
             else if (parentObject is YamlArray parentArray)
             {
-                if (!string.IsNullOrEmpty(key))
+                // $value만 있고 $key가 없는 경우 - 값을 직접 추가
+                if (node.NodeType == SchemeNode.SchemeNodeType.VALUE && string.IsNullOrEmpty(key))
+                {
+                    parentArray.Add(value);
+                    Logger.Debug($"배열에 값 직접 추가: 값={value}");
+                }
+                // 키가 있는 경우 - 객체로 추가
+                else if (!string.IsNullOrEmpty(key))
                 {
                     // 키가 있는 경우 단일 속성을 가진 객체 추가
                     YamlObject singlePropObj = OrderedYamlFactory.CreateObject();
@@ -272,9 +302,9 @@ namespace ExcelToJsonAddin.Core
                 }
                 else
                 {
-                    // 키가 없는 경우 값 직접 추가
+                    // 안전장치: 키가 없지만 VALUE 노드가 아닌 경우
                     parentArray.Add(value);
-                    Logger.Debug($"배열에 값 직접 추가: 값={value}");
+                    Logger.Debug($"배열에 값 직접 추가 (기타 케이스): 값={value}");
                 }
             }
         }
@@ -282,6 +312,19 @@ namespace ExcelToJsonAddin.Core
         // KEY 노드 처리
         private void ProcessKeyNode(SchemeNode node, object parentObject, IXLRow row)
         {
+            // 셀 값을 키로 사용 (스키마에서 $key 컬럼의 값)
+            string cellKey = string.Empty;
+            if (node.NodeType == SchemeNode.SchemeNodeType.KEY)
+            {
+                object cellValue = node.GetValue(row);
+                if (cellValue != null && !string.IsNullOrEmpty(cellValue.ToString()))
+                {
+                    cellKey = cellValue.ToString();
+                    Logger.Debug($"KEY 노드에서 셀 값을 키로 사용: {cellKey}");
+                }
+            }
+            
+            // 기존 코드는 GetKey를 호출하여 고정된 키("value")를 사용함
             string dynamicKey = node.GetKey(row);
             if (string.IsNullOrEmpty(dynamicKey))
             {
@@ -311,6 +354,17 @@ namespace ExcelToJsonAddin.Core
             {
                 parentMap.Add(dynamicKey, value);
                 Logger.Debug($"KEY-VALUE 쌍 추가: 키={dynamicKey}, 값={value}");
+            }
+            // 부모가 배열인 경우 - 실제 셀 값을 키로 사용
+            else if (parentObject is YamlArray parentArray)
+            {
+                // cellKey가 있으면 사용, 없으면 dynamicKey 사용
+                string actualKey = !string.IsNullOrEmpty(cellKey) ? cellKey : dynamicKey;
+                
+                YamlObject keyValueObj = OrderedYamlFactory.CreateObject();
+                keyValueObj.Add(actualKey, value);
+                parentArray.Add(keyValueObj);
+                Logger.Debug($"배열에 동적 키-값 쌍 추가: 키={actualKey}, 값={value}");
             }
         }
         

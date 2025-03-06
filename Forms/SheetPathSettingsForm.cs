@@ -17,7 +17,6 @@ namespace ExcelToJsonAddin.Forms
 {
     public partial class SheetPathSettingsForm : Form
     {
-        private Dictionary<string, string> sheetPaths;
         private List<Worksheet> convertibleSheets;
         
         // Excel 설정 관리자 추가
@@ -66,13 +65,11 @@ namespace ExcelToJsonAddin.Forms
                     string mergeKeyPaths = excelConfigManager.GetConfigValue(sheetName, "MergeKeyPaths", "");
                     string flowStyle = excelConfigManager.GetConfigValue(sheetName, "FlowStyle", "");
                     bool yamlEmptyFields = excelConfigManager.GetConfigBool(sheetName, "YamlEmptyFields", false);
-                    string compareFields = excelConfigManager.GetConfigValue(sheetName, "CompareFields", "");
                     
                     Debug.WriteLine($"[SheetPathSettingsForm] 시트: '{sheetName}'");
                     Debug.WriteLine($"[SheetPathSettingsForm]   - MergeKeyPaths: '{mergeKeyPaths}'");
                     Debug.WriteLine($"[SheetPathSettingsForm]   - FlowStyle: '{flowStyle}'");
                     Debug.WriteLine($"[SheetPathSettingsForm]   - YamlEmptyFields: {yamlEmptyFields}");
-                    Debug.WriteLine($"[SheetPathSettingsForm]   - CompareFields: '{compareFields}'");
                 }
             }
             
@@ -96,13 +93,37 @@ namespace ExcelToJsonAddin.Forms
         {
             if (dataGridView != null)
             {
-                int margin = 40; // 좌우 여백
-                dataGridView.Width = this.ClientSize.Width - margin;
+                // 폼 위와 아래의 여백 계산
+                int verticalMargin = dataGridView.Top + (this.ClientSize.Height - dataGridView.Bottom);
                 
-                // 마지막 열의 너비를 자동으로 조정 (필요시)
-                dataGridView.Columns[dataGridView.Columns.Count - 1].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                // 좌우 여백
+                int horizontalMargin = 40;
                 
-                Debug.WriteLine($"[SheetPathSettingsForm] DataGridView 크기 조정: 너비={dataGridView.Width}, 폼너비={this.ClientSize.Width}");
+                // 데이터그리드뷰의 너비를 폼에 맞게 조정
+                dataGridView.Width = this.ClientSize.Width - horizontalMargin;
+                
+                // 모든 컬럼의 내용에 맞게 너비 자동 조정
+                dataGridView.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
+                
+                // 컬럼 내용이 모두 보이도록 최소 너비 설정
+                int totalColumnsWidth = 0;
+                foreach (DataGridViewColumn col in dataGridView.Columns)
+                {
+                    // 최소 80픽셀, 최대 300픽셀로 제한
+                    col.Width = Math.Max(80, Math.Min(300, col.Width));
+                    totalColumnsWidth += col.Width;
+                }
+                
+                // 폼의 크기를 모든 컬럼이 보이도록 조정
+                int newFormWidth = totalColumnsWidth + horizontalMargin + 50; // 스크롤바 공간 추가
+                
+                // 현재 폼 크기보다 큰 경우에만 조정
+                if (newFormWidth > this.Width)
+                {
+                    this.Width = newFormWidth;
+                }
+                
+                Debug.WriteLine($"[AdjustDataGridViewSize] DataGridView 크기 조정: 너비={dataGridView.Width}, 폼너비={this.ClientSize.Width}, 총컬럼너비={totalColumnsWidth}");
             }
         }
 
@@ -144,110 +165,25 @@ namespace ExcelToJsonAddin.Forms
 
         private void LoadSheetPaths()
         {
-            // 시트별 경로 및 활성화 상태 로드
-            sheetPaths = new Dictionary<string, string>();
-            
             try
             {
-                Debug.WriteLine("[LoadSheetPaths] 시작");
-                
-                // 워크북 경로 설정
-                var addIn = Globals.ThisAddIn;
-                var app = addIn.Application;
-                
-                if (app.ActiveWorkbook != null)
-                {
-                    string workbookPath = app.ActiveWorkbook.FullName;
-                    Debug.WriteLine($"[LoadSheetPaths] 현재 워크북 경로: {workbookPath}");
-                    SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
-                    
-                    // Excel 설정 관리자 초기화
-                    if (excelConfigManager != null)
-                    {
-                        excelConfigManager.SetCurrentWorkbook(workbookPath);
-                    }
-                }
-                else
-                {
-                    Debug.WriteLine($"[LoadSheetPaths] 활성 워크북이 없습니다.");
-                }
-                
-                // 모든 시트 경로 로드
-                sheetPaths = SheetPathManager.Instance.GetAllSheetPaths();
-                Debug.WriteLine($"[LoadSheetPaths] 로드된 시트 경로 수: {sheetPaths.Count}");
-                
-                // 시트 목록 채우기
+                Debug.WriteLine("[LoadSheetPaths] 시트 경로 정보 로드 시작");
+                // 시트 경로 정보 로드
                 PopulateSheetsList();
                 
-                // CompareFields 값이 제대로 로드되었는지 확인
-                ValidateCompareFields();
+                // 데이터 그리드 셀 서식 설정
+                ConfigureDataGridCellFormatting();
                 
-                Debug.WriteLine("[LoadSheetPaths] 완료");
+                // 그리드 이벤트 핸들러 추가
+                dataGridView.CellValueChanged += new DataGridViewCellEventHandler(DataGridView_CellValueChanged);
+                dataGridView.CellEndEdit += new DataGridViewCellEventHandler(DataGridView_CellEndEdit);
+                dataGridView.KeyDown += new KeyEventHandler(DataGridView_KeyDown);
+                
+                Debug.WriteLine("[LoadSheetPaths] 시트 경로 정보 로드 완료");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[LoadSheetPaths] 예외 발생: {ex.Message}\n{ex.StackTrace}");
-                MessageBox.Show($"시트별 경로 설정을 로드하는 중 오류가 발생했습니다: {ex.Message}", 
-                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        
-        /// <summary>
-        /// CompareFields 값이 UI에 제대로 로드되었는지 확인하고 필요시 수정합니다.
-        /// </summary>
-        private void ValidateCompareFields()
-        {
-            try
-            {
-                if (excelConfigManager == null || dataGridView.Rows.Count == 0)
-                    return;
-                    
-                Debug.WriteLine("[ValidateCompareFields] 비교 필드 값 검증 시작");
-                
-                foreach (DataGridViewRow row in dataGridView.Rows)
-                {
-                    string sheetName = row.Cells[0].Tag?.ToString() ?? row.Cells[0].Value?.ToString() ?? "";
-                    if (string.IsNullOrEmpty(sheetName))
-                        continue;
-                        
-                    // 설정에서 CompareFields 값을 가져옵니다
-                    string compareFieldsConfig = excelConfigManager.GetConfigValue(sheetName, "CompareFields", "");
-                    
-                    // UI에 표시된 CompareFields 값을 가져옵니다
-                    DataGridViewCell cell = null;
-                    foreach (DataGridViewCell c in row.Cells)
-                    {
-                        if (c.OwningColumn.Name == "CompareFieldsColumn")
-                        {
-                            cell = c;
-                            break;
-                        }
-                    }
-                    
-                    if (cell != null)
-                    {
-                        string compareFieldsUI = cell.Value?.ToString() ?? "";
-                        
-                        // UI 값과 설정 값이 다른 경우 UI 값을 업데이트합니다
-                        if (compareFieldsUI != compareFieldsConfig)
-                        {
-                            Debug.WriteLine($"[ValidateCompareFields] 시트 '{sheetName}'의 UI 비교 필드({compareFieldsUI})와 " +
-                                           $"설정값({compareFieldsConfig})이 다릅니다! UI 값을 수정합니다.");
-                            
-                            cell.Value = compareFieldsConfig;
-                            
-                            // 값이 제대로 설정되었는지 다시 확인
-                            string updatedValue = cell.Value?.ToString() ?? "";
-                            Debug.WriteLine($"[ValidateCompareFields] 시트 '{sheetName}'의 비교 필드 업데이트 후 값: '{updatedValue}'");
-                        }
-                    }
-                }
-                
-                Debug.WriteLine("[ValidateCompareFields] 비교 필드 값 검증 완료");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[ValidateCompareFields] 예외 발생: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -315,6 +251,7 @@ namespace ExcelToJsonAddin.Forms
                     string idPath = "";
                     string mergePaths = "";
                     string keyPaths = "";
+                    string arrayFieldPaths = "";
                         
                     if (!string.IsNullOrEmpty(mergeKeyPaths))
                     {
@@ -322,9 +259,10 @@ namespace ExcelToJsonAddin.Forms
                         if (parts.Length >= 1) idPath = parts[0];
                         if (parts.Length >= 2) mergePaths = parts[1];
                         if (parts.Length >= 3) keyPaths = parts[2];
+                        if (parts.Length >= 4) arrayFieldPaths = parts[3];
                     }
                     
-                    Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}'의 병합 키 경로 분리: idPath='{idPath}', mergePaths='{mergePaths}', keyPaths='{keyPaths}'");
+                    Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}'의 병합 키 경로 분리: idPath='{idPath}', mergePaths='{mergePaths}', keyPaths='{keyPaths}', arrayFieldPaths='{arrayFieldPaths}'");
                     
                     // Flow Style 설정 분리 (Flow Style 필드 | Flow Style 항목 필드)
                     string flowStyleFields = "";
@@ -339,16 +277,6 @@ namespace ExcelToJsonAddin.Forms
                     
                     Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}'의 Flow Style 분리: fields='{flowStyleFields}', itemsFields='{flowStyleItemsFields}'");
                     
-                    string compareFields = "";
-                    
-                    // Excel 설정 로드 (YAML, MergeKeyPaths, FlowStyle은 Excel에서만 로드)
-                    if (excelConfigManager != null)
-                    {
-                        // 비교 필드 로드
-                        compareFields = excelConfigManager.GetConfigValue(sheetName, "CompareFields", "");
-                        Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}'의 비교 필드 설정: '{compareFields}'");
-                    }
-                    
                     // 행 추가 준비
                     int rowIndex = dataGridView.Rows.Add();
                     var row = dataGridView.Rows[rowIndex];
@@ -359,7 +287,7 @@ namespace ExcelToJsonAddin.Forms
                     row.Cells[2].Value = savePath;                 // 저장 경로
                     row.Cells[4].Value = yamlOption;               // YAML 선택적 필드 처리
                     
-                    // 원래 시트 이름 태그로 저장 (특수 문자가 제거된 이름)
+                    // 원본 시트 이름 태그로 저장 (느낌표 포함된 원래 이름)
                     row.Cells[0].Tag = sheet.Name;
                     
                     // 추가 열 채우기 (병합 키 경로, 플로우 스타일)
@@ -387,19 +315,9 @@ namespace ExcelToJsonAddin.Forms
                             {
                                 cell.Value = flowStyleItemsFields;
                             }
-                            else if (cell.OwningColumn.Name == "CompareFieldsColumn")
+                            else if (cell.OwningColumn.Name == "ArrayFieldPathsColumn")
                             {
-                                cell.Value = compareFields;
-                                Debug.WriteLine($"[PopulateSheetsList] 시트 '{sheetName}'의 비교 필드를 UI에 설정: '{compareFields}'");
-                                
-                                // 값이 설정되었는지 확인
-                                string cellValue = cell.Value?.ToString() ?? "";
-                                if (cellValue != compareFields)
-                                {
-                                    Debug.WriteLine($"[PopulateSheetsList] 경고: 비교 필드 설정 실패! 설정한 값: '{compareFields}', 셀 값: '{cellValue}'");
-                                    // 값을 다시 명시적으로 설정
-                                    cell.Value = compareFields;
-                                }
+                                cell.Value = arrayFieldPaths;
                             }
                         }
                     }
@@ -499,84 +417,166 @@ namespace ExcelToJsonAddin.Forms
             }
         }
 
+        /// <summary>
+        /// DataGridView_CellValueChanged 이벤트 핸들러
+        /// </summary>
         private void DataGridView_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0)
+                return;
+
             try
             {
-                Debug.WriteLine($"[DataGridView_CellValueChanged] 행: {e.RowIndex}, 열: {e.ColumnIndex}");
-
-                // 행 인덱스가 유효하지 않으면 처리하지 않음
-                if (e.RowIndex < 0 || e.RowIndex >= dataGridView.Rows.Count)
+                string sheetName = dataGridView.Rows[e.RowIndex].Cells[0].Tag?.ToString() ?? "";
+                
+                if (string.IsNullOrEmpty(sheetName))
                 {
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 유효하지 않은 행 인덱스: {e.RowIndex}");
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 행 {e.RowIndex}의 시트 이름이 없습니다.");
                     return;
                 }
-
-                var row = dataGridView.Rows[e.RowIndex];
                 
-                // 체크박스 변경 처리 (인덱스 1 - '활성화' 열)
-                if (e.ColumnIndex == 1 && row.Cells.Count > 1 && row.Cells[1].Value != null)
+                Debug.WriteLine($"[DataGridView_CellValueChanged] 행 {e.RowIndex}, 시트 '{sheetName}'의 셀 변경 처리 중...");
+                
+                // "활성화" 열 처리 (인덱스 1)
+                if (e.ColumnIndex == 1)
                 {
-                    bool isChecked = (bool)row.Cells[1].Value;
-
-                    // 시트 이름이 유효한지 확인
-                    if (row.Cells[0].Value == null)
-                    {
-                        Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 이름이 null입니다.");
-                        return;
-                    }
-
-                    // 시트 이름 추출
-                    string sheetName = row.Cells[0].Value.ToString();
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 활성화 상태 변경: {isChecked}");
-
-                    // 항상 출력 경로 텍스트 칸은 수정 가능하게 합니다.
-                    if (row.Cells.Count > 2)
-                    {
-                        row.Cells[2].ReadOnly = false;
-                    }
-
-                    // 체크박스가 선택되었으나 경로가 비어있으면 폴더 선택 다이얼로그 표시
-                    string currentPath = row.Cells.Count > 2 && row.Cells[2].Value != null ? row.Cells[2].Value.ToString() : "";
-                    if (isChecked && string.IsNullOrEmpty(currentPath))
-                    {
-                        Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'에 대한 경로가 없어 폴더 선택 다이얼로그 표시");
-                        OpenFolderSelectionDialog(e.RowIndex);
-                    }
+                    bool isEnabled = Convert.ToBoolean(dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value);
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 활성화 상태 변경: {isEnabled}");
+                    
+                    // SheetPathManager에만 설정을 저장합니다.
+                    SheetPathManager.Instance.SetSheetEnabled(sheetName, isEnabled);
                 }
-                // YAML 선택적 필드 처리 체크박스 변경 처리 (인덱스 4 - 'YAML 선택적 필드 처리' 열)
-                else if (e.ColumnIndex == 4 && row.Cells.Count > 4 && row.Cells[0].Value != null)
+                // "경로" 열 처리 (인덱스 2)
+                else if (e.ColumnIndex == 2)
                 {
-                    bool yamlEmptyFields = row.Cells[4].Value != null ? (bool)row.Cells[4].Value : false;
-                    string sheetName = row.Cells[0].Value.ToString();
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 YAML 선택적 필드 처리 상태 변경: {yamlEmptyFields}");
+                    string path = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 경로 변경: '{path}'");
+                    
+                    UpdateSheetPathForRow(e.RowIndex);
                 }
-                // ID 경로 필드 변경 처리 (인덱스 5)
-                else if (e.ColumnIndex == 5 && row.Cells.Count > 5 && row.Cells[0].Value != null)
+                // YAML 빈 필드 포함 옵션 처리 (인덱스 4)
+                else if (e.ColumnIndex == 4)
                 {
-                    string idPath = row.Cells[5].Value?.ToString() ?? "";
-                    string sheetName = row.Cells[0].Value.ToString();
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 ID 경로 변경: '{idPath}'");
+                    bool yamlEmptyFields = Convert.ToBoolean(dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value);
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 YAML 선택적 필드 설정 변경: {yamlEmptyFields}");
+                    
+                    // SheetPathManager에 저장하지 않고 ExcelConfigManager에만 저장
+                    // SheetPathManager.Instance.SetYamlEmptyFieldsOption(sheetName, yamlEmptyFields);
+                    
+                    // XML 파일에만 저장하므로 ExcelConfigManager 저장 부분은 제거합니다.
+                    // if (excelConfigManager != null)
+                    // {
+                    //     excelConfigManager.SetConfigValue(sheetName, "YamlEmptyFields", yamlEmptyFields.ToString().ToLower());
+                    // }
+                }
+                // ID 경로 열 처리
+                else if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "IdPathColumn")
+                {
+                    string idPath = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 ID 경로 설정 변경: '{idPath}'");
+                    
+                    // 설정 값 변경 확인
+                    var cell = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                    string cellValue = cell.Value?.ToString() ?? "";
+                    
+                    if (cellValue != idPath)
+                    {
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 경고: 셀 값이 의도한 값과 다릅니다. 설정하려는 값: '{idPath}', 실제 셀 값: '{cellValue}'");
+                        cell.Value = idPath;
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 셀 값을 수정했습니다. 새 값: '{idPath}'");
+                    }
+                    
+                    // 전체 MergeKeyPaths 문자열 업데이트 (중복 저장 방지)
+                    if (excelConfigManager != null)
+                    {
+                        // 다른 관련 값 가져오기
+                        string mergePaths = dataGridView.Rows[e.RowIndex].Cells["MergePathsColumn"].Value?.ToString() ?? "";
+                        string keyPaths = dataGridView.Rows[e.RowIndex].Cells["KeyPathsColumn"].Value?.ToString() ?? "";
+                        string arrayFieldPaths = dataGridView.Rows[e.RowIndex].Cells["ArrayFieldPathsColumn"].Value?.ToString() ?? "";
+                        
+                        // MergeKeyPaths 통합 문자열 업데이트
+                        string mergeKeyPathsConfig = $"{idPath}|{mergePaths}|{keyPaths}|{arrayFieldPaths}";
+                        excelConfigManager.SetConfigValue(sheetName, "MergeKeyPaths", mergeKeyPathsConfig);
+                        
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 MergeKeyPaths 통합 설정 업데이트: '{mergeKeyPathsConfig}'");
+                    }
                 }
                 // 병합 경로 필드 변경 처리 (인덱스 6)
-                else if (e.ColumnIndex == 6 && row.Cells.Count > 6 && row.Cells[0].Value != null)
+                else if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "MergePathsColumn")
                 {
-                    string mergePaths = row.Cells[6].Value?.ToString() ?? "";
-                    string sheetName = row.Cells[0].Value.ToString();
+                    string mergePaths = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
                     Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 병합 경로 변경: '{mergePaths}'");
+                    
+                    // 값이 제대로 설정되었는지 확인
+                    var cell = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                    string cellValue = cell.Value?.ToString() ?? "";
+                    if (cellValue != mergePaths)
+                    {
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 경고: 셀 값이 의도한 값과 다릅니다. 설정하려는 값: '{mergePaths}', 실제 셀 값: '{cellValue}'");
+                        cell.Value = mergePaths;
+                    }
+                    
+                    // 전체 MergeKeyPaths 문자열 업데이트 (중복 저장 방지)
+                    if (excelConfigManager != null)
+                    {
+                        // 다른 관련 값 가져오기
+                        string idPath = dataGridView.Rows[e.RowIndex].Cells["IdPathColumn"].Value?.ToString() ?? "id";
+                        string keyPaths = dataGridView.Rows[e.RowIndex].Cells["KeyPathsColumn"].Value?.ToString() ?? "";
+                        string arrayFieldPaths = dataGridView.Rows[e.RowIndex].Cells["ArrayFieldPathsColumn"].Value?.ToString() ?? "";
+                        
+                        // MergeKeyPaths 통합 문자열 업데이트
+                        string mergeKeyPathsConfig = $"{idPath}|{mergePaths}|{keyPaths}|{arrayFieldPaths}";
+                        excelConfigManager.SetConfigValue(sheetName, "MergeKeyPaths", mergeKeyPathsConfig);
+                        
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 MergeKeyPaths 통합 설정 업데이트: '{mergeKeyPathsConfig}'");
+                    }
                 }
                 // 키 경로 필드 변경 처리 (인덱스 7)
-                else if (e.ColumnIndex == 7 && row.Cells.Count > 7 && row.Cells[0].Value != null)
+                else if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "KeyPathsColumn")
                 {
-                    string keyPaths = row.Cells[7].Value?.ToString() ?? "";
-                    string sheetName = row.Cells[0].Value.ToString();
+                    string keyPaths = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
                     Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 키 경로 변경: '{keyPaths}'");
+                    
+                    // 전체 MergeKeyPaths 문자열 업데이트 (중복 저장 방지)
+                    if (excelConfigManager != null)
+                    {
+                        // 다른 관련 값 가져오기
+                        string idPath = dataGridView.Rows[e.RowIndex].Cells["IdPathColumn"].Value?.ToString() ?? "id";
+                        string mergePaths = dataGridView.Rows[e.RowIndex].Cells["MergePathsColumn"].Value?.ToString() ?? "";
+                        string arrayFieldPaths = dataGridView.Rows[e.RowIndex].Cells["ArrayFieldPathsColumn"].Value?.ToString() ?? "";
+                        
+                        // MergeKeyPaths 통합 문자열 업데이트
+                        string mergeKeyPathsConfig = $"{idPath}|{mergePaths}|{keyPaths}|{arrayFieldPaths}";
+                        excelConfigManager.SetConfigValue(sheetName, "MergeKeyPaths", mergeKeyPathsConfig);
+                        
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 MergeKeyPaths 통합 설정 업데이트: '{mergeKeyPathsConfig}'");
+                    }
+                }
+                // 배열 필드 경로 필드 변경 처리
+                else if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "ArrayFieldPathsColumn")
+                {
+                    string arrayFieldPaths = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
+                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 배열 필드 경로 변경: '{arrayFieldPaths}'");
+                    
+                    // 전체 MergeKeyPaths 문자열 업데이트 (중복 저장 방지)
+                    if (excelConfigManager != null)
+                    {
+                        // 다른 관련 값 가져오기
+                        string idPath = dataGridView.Rows[e.RowIndex].Cells["IdPathColumn"].Value?.ToString() ?? "id";
+                        string mergePaths = dataGridView.Rows[e.RowIndex].Cells["MergePathsColumn"].Value?.ToString() ?? "";
+                        string keyPaths = dataGridView.Rows[e.RowIndex].Cells["KeyPathsColumn"].Value?.ToString() ?? "";
+                        
+                        // MergeKeyPaths 통합 문자열 업데이트
+                        string mergeKeyPathsConfig = $"{idPath}|{mergePaths}|{keyPaths}|{arrayFieldPaths}";
+                        excelConfigManager.SetConfigValue(sheetName, "MergeKeyPaths", mergeKeyPathsConfig);
+                        
+                        Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 MergeKeyPaths 통합 설정 업데이트: '{mergeKeyPathsConfig}'");
+                    }
                 }
                 // Flow Style 필드 설정 필드 변경 처리
-                if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "FlowStyleFieldsColumn")
+                else if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "FlowStyleFieldsColumn")
                 {
                     UpdateSheetPathForRow(e.RowIndex);
-                    string sheetName = dataGridView.Rows[e.RowIndex].Cells[0].Value?.ToString() ?? "";
                     string flowStyleFields = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
                     Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 Flow Style 필드 설정 변경: '{flowStyleFields}'");
                 }
@@ -585,51 +585,14 @@ namespace ExcelToJsonAddin.Forms
                 if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "FlowStyleItemsFieldsColumn")
                 {
                     UpdateSheetPathForRow(e.RowIndex);
-                    string sheetName = dataGridView.Rows[e.RowIndex].Cells[0].Value?.ToString() ?? "";
                     string flowStyleItemsFields = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
                     Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 Flow Style 항목 필드 설정 변경: '{flowStyleItemsFields}'");
                 }
-                
-                // 비교 필드 설정 변경 처리
-                else if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "CompareFieldsColumn")
-                {
-                    string sheetName = dataGridView.Rows[e.RowIndex].Cells[0].Value?.ToString() ?? "";
-                    string compareFields = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString() ?? "";
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 비교 필드 설정 변경: '{compareFields}'");
-                    
-                    // 값이 제대로 설정되었는지 확인
-                    var cell = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex];
-                    string cellValue = cell.Value?.ToString() ?? "";
-                    if (cellValue != compareFields)
-                    {
-                        Debug.WriteLine($"[DataGridView_CellValueChanged] 경고: 셀 값이 의도한 값과 다릅니다. 설정하려는 값: '{compareFields}', 실제 셀 값: '{cellValue}'");
-                        cell.Value = compareFields;
-                        Debug.WriteLine($"[DataGridView_CellValueChanged] 셀 값을 수정했습니다. 새 값: '{compareFields}'");
-                    }
-                    
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 비교 필드 변경 후 UpdateSheetPathForRow({e.RowIndex}) 호출");
-                    UpdateSheetPathForRow(e.RowIndex);
-                }
-                
-                // 활성화(체크박스) 변경 처리 추가
-                if (e.ColumnIndex >= 0 && dataGridView.Columns[e.ColumnIndex].Name == "EnabledColumn")
-                {
-                    string sheetName = dataGridView.Rows[e.RowIndex].Cells[0].Value?.ToString() ?? "";
-                    bool enabled = dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value != null 
-                                  ? (bool)dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value 
-                                  : false;
-                    
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 시트 '{sheetName}'의 활성화 상태 변경: {enabled}");
-                    Debug.WriteLine($"[DataGridView_CellValueChanged] 활성화 변경 후 UpdateSheetPathForRow({e.RowIndex}) 호출");
-                    UpdateSheetPathForRow(e.RowIndex);
-                }
-                
-                // 변경된 행을 즉시 XML와 동기화
-                if(e.RowIndex >= 0) UpdateSheetPathForRow(e.RowIndex);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[DataGridView_CellValueChanged] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+                Debug.WriteLine($"[DataGridView_CellValueChanged] 예외 발생: {ex.Message}");
+                Debug.WriteLine($"[DataGridView_CellValueChanged] 스택 추적: {ex.StackTrace}");
             }
         }
 
@@ -642,165 +605,114 @@ namespace ExcelToJsonAddin.Forms
         // 공통 메서드: 특정 행의 데이터를 XML에 업데이트
         private void UpdateSheetPathForRow(int rowIndex)
         {
-            try 
+            if (rowIndex < 0 || rowIndex >= dataGridView.Rows.Count)
+                return;
+                
+            var row = dataGridView.Rows[rowIndex];
+            // 원본 시트 이름(느낌표 포함)을 Tag에서 가져옴
+            string sheetName = row.Cells["SheetNameColumn"].Tag?.ToString() ?? "";
+            string path = row.Cells["PathColumn"].Value?.ToString() ?? "";
+            bool enabled = row.Cells["EnabledColumn"].Value != null && (bool)row.Cells["EnabledColumn"].Value;
+            bool yamlEmptyFields = row.Cells["YamlEmptyFields"].Value != null && (bool)row.Cells["YamlEmptyFields"].Value;
+            string idPath = "";
+            string mergePaths = "";
+            string keyPaths = "";
+            string arrayFieldPaths = "";
+            string flowStyleFields = "";
+            string flowStyleItemsFields = "";
+            
+            // 각 설정 값 추출
+            foreach (DataGridViewCell cell in row.Cells)
             {
-                var row = dataGridView.Rows[rowIndex];
-                if (row.Cells.Count <= 0 || row.Cells[0].Value == null)
+                if (cell.OwningColumn.Name == "IdPathColumn")
                 {
-                    Debug.WriteLine($"[UpdateSheetPathForRow] 오류: 행 {rowIndex}의 셀 0에 값이 없습니다.");
-                    return;
+                    idPath = cell.Value?.ToString() ?? "";
                 }
+                else if (cell.OwningColumn.Name == "MergePathsColumn")
+                {
+                    mergePaths = cell.Value?.ToString() ?? "";
+                }
+                else if (cell.OwningColumn.Name == "KeyPathsColumn")
+                {
+                    keyPaths = cell.Value?.ToString() ?? "";
+                }
+                else if (cell.OwningColumn.Name == "ArrayFieldPathsColumn")
+                {
+                    arrayFieldPaths = cell.Value?.ToString() ?? "";
+                }
+                else if (cell.OwningColumn.Name == "FlowStyleFieldsColumn")
+                {
+                    flowStyleFields = cell.Value?.ToString() ?? "";
+                }
+                else if (cell.OwningColumn.Name == "FlowStyleItemsFieldsColumn")
+                {
+                    flowStyleItemsFields = cell.Value?.ToString() ?? "";
+                }
+            }
+            
+            // Flow Style 구성 (필드와 항목 합쳐서 구성)
+            string flowStyle = !string.IsNullOrEmpty(flowStyleFields) || !string.IsNullOrEmpty(flowStyleItemsFields)
+                ? $"{flowStyleFields}|{flowStyleItemsFields}"
+                : "";
+                
+            Debug.WriteLine($"[UpdateSheetPathForRow] 시트 '{sheetName}' 저장: 경로='{path}', 활성화={enabled}, YAML 빈 필드={yamlEmptyFields}");
+            Debug.WriteLine($"[UpdateSheetPathForRow] ID 경로='{idPath}', 병합 경로='{mergePaths}', 키 경로='{keyPaths}', 배열 필드 경로='{arrayFieldPaths}'");
+            Debug.WriteLine($"[UpdateSheetPathForRow] Flow Style 구성: fields='{flowStyleFields}', itemsFields='{flowStyleItemsFields}'");
+            Debug.WriteLine($"[UpdateSheetPathForRow] 최종 flowStyleConfig='{flowStyle}'");
 
-                // 원본 시트 이름 가져오기 (태그에 저장된 값 사용)
-                string sheetName = row.Cells[0].Tag != null ? row.Cells[0].Tag.ToString() : row.Cells[0].Value.ToString();
-                
-                // 디버깅 정보 추가
-                Debug.WriteLine($"[UpdateSheetPathForRow] 원본 시트 이름: '{sheetName}', 표시 이름: '{row.Cells[0].Value}'");
-                
-                // 활성화 상태 확인 (인덱스 1)
-                bool enabled = row.Cells.Count > 1 && row.Cells[1].Value != null ? (bool)row.Cells[1].Value : false;
-                
-                Debug.WriteLine($"[UpdateSheetPathForRow] 시트 '{sheetName}'의 활성화 상태: {enabled}");
-                
-                // 경로 확인 (인덱스 2)
-                string path = row.Cells.Count > 2 && row.Cells[2].Value != null ? row.Cells[2].Value.ToString() : "";
-                
-                // YAML 선택적 필드 처리 상태 확인 (인덱스 4)
-                bool yamlEmptyFields = false;
-                if (row.Cells.Count > 4 && row.Cells[4].Value != null)
-                {
-                    yamlEmptyFields = (bool)row.Cells[4].Value;
-                }
-                
-                // 후처리 키 경로 확인 (인덱스 5, 6, 7)
-                string idPath = "";
-                string mergePaths = "";
-                string keyPaths = "";
-                
-                if (row.Cells.Count > 5)
-                    idPath = row.Cells[5].Value?.ToString() ?? "";
-                if (row.Cells.Count > 6)
-                    mergePaths = row.Cells[6].Value?.ToString() ?? "";
-                if (row.Cells.Count > 7)
-                    keyPaths = row.Cells[7].Value?.ToString() ?? "";
-                
-                // Flow Style 필드 설정 확인
-                string flowStyleFields = "";
-                string flowStyleItemsFields = "";
-                string compareFields = "";
-                
-                foreach (DataGridViewCell cell in row.Cells)
-                {
-                    if (cell.OwningColumn.Name == "FlowStyleFieldsColumn")
-                    {
-                        flowStyleFields = cell.Value?.ToString() ?? "";
-                    }
-                    else if (cell.OwningColumn.Name == "FlowStyleItemsFieldsColumn")
-                    {
-                        flowStyleItemsFields = cell.Value?.ToString() ?? "";
-                    }
-                    else if (cell.OwningColumn.Name == "CompareFieldsColumn")
-                    {
-                        compareFields = cell.Value?.ToString() ?? "";
-                    }
-                }
-                
-                // 병합 키 경로 및 Flow Style 설정 합치기
-                // 주의: 입력값을 유지하기 위해 정확히 포맷 맞추기
-                string mergeKeyPathsConfig = $"{idPath}|{mergePaths}|{keyPaths}";
-                string flowStyleConfig = $"{flowStyleFields}|{flowStyleItemsFields}";
-                
-                // 디버깅을 위한 출력
-                Debug.WriteLine($"[UpdateSheetPathForRow] 병합 키 경로 구성: idPath='{idPath}', mergePaths='{mergePaths}', keyPaths='{keyPaths}'");
-                Debug.WriteLine($"[UpdateSheetPathForRow] 최종 mergeKeyPathsConfig='{mergeKeyPathsConfig}'");
-                Debug.WriteLine($"[UpdateSheetPathForRow] Flow Style 구성: fields='{flowStyleFields}', itemsFields='{flowStyleItemsFields}'");
-                Debug.WriteLine($"[UpdateSheetPathForRow] 최종 flowStyleConfig='{flowStyleConfig}'");
-                Debug.WriteLine($"[UpdateSheetPathForRow] 비교 필드 설정: compareFields='{compareFields}'");
-
-                // Excel 설정에 YAML 관련 설정 저장
-                if (excelConfigManager != null)
-                {
-                    // 비교 필드 설정 저장
-                    if (!string.IsNullOrEmpty(compareFields))
-                    {
-                        Debug.WriteLine($"[UpdateSheetPathForRow] 비교 필드 설정 저장: 시트 '{sheetName}', 값: '{compareFields}'");
-                        
-                        // 기존 값과 비교하여 변경되었는지 확인
-                        string oldValue = excelConfigManager.GetConfigValue(sheetName, "CompareFields", "");
-                        if (oldValue != compareFields)
-                        {
-                            Debug.WriteLine($"[UpdateSheetPathForRow] 비교 필드 값 변경: '{oldValue}' -> '{compareFields}'");
-                        }
-                        
-                        // 설정 저장
-                        excelConfigManager.SetConfigValue(sheetName, "CompareFields", compareFields);
-                        
-                        // 저장 후 다시 값 확인
-                        string savedValue = excelConfigManager.GetConfigValue(sheetName, "CompareFields", "");
-                        Debug.WriteLine($"[UpdateSheetPathForRow] 저장 후 비교 필드 값: '{savedValue}'");
-                    }
-                }
-            }
-            catch (Exception ex)
+            // Excel 설정에 YAML 관련 설정 저장
+            if (excelConfigManager != null)
             {
-                Debug.WriteLine($"[UpdateSheetPathForRow] 예외 발생: {ex.Message}\n{ex.StackTrace}");
-            }
-        }
-
-        // SaveButton_Click 함수 내에 비교 필드 저장 로직 추가
-        private void SaveButton_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                Debug.WriteLine("[SaveButton_Click] 시작");
+                // 아래 세 개의 개별 설정 저장 코드를 제거 (MergeKeyPaths만 저장하도록 수정)
+                // // ID 경로 설정
+                // if (!string.IsNullOrEmpty(idPath))
+                // {
+                //     excelConfigManager.SetConfigValue(sheetName, "IdPath", idPath);
+                // }
                 
-                // 변경사항을 저장
-                for (int i = 0; i < dataGridView.Rows.Count; i++)
+                // // 병합 경로 설정
+                // if (!string.IsNullOrEmpty(mergePaths))
+                // {
+                //     excelConfigManager.SetConfigValue(sheetName, "MergePaths", mergePaths);
+                // }
+                
+                // // 키 경로 설정
+                // if (!string.IsNullOrEmpty(keyPaths))
+                // {
+                //     excelConfigManager.SetConfigValue(sheetName, "KeyPaths", keyPaths);
+                // }
+                
+                // Flow Style 설정
+                excelConfigManager.SetConfigValue(sheetName, "FlowStyle", flowStyle);
+                
+                // YAML 빈 필드 포함 설정
+                excelConfigManager.SetConfigValue(sheetName, "YamlEmptyFields", yamlEmptyFields.ToString().ToLower());
+                
+                // MergeKeyPaths 설정 추가 - 개별 설정 대신 통합 설정만 저장
+                if (!string.IsNullOrEmpty(idPath) || !string.IsNullOrEmpty(mergePaths) || !string.IsNullOrEmpty(keyPaths) || !string.IsNullOrEmpty(arrayFieldPaths))
                 {
-                    var currentRow = dataGridView.Rows[i];
-                    string sheetName = currentRow.Cells["SheetNameColumn"].Value?.ToString() ?? "";
-                    bool enabled = Convert.ToBoolean(currentRow.Cells["EnabledColumn"].Value);
-                    string path = currentRow.Cells["PathColumn"].Value?.ToString() ?? "";
-                    bool yamlEmptyFields = Convert.ToBoolean(currentRow.Cells["YamlEmptyFields"].Value);
-                    string idPath = currentRow.Cells["IdPathColumn"].Value?.ToString() ?? "";
-                    string mergePaths = currentRow.Cells["MergePathsColumn"].Value?.ToString() ?? "";
-                    string keyPaths = currentRow.Cells["KeyPathsColumn"].Value?.ToString() ?? "";
-                    
-                    // Flow 스타일 설정 저장 (필드와 항목 필드 합쳐서 구성)
-                    string flowStyleFields = currentRow.Cells["FlowStyleFieldsColumn"].Value?.ToString() ?? "";
-                    string flowStyleItemsFields = currentRow.Cells["FlowStyleItemsFieldsColumn"].Value?.ToString() ?? "";
-                    string compareFields = currentRow.Cells["CompareFieldsColumn"].Value?.ToString() ?? "";
-                    
-                    Debug.WriteLine($"[SaveButton_Click] 시트: {sheetName}, 경로: {path}, YAML 빈 필드: {yamlEmptyFields}, " +
-                                   $"ID 경로: {idPath}, 병합 경로: {mergePaths}, 키 경로: {keyPaths}, " +
-                                   $"Flow 스타일 필드: {flowStyleFields}, Flow 스타일 항목 필드: {flowStyleItemsFields}, " +
-                                   $"비교 필드: {compareFields}");
-                    
-                    // 비교 필드 저장
-                    if (!string.IsNullOrEmpty(compareFields))
-                    {
-                        Debug.WriteLine($"[SaveButton_Click] 비교 필드 설정: '{compareFields}'");
-                        
-                        // Excel에만 저장
-                        if (excelConfigManager != null)
-                        {
-                            excelConfigManager.SetConfigValue(sheetName, "CompareFields", compareFields);
-                        }
-                    }
-                    
-                    // 기존 코드 (다른 설정 저장)
-                    // ...
+                    string mergeKeyPathsConfig = $"{idPath}|{mergePaths}|{keyPaths}|{arrayFieldPaths}";
+                    excelConfigManager.SetConfigValue(sheetName, "MergeKeyPaths", mergeKeyPathsConfig);
                 }
-                
-                Debug.WriteLine("[SaveButton_Click] 완료");
-                this.DialogResult = DialogResult.OK;
-                this.Close();
             }
-            catch (Exception ex)
+            
+            // XML 설정에 저장 (SheetPathManager)
+            if (!string.IsNullOrEmpty(path))
             {
-                Debug.WriteLine($"[SaveButton_Click] 예외 발생: {ex.Message}\n{ex.StackTrace}");
-                MessageBox.Show($"저장 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // 현재 워크북 경로 가져오기
+                string workbookPath = excelConfigManager != null ? excelConfigManager.WorkbookPath : "";
+                if (!string.IsNullOrEmpty(workbookPath))
+                {
+                    SheetPathManager.Instance.SetSheetPath(workbookPath, sheetName, path);
+                }
+                else
+                {
+                    Debug.WriteLine($"[UpdateSheetPathForRow] 워크북 경로가 없어 시트 '{sheetName}'의 경로를 저장할 수 없습니다.");
+                }
             }
+            
+            SheetPathManager.Instance.SetSheetEnabled(sheetName, enabled);
+            SheetPathManager.Instance.SetYamlEmptyFieldsOption(sheetName, yamlEmptyFields);
         }
 
         /// <summary>
@@ -848,7 +760,7 @@ namespace ExcelToJsonAddin.Forms
         }
         
         /// <summary>
-        /// 폼 로드 시 호출되는 메서드
+        /// 폼 로드 이벤트 핸들러
         /// </summary>
         private void SheetPathSettingsForm_Load(object sender, EventArgs e)
         {
@@ -864,6 +776,9 @@ namespace ExcelToJsonAddin.Forms
                 // 시트 경로 로드
                 LoadSheetPaths();
                 
+                // DataGridView 컬럼 자동 조정 (콘텐츠에 맞게)
+                dataGridView.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
+                
                 // DataGridView 크기 조정
                 AdjustDataGridViewSize();
                 
@@ -871,22 +786,13 @@ namespace ExcelToJsonAddin.Forms
                 foreach (DataGridViewRow row in dataGridView.Rows)
                 {
                     string sheetName = row.Cells[0].Value?.ToString() ?? "";
-                    string compareFields = row.Cells["CompareFieldsColumn"].Value?.ToString() ?? "";
                     
                     // 설정값 로깅
                     string mergeKeyPaths = excelConfigManager.GetConfigValue(sheetName, "MergeKeyPaths", "");
                     string flowStyle = excelConfigManager.GetConfigValue(sheetName, "FlowStyle", "");
-                    string compareFieldsConfig = excelConfigManager.GetConfigValue(sheetName, "CompareFields", "");
                     
                     Debug.WriteLine($"[SheetPathSettingsForm_Load] 시트: {sheetName}, MergeKeyPaths: {mergeKeyPaths}, " +
-                                    $"FlowStyle: {flowStyle}, CompareFields: {compareFieldsConfig}");
-                    
-                    // UI에 표시된 값과 설정값 비교 (불일치 확인)
-                    if (compareFields != compareFieldsConfig)
-                    {
-                        Debug.WriteLine($"[SheetPathSettingsForm_Load] 경고: 시트 '{sheetName}'의 UI 표시 비교 필드({compareFields})와 " +
-                                        $"설정값({compareFieldsConfig})이 다릅니다!");
-                    }
+                                    $"FlowStyle: {flowStyle}");
                 }
                 
                 Debug.WriteLine("[SheetPathSettingsForm_Load] 완료됨");
@@ -910,21 +816,12 @@ namespace ExcelToJsonAddin.Forms
                     if (e.RowIndex < 0 || e.ColumnIndex < 0)
                         return;
                         
-                    // CompareFieldsColumn 포맷팅
-                    if (dataGridView.Columns[e.ColumnIndex].Name == "CompareFieldsColumn")
+                    // 셀 값 로깅 (필요시)
+                    if (Debug.Listeners.Count > 0 && e.Value != null)
                     {
-                        Debug.WriteLine($"[CellFormatting] CompareFields 열 포맷팅: 행={e.RowIndex}, 열={e.ColumnIndex}");
-                        
-                        // 값이 null이 아닌지 확인
-                        if (e.Value != null)
-                        {
-                            string value = e.Value.ToString();
-                            Debug.WriteLine($"[CellFormatting] CompareFields 열 값: '{value}'");
-                        }
-                        else
-                        {
-                            Debug.WriteLine($"[CellFormatting] 경고: CompareFields 열 값이 null입니다");
-                        }
+                        string columnName = dataGridView.Columns[e.ColumnIndex].Name;
+                        string value = e.Value.ToString();
+                        Debug.WriteLine($"[CellFormatting] 열 '{columnName}' 값: '{value}'");
                     }
                 };
                 
@@ -937,6 +834,97 @@ namespace ExcelToJsonAddin.Forms
             catch (Exception ex)
             {
                 Debug.WriteLine($"[ConfigureDataGridCellFormatting] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
+        // SaveButton_Click 함수
+        private void SaveButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                Debug.WriteLine("[SaveButton_Click] 시작");
+                
+                // 변경사항을 저장
+                for (int i = 0; i < dataGridView.Rows.Count; i++)
+                {
+                    var currentRow = dataGridView.Rows[i];
+                    // 원본 시트 이름(느낌표 포함)을 Tag에서 가져옴
+                    string sheetName = currentRow.Cells["SheetNameColumn"].Tag?.ToString() ?? "";
+                    bool enabled = Convert.ToBoolean(currentRow.Cells["EnabledColumn"].Value);
+                    string path = currentRow.Cells["PathColumn"].Value?.ToString() ?? "";
+                    bool yamlEmptyFields = Convert.ToBoolean(currentRow.Cells["YamlEmptyFields"].Value);
+                    string idPath = currentRow.Cells["IdPathColumn"].Value?.ToString() ?? "";
+                    string mergePaths = currentRow.Cells["MergePathsColumn"].Value?.ToString() ?? "";
+                    string keyPaths = currentRow.Cells["KeyPathsColumn"].Value?.ToString() ?? "";
+                    string arrayFieldPaths = currentRow.Cells["ArrayFieldPathsColumn"].Value?.ToString() ?? "";
+                    
+                    // Flow 스타일 설정 저장 (필드와 항목 합쳐서 구성)
+                    string flowStyleFields = currentRow.Cells["FlowStyleFieldsColumn"].Value?.ToString() ?? "";
+                    string flowStyleItemsFields = currentRow.Cells["FlowStyleItemsFieldsColumn"].Value?.ToString() ?? "";
+                    
+                    Debug.WriteLine($"[SaveButton_Click] 시트: {sheetName}, 경로: {path}, YAML 빈 필드: {yamlEmptyFields}, " +
+                                   $"ID 경로: {idPath}, 병합 경로: {mergePaths}, 키 경로: {keyPaths}, " +
+                                   $"Flow 스타일 필드: {flowStyleFields}, Flow 스타일 항목 필드: {flowStyleItemsFields}");
+                    
+                    // 시트 정보 저장
+                    if (!string.IsNullOrEmpty(sheetName))
+                    {
+                        // 경로 저장
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            // 현재 워크북 경로 가져오기
+                            string workbookPath = excelConfigManager != null ? excelConfigManager.WorkbookPath : "";
+                            if (!string.IsNullOrEmpty(workbookPath))
+                            {
+                                SheetPathManager.Instance.SetSheetPath(workbookPath, sheetName, path);
+                            }
+                            else
+                            {
+                                Debug.WriteLine($"[SaveButton_Click] 워크북 경로가 없어 시트 '{sheetName}'의 경로를 저장할 수 없습니다.");
+                            }
+                        }
+                        
+                        // 활성화 상태 저장
+                        SheetPathManager.Instance.SetSheetEnabled(sheetName, enabled);
+                        
+                        // YAML 선택적 필드 설정 - XML에는 저장하지 않음
+                        // SheetPathManager.Instance.SetYamlEmptyFieldsOption(sheetName, yamlEmptyFields);
+                        
+                        // Excel 설정 저장
+                        if (excelConfigManager != null)
+                        {
+                            // 개별 필드 저장 제거 - IdPath, MergePaths, KeyPaths를 개별적으로 저장하지 않음
+                            
+                            // Flow 스타일 설정 저장
+                            string flowStyle = $"{flowStyleFields}|{flowStyleItemsFields}";
+                            
+                            // 병합 키 경로 저장
+                            if (!string.IsNullOrEmpty(idPath) || !string.IsNullOrEmpty(mergePaths) || !string.IsNullOrEmpty(keyPaths) || !string.IsNullOrEmpty(arrayFieldPaths))
+                            {
+                                Debug.WriteLine($"[SaveButton_Click] 시트 '{sheetName}'의 병합 키 경로 저장: idPath='{idPath}', mergePaths='{mergePaths}', keyPaths='{keyPaths}', arrayFieldPaths='{arrayFieldPaths}'");
+                                
+                                string mergeKeyPathsConfig = $"{idPath}|{mergePaths}|{keyPaths}|{arrayFieldPaths}";
+                                excelConfigManager.SetConfigValue(sheetName, "MergeKeyPaths", mergeKeyPathsConfig);
+                            }
+                            
+                            excelConfigManager.SetConfigValue(sheetName, "FlowStyle", flowStyle);
+                            // 활성화 상태와 YAML 빈 필드 옵션은 XML 파일에만 저장
+                            excelConfigManager.SetConfigValue(sheetName, "YamlEmptyFields", yamlEmptyFields.ToString().ToLower());
+                        }
+                    }
+                }
+                
+                // 설정 저장
+                SheetPathManager.Instance.SaveSettings();
+                
+                Debug.WriteLine("[SaveButton_Click] 완료");
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SaveButton_Click] 예외 발생: {ex.Message}\n{ex.StackTrace}");
+                MessageBox.Show($"저장 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
