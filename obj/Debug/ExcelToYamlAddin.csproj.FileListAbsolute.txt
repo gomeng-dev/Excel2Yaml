@@ -48,7 +48,4 @@ C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToYa
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\obj\Debug\ExcelToYamlAddin.pdb
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.WindowsAPICodePack.dll
 C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.WindowsAPICodePack.Shell.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.WindowsAPICodePack.Core.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.WindowsAPICodePack.ExtendedLinguisticServices.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.WindowsAPICodePack.Sensors.dll
-C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Microsoft.WindowsAPICodePack.ShellExtensions.dll
+C:\Work\excel2json-1.1.1-standalone.jar.src\ExcelToJsonAddin\bin\Debug\Docs\YAML_후처리_가이드.md

@@ -25,6 +25,9 @@ namespace ExcelToYamlAddin
         
         private readonly ExcelToJsonConfig config = new ExcelToJsonConfig();
 
+        // 설정 폼 인스턴스 저장을 위한 필드
+        private Forms.SheetPathSettingsForm settingsForm = null;
+
         public Ribbon()
             : base(Globals.Factory.GetRibbonFactory())
         {
@@ -229,10 +232,15 @@ namespace ExcelToYamlAddin
                     if (result == DialogResult.No)
                     {
                         // 시트별 경로 설정 창 열기
-                        using (var form = new Forms.SheetPathSettingsForm(convertibleSheets))
+                        if (settingsForm != null && !settingsForm.IsDisposed)
                         {
-                            form.ShowDialog();
-                            
+                            settingsForm.Activate();
+                            return;
+                        }
+                        
+                        settingsForm = new Forms.SheetPathSettingsForm(convertibleSheets);
+                        settingsForm.FormClosed += (s, args) => 
+                        { 
                             // 설정 후 다시 활성화된 시트 수 확인
                             enabledSheetsCount = 0;
                             foreach (var sheet in convertibleSheets)
@@ -248,9 +256,12 @@ namespace ExcelToYamlAddin
                             {
                                 MessageBox.Show("활성화된 시트가 없어 변환을 취소합니다.", 
                                     "변환 취소", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                return;
                             }
-                        }
+                            
+                            settingsForm = null;
+                        };
+                        settingsForm.Show();
+                        return;
                     }
                 }
                 
@@ -662,10 +673,15 @@ namespace ExcelToYamlAddin
                     if (result == DialogResult.No)
                     {
                         // 시트별 경로 설정 창 열기
-                        using (var form = new Forms.SheetPathSettingsForm(convertibleSheets))
+                        if (settingsForm != null && !settingsForm.IsDisposed)
                         {
-                            form.ShowDialog();
-                            
+                            settingsForm.Activate();
+                            return;
+                        }
+                        
+                        settingsForm = new Forms.SheetPathSettingsForm(convertibleSheets);
+                        settingsForm.FormClosed += (s, args) => 
+                        { 
                             // 설정 후 다시 활성화된 시트 수 확인
                             enabledSheetsCount = 0;
                             foreach (var sheet in convertibleSheets)
@@ -681,9 +697,12 @@ namespace ExcelToYamlAddin
                             {
                                 MessageBox.Show("활성화된 시트가 없어 변환을 취소합니다.", 
                                     "변환 취소", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                return;
                             }
-                        }
+                            
+                            settingsForm = null;
+                        };
+                        settingsForm.Show();
+                        return;
                     }
                 }
                 
@@ -810,8 +829,11 @@ namespace ExcelToYamlAddin
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"시트별 경로 설정 중 오류가 발생했습니다: {ex.Message}", "오류", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    $"시트별 경로 설정 중 오류가 발생했습니다: {ex.Message}",
+                    "오류",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
                 Debug.WriteLine($"시트별 경로 설정 오류: {ex}");
             }
         }
@@ -855,16 +877,25 @@ namespace ExcelToYamlAddin
                 // 워크북 경로 설정
                 SheetPathManager.Instance.SetCurrentWorkbook(app.ActiveWorkbook.FullName);
                 
-                // 시트별 경로 설정 대화상자 표시
-                using (var form = new Forms.SheetPathSettingsForm(convertibleSheets))
+                // 이미 열려있는 설정 폼이 있으면 활성화
+                if (settingsForm != null && !settingsForm.IsDisposed)
                 {
-                    form.ShowDialog();
+                    settingsForm.Activate();
+                    return;
                 }
+                
+                // 시트별 경로 설정 대화상자 표시 (비모달)
+                settingsForm = new Forms.SheetPathSettingsForm(convertibleSheets);
+                settingsForm.FormClosed += (s, args) => { settingsForm = null; };
+                settingsForm.Show();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"시트별 경로 설정 중 오류가 발생했습니다: {ex.Message}", 
-                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    $"도움말을 표시하는 중 오류가 발생했습니다: {ex.Message}",
+                    "오류",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 

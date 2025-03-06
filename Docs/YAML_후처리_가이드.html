@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel → YAML 변환 후처리 설정 가이드</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2980b9;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #3498db;
+            margin-top: 25px;
+        }
+        h4 {
+            color: #2c3e50;
+            margin-top: 20px;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        pre {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            overflow: auto;
+        }
+        code {
+            font-family: Consolas, Monaco, 'Andale Mono', monospace;
+            background-color: #f1f1f1;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        blockquote {
+            border-left: 4px solid #3498db;
+            padding: 10px 15px;
+            margin: 20px 0;
+            background-color: #eef7fa;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        ul, ol {
+            padding-left: 25px;
+        }
+        hr {
+            border: 0;
+            border-top: 1px solid #eee;
+            margin: 25px 0;
+        }
+        .example-container {
+            background-color: #f7f9fc;
+            border: 1px solid #e1e4e8;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .example-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .yaml-code {
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .note {
+            background-color: #fffde7;
+            border-left: 4px solid #ffd600;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+        .settings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .settings-table th {
+            background-color: #e9f2fa;
+            font-weight: bold;
+            padding: 10px;
+            text-align: left;
+        }
+        .settings-table td {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+        }
+        .input-example {
+            font-family: Consolas, monospace;
+            color: #0366d6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Excel → YAML 변환 후처리 설정 가이드</h1>
+    
+    <p>이 가이드는 Excel에서 YAML 파일로 변환 후 적용할 수 있는 두 가지 후처리 기능의 설정 방법을 설명합니다.</p>
+    
+    <h2>목차</h2>
+    <ol>
+        <li><a href="#yaml-merge">YAML 항목 병합 설정</a>
+            <ul>
+                <li><a href="#yaml-merge-intro">기능 소개</a></li>
+                <li><a href="#yaml-merge-setup">설정 입력 방법</a></li>
+                <li><a href="#yaml-merge-examples">설정 예시</a></li>
+                <li><a href="#yaml-merge-options">추가 옵션</a></li>
+            </ul>
+        </li>
+        <li><a href="#yaml-flow">YAML 항목 표시 형식 설정</a>
+            <ul>
+                <li><a href="#yaml-flow-intro">기능 소개</a></li>
+                <li><a href="#yaml-flow-setup">설정 입력 방법</a></li>
+                <li><a href="#yaml-flow-examples">설정 예시</a></li>
+            </ul>
+        </li>
+    </ol>
+    
+    <hr>
+    
+    <h2 id="yaml-merge">1. YAML 항목 병합 설정</h2>
+    
+    <h3 id="yaml-merge-intro">1.1 기능 소개</h3>
+    
+    <p>YAML 항목 병합 기능을 사용하면 동일한 식별자(ID)를 가진 항목들을 자동으로 하나로 합칠 수 있습니다. 이 기능은 다음과 같은 상황에서 유용합니다:</p>
+    
+    <ul>
+        <li>같은 ID를 가진 항목을 하나로 통합하고 싶을 때</li>
+        <li>특정 항목의 배열이나 목록을 합치고 싶을 때</li>
+        <li>중복 내용을 정리하고 싶을 때</li>
+    </ul>
+    
+    <h3 id="yaml-merge-setup">1.2 설정 입력 방법</h3>
+    
+    <p>시트 설정 화면에서 각 설정 항목에 다음과 같이 값을 입력합니다:</p>
+    
+    <table class="settings-table">
+        <tr>
+            <th>ID 경로</th>
+            <th>병합 경로</th>
+            <th>키 경로 전략</th>
+            <th>배열 필드 경로</th>
+        </tr>
+        <tr>
+            <td>항목을 구분하는 고유 ID가 있는 위치</td>
+            <td>합치고 싶은 데이터 위치들</td>
+            <td>특별한 병합 방식이 필요한 항목들</td>
+            <td>목록(배열) 항목의 병합 방식</td>
+        </tr>
+    </table>
+    
+    <p>각 설정 항목의 의미는 다음과 같습니다:</p>
+    
+    <ol>
+        <li><strong>ID 경로:</strong>
+            <ul>
+                <li>예: <code>id</code> 또는 <code>item.code</code></li>
+                <li>같은 식별자 값을 가진 항목들이 하나로 합쳐집니다</li>
+            </ul>
+        </li>
+        <li><strong>병합 경로:</strong>
+            <ul>
+                <li>쉼표(<code>,</code>) 또는 세미콜론(<code>;</code>)으로 구분</li>
+                <li>예: <code>items,stats</code> 또는 <code>items;properties</code></li>
+            </ul>
+        </li>
+        <li><strong>키 경로 전략:</strong>
+            <ul>
+                <li>형식: <code>항목:방식</code></li>
+                <li>방식 종류: <code>match</code>, <code>merge</code>, <code>append</code>, <code>replace</code>, <code>skip</code></li>
+                <li>쉼표나 세미콜론으로 구분</li>
+                <li>예: <code>level:merge,points:replace</code></li>
+            </ul>
+        </li>
+        <li><strong>배열 필드 경로:</strong>
+            <ul>
+                <li>형식: <code>항목:방식</code></li>
+                <li>예: <code>skills:append,inventory:replace</code></li>
+            </ul>
+        </li>
+    </ol>
+    
+    <h3 id="yaml-merge-examples">1.3 설정 예시</h3>
+    
+    <h4>예시 1: 기본 ID 기반 병합</h4>
+    
+    <div class="example-container">
+        <div class="example-title">설정값:</div>
+        <table class="settings-table">
+            <tr>
+                <th>ID 경로</th>
+                <th>병합 경로</th>
+                <th>키 경로 전략</th>
+                <th>배열 필드 경로</th>
+            </tr>
+            <tr>
+                <td class="input-example">id</td>
+                <td class="input-example">items</td>
+                <td></td>
+                <td></td>
+            </tr>
+        </table>
+        
+        <div class="example-title">설정 의미:</div>
+        <ul>
+            <li><code>id</code> 항목이 같은 내용들을 하나로 합침</li>
+            <li><code>items</code> 목록의 내용을 합침</li>
+        </ul>
+        
+        <div class="example-title">실행 전:</div>
+        <pre class="yaml-code">- id: 1
+  name: 아이템1
+  items:
+    - type: 무기
+- id: 1
+  items:
+    - type: 방어구</pre>
+        
+        <div class="example-title">실행 후:</div>
+        <pre class="yaml-code">- id: 1
+  name: 아이템1
+  items:
+    - type: 무기
+    - type: 방어구</pre>
+    </div>
+    
+    <h4>예시 2: 여러 항목 병합 설정</h4>
+    
+    <div class="example-container">
+        <div class="example-title">설정값:</div>
+        <table class="settings-table">
+            <tr>
+                <th>ID 경로</th>
+                <th>병합 경로</th>
+                <th>키 경로 전략</th>
+                <th>배열 필드 경로</th>
+            </tr>
+            <tr>
+                <td class="input-example">id</td>
+                <td class="input-example">items,stats</td>
+                <td class="input-example">level:merge;points:replace</td>
+                <td class="input-example">results:append</td>
+            </tr>
+        </table>
+        
+        <div class="example-title">설정 의미:</div>
+        <ul>
+            <li><code>id</code>가 같은 항목들을 하나로 합침</li>
+            <li><code>items</code>와 <code>stats</code> 항목들을 합침</li>
+            <li><code>level</code> 항목은 병합 방식으로 합침</li>
+            <li><code>points</code> 항목은 새 값으로 교체</li>
+            <li><code>results</code> 목록은 항목 추가 방식으로 합침</li>
+        </ul>
+        
+        <div class="example-title">실행 전:</div>
+        <pre class="yaml-code">- id: 1
+  name: 플레이어1
+  level: 5
+  points: 100
+  results:
+    - score: 80
+- id: 1
+  level: 6
+  points: 200
+  results:
+    - score: 90</pre>
+        
+        <div class="example-title">실행 후:</div>
+        <pre class="yaml-code">- id: 1
+  name: 플레이어1
+  level: 6
+  points: 200
+  results:
+    - score: 80
+    - score: 90</pre>
+    </div>
+    
+    <h3 id="yaml-merge-options">1.4 추가 옵션</h3>
+    
+    <h4>병합 방식 종류</h4>
+    
+    <ol>
+        <li><strong>일치 방식</strong>(기본값): 일치하는 값만 병합</li>
+        <li><strong>병합 방식</strong>: 항목 내용을 자세히 비교하여 병합</li>
+        <li><strong>추가 방식</strong>: 목록에 항목을 추가</li>
+        <li><strong>교체 방식</strong>: 기존 값을 새 값으로 덮어씀</li>
+        <li><strong>건너뛰기 방식</strong>: 해당 항목 병합 안 함</li>
+    </ol>
+    
+    <h4>빈 항목 유지 설정</h4>
+    
+    <p>시트 설정 화면의 <strong>'YAML 빈 필드 포함'</strong> 항목을 '예'로 설정하면 비어있는 항목(null 값이나 빈 목록)도 YAML 파일에 포함됩니다.</p>
+    
+    <hr>
+    
+    <h2 id="yaml-flow">2. YAML 항목 표시 형식 설정</h2>
+    
+    <h3 id="yaml-flow-intro">2.1 기능 소개</h3>
+    
+    <p>YAML 항목 표시 형식 설정을 사용하면 특정 항목들을 한 줄로 간결하게 표시할 수 있습니다. 이 기능은 다음과 같은 경우에 유용합니다:</p>
+    
+    <ul>
+        <li>YAML 파일을 더 읽기 쉽게 정리하고 싶을 때</li>
+        <li>짧은 목록이나 항목을 간결하게 표시하고 싶을 때</li>
+        <li>특정 구조에 일관된 표시 스타일을 적용하고 싶을 때</li>
+    </ul>
+    
+    <h3 id="yaml-flow-setup">2.2 설정 입력 방법</h3>
+    
+    <p>시트 설정 화면에서 각 설정 항목에 다음과 같이 값을 입력합니다:</p>
+    
+    <table class="settings-table">
+        <tr>
+            <th>Flow 필드</th>
+            <th>Flow Style 항목 필드</th>
+        </tr>
+        <tr>
+            <td>한 줄로 표시할 항목 이름들</td>
+            <td>목록 내 각 항목을 한 줄로 표시할 항목 이름들</td>
+        </tr>
+    </table>
+    
+    <p>각 설정 항목의 의미는 다음과 같습니다:</p>
+    
+    <ol>
+        <li><strong>Flow 필드:</strong>
+            <ul>
+                <li>쉼표로 구분</li>
+                <li>예: <code>stats,coordinates,options</code></li>
+            </ul>
+        </li>
+        <li><strong>Flow Style 항목 필드:</strong>
+            <ul>
+                <li>쉼표로 구분</li>
+                <li>예: <code>abilities,skills,items</code></li>
+            </ul>
+        </li>
+    </ol>
+    
+    <blockquote>
+        <p><strong>참고</strong>:</p>
+        <ul>
+            <li>'Flow 필드'는 해당 항목 자체를 한 줄로 표시합니다.</li>
+            <li>'Flow Style 항목 필드'는 목록 내 각 항목을 한 줄로 표시합니다.</li>
+        </ul>
+    </blockquote>
+    
+    <h3 id="yaml-flow-examples">2.3 설정 예시</h3>
+    
+    <h4>예시 1: 항목을 한 줄로 표시</h4>
+    
+    <div class="example-container">
+        <div class="example-title">설정값:</div>
+        <table class="settings-table">
+            <tr>
+                <th>Flow 필드</th>
+                <th>Flow Style 항목 필드</th>
+            </tr>
+            <tr>
+                <td class="input-example">stats,position</td>
+                <td></td>
+            </tr>
+        </table>
+        
+        <div class="example-title">설정 의미:</div>
+        <ul>
+            <li><code>stats</code>와 <code>position</code> 항목을 한 줄로 표시</li>
+        </ul>
+        
+        <div class="example-title">실행 전:</div>
+        <pre class="yaml-code">character:
+  name: 플레이어
+  stats:
+    strength: 10
+    dexterity: 8
+    intelligence: 12
+  position:
+    x: 100
+    y: 200</pre>
+        
+        <div class="example-title">실행 후:</div>
+        <pre class="yaml-code">character:
+  name: 플레이어
+  stats: { strength: 10, dexterity: 8, intelligence: 12 }
+  position: { x: 100, y: 200 }</pre>
+    </div>
+    
+    <h4>예시 2: 목록 내 항목을 한 줄로 표시</h4>
+    
+    <div class="example-container">
+        <div class="example-title">설정값:</div>
+        <table class="settings-table">
+            <tr>
+                <th>Flow 필드</th>
+                <th>Flow Style 항목 필드</th>
+            </tr>
+            <tr>
+                <td></td>
+                <td class="input-example">abilities,inventory</td>
+            </tr>
+        </table>
+        
+        <div class="example-title">설정 의미:</div>
+        <ul>
+            <li><code>abilities</code>와 <code>inventory</code> 목록의 각 항목을 한 줄로 표시</li>
+        </ul>
+        
+        <div class="example-title">실행 전:</div>
+        <pre class="yaml-code">character:
+  name: 플레이어
+  abilities:
+    - name: 화염구
+      damage: 50
+      mana: 30
+    - name: 회복
+      healing: 40
+      mana: 20
+  inventory:
+    - id: 101
+      name: 검
+      level: 5
+    - id: 102
+      name: 방패
+      level: 3</pre>
+        
+        <div class="example-title">실행 후:</div>
+        <pre class="yaml-code">character:
+  name: 플레이어
+  abilities:
+    - { name: 화염구, damage: 50, mana: 30 }
+    - { name: 회복, healing: 40, mana: 20 }
+  inventory:
+    - { id: 101, name: 검, level: 5 }
+    - { id: 102, name: 방패, level: 3 }</pre>
+    </div>
+    
+    <hr>
+    
+    <h2>두 설정 함께 사용하기</h2>
+    
+    <p>Excel에서는 두 후처리 설정을 순서대로 적용합니다:</p>
+    
+    <ol>
+        <li>먼저 병합 설정 적용</li>
+        <li>다음으로 표시 형식 설정 적용</li>
+    </ol>
+    
+    <p>따라서 두 설정을 모두 입력하면 병합된 결과에 표시 형식이 적용됩니다.</p>
+    
+    <h3>예시: 두 설정 함께 사용하기</h3>
+    
+    <div class="example-container">
+        <div class="example-title">병합 설정:</div>
+        <table class="settings-table">
+            <tr>
+                <th>ID 경로</th>
+                <th>병합 경로</th>
+                <th>키 경로 전략</th>
+                <th>배열 필드 경로</th>
+            </tr>
+            <tr>
+                <td class="input-example">id</td>
+                <td class="input-example">items,stats</td>
+                <td class="input-example">level:merge</td>
+                <td class="input-example">skills:append</td>
+            </tr>
+        </table>
+        
+        <div class="example-title">표시 형식 설정:</div>
+        <table class="settings-table">
+            <tr>
+                <th>Flow 필드</th>
+                <th>Flow Style 항목 필드</th>
+            </tr>
+            <tr>
+                <td class="input-example">stats,position</td>
+                <td class="input-example">skills</td>
+            </tr>
+        </table>
+        
+        <div class="example-title">결과:</div>
+        <ol>
+            <li>먼저 <code>id</code>를 기준으로 항목을 병합</li>
+            <li>그 다음 <code>stats</code>와 <code>position</code> 항목을 한 줄로 표시</li>
+            <li><code>skills</code> 목록의 각 항목을 한 줄로 표시</li>
+        </ol>
+    </div>
+    
+    <hr>
+    
+    <h2>주의사항</h2>
+    
+    <ol>
+        <li>병합 작업 시 나중에 나오는 값이 이전 값을 덮어씁니다.</li>
+        <li>표시 형식 설정은 데이터 내용을 변경하지 않고 표시 방식만 바꿉니다.</li>
+        <li>복잡한 구조에서는 정확한 항목 이름 지정이 중요합니다.</li>
+        <li>두 설정 모두 Excel 시트 설정 화면의 해당 시트 행에 입력해야 합니다.</li>
+        <li>설정을 변경한 후에는 반드시 다시 YAML로 변환해야 설정이 적용됩니다.</li>
+    </ol>
+    
+    <hr>
+    
+    <h2>문제 해결</h2>
+    
+    <ul>
+        <li><strong>병합이 제대로 되지 않음</strong>: 식별자 항목 이름이 정확한지, 병합 항목 이름이 올바른지 확인하세요.</li>
+        <li><strong>표시 형식이 적용되지 않음</strong>: 항목 이름이 정확히 일치하는지 확인하세요.</li>
+        <li><strong>오류 메시지</strong>: 설정 값 형식과 구분자(,, ;)가 올바른지 확인하세요.</li>
+    </ul>
+    
+    <div class="note">
+        <p>추가 도움이 필요하면 개발팀에 문의하세요.</p>
+    </div>
+</body>
+</html> 

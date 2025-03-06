@@ -12,6 +12,7 @@ using System.Diagnostics;
 using Excel = Microsoft.Office.Interop.Excel;
 using ExcelToYamlAddin.Core;
 using ExcelToYamlAddin.Config;
+using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace ExcelToYamlAddin.Forms
 {
@@ -30,6 +31,11 @@ namespace ExcelToYamlAddin.Forms
             
             // 모던 스타일 적용
             ApplyModernStyle();
+            
+            // 플로팅 윈도우 스타일 설정
+            this.FormBorderStyle = FormBorderStyle.SizableToolWindow;
+            this.ShowInTaskbar = true;
+            this.TopMost = false;
             
             // 데이터 그리드 셀 포맷 설정
             ConfigureDataGridCellFormatting();
@@ -374,17 +380,21 @@ namespace ExcelToYamlAddin.Forms
         {
             Debug.WriteLine($"[ShowFolderBrowserDialog] 시작: 제목='{title}', 초기 폴더='{initialFolder}'");
             
-            // 전용 폴더 브라우저 다이얼로그 사용
-            using (FolderBrowserDialog folderBrowser = new FolderBrowserDialog())
+            // CommonOpenFileDialog 사용
+            using (CommonOpenFileDialog folderBrowser = new CommonOpenFileDialog())
             {
                 // 다이얼로그 설정
-                folderBrowser.Description = title;
-                folderBrowser.ShowNewFolderButton = true;
+                folderBrowser.Title = title;
+                folderBrowser.IsFolderPicker = true;
+                folderBrowser.Multiselect = false;
+                folderBrowser.EnsurePathExists = true;
+                folderBrowser.EnsureFileExists = false;
+                folderBrowser.AllowNonFileSystemItems = false;
 
                 // 초기 폴더 설정
                 if (!string.IsNullOrEmpty(initialFolder) && Directory.Exists(initialFolder))
                 {
-                    folderBrowser.SelectedPath = initialFolder;
+                    folderBrowser.InitialDirectory = initialFolder;
                     Debug.WriteLine($"[ShowFolderBrowserDialog] 초기 폴더 설정: '{initialFolder}'");
                 }
                 else
@@ -392,7 +402,7 @@ namespace ExcelToYamlAddin.Forms
                     string defaultDir = Properties.Settings.Default.LastExportPath;
                     if (!string.IsNullOrEmpty(defaultDir) && Directory.Exists(defaultDir))
                     {
-                        folderBrowser.SelectedPath = defaultDir;
+                        folderBrowser.InitialDirectory = defaultDir;
                         Debug.WriteLine($"[ShowFolderBrowserDialog] 기본 폴더 설정: '{defaultDir}'");
                     }
                     else
@@ -401,9 +411,9 @@ namespace ExcelToYamlAddin.Forms
                     }
                 }
 
-                if (folderBrowser.ShowDialog() == DialogResult.OK)
+                if (folderBrowser.ShowDialog() == CommonFileDialogResult.Ok)
                 {
-                    string selectedPath = folderBrowser.SelectedPath;
+                    string selectedPath = folderBrowser.FileName;
                     Debug.WriteLine($"[ShowFolderBrowserDialog] 폴더 선택 완료: '{selectedPath}'");
                     
                     // 마지막 경로 저장
@@ -768,7 +778,6 @@ namespace ExcelToYamlAddin.Forms
         /// </summary>
         private void CancelButton_Click(object sender, EventArgs e)
         {
-            this.DialogResult = DialogResult.Cancel;
             this.Close();
         }
 
@@ -1101,13 +1110,70 @@ namespace ExcelToYamlAddin.Forms
                 SheetPathManager.Instance.SaveSettings();
                 
                 Debug.WriteLine("[SaveButton_Click] 완료");
-                this.DialogResult = DialogResult.OK;
                 this.Close();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SaveButton_Click] 예외 발생: {ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show($"저장 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 도움말 버튼 클릭 시 HTML 도움말 문서를 표시합니다.
+        /// </summary>
+        private void HelpButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // 임베디드 리소스에서 HTML 내용 로드
+                string htmlContent = null;
+                using (Stream stream = System.Reflection.Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("ExcelToYamlAddin.Docs.YAML_후처리_가이드.html"))
+                {
+                    if (stream == null)
+                    {
+                        MessageBox.Show(
+                            "도움말 리소스를 찾을 수 없습니다.",
+                            "리소스 없음",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    using (StreamReader reader = new StreamReader(stream))
+                    {
+                        htmlContent = reader.ReadToEnd();
+                    }
+                }
+
+                // 도움말 폼 생성 (비모달)
+                Form helpForm = new Form()
+                {
+                    Text = "YAML 후처리 설정 도움말",
+                    Size = new Size(1000, 700),
+                    StartPosition = FormStartPosition.CenterScreen,
+                    Icon = this.Icon,
+                    FormBorderStyle = FormBorderStyle.SizableToolWindow,
+                    ShowInTaskbar = false,
+                    TopMost = true
+                };
+
+                var browser = new WebBrowser();
+                browser.Dock = DockStyle.Fill;
+                browser.ScriptErrorsSuppressed = true;
+                browser.DocumentText = htmlContent;
+
+                helpForm.Controls.Add(browser);
+                helpForm.Show(); // 비모달로 표시
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "도움말을 표시하는 중 오류가 발생했습니다: " + ex.Message,
+                    "오류",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
     }

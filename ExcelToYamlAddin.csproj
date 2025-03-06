@@ -35,7 +35,7 @@
     <PublishUrl>C:\Users\정영훈\OneDrive - Awesomepiece\리부트 공유 문서\</PublishUrl>
     <InstallUrl />
     <TargetCulture>ko</TargetCulture>
-    <ApplicationVersion>1.0.0.1</ApplicationVersion>
+    <ApplicationVersion>1.0.0.4</ApplicationVersion>
     <AutoIncrementApplicationRevision>true</AutoIncrementApplicationRevision>
     <UpdateEnabled>true</UpdateEnabled>
     <UpdateInterval>7</UpdateInterval>
@@ -165,9 +165,6 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft-WindowsAPICodePack-Shell">
-      <Version>1.1.5</Version>
-    </PackageReference>
     <PackageReference Include="SharpYaml">
       <Version>2.1.1</Version>
     </PackageReference>
@@ -185,6 +182,9 @@
     </PackageReference>
     <PackageReference Include="System.Text.Json">
       <Version>9.0.2</Version>
+    </PackageReference>
+    <PackageReference Include="WindowsAPICodePack">
+      <Version>8.0.6</Version>
     </PackageReference>
     <PackageReference Include="YamlDotNet">
       <Version>16.3.0</Version>
@@ -334,6 +334,13 @@
     <Compile Include="Forms\ProgressForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <!-- 도움말 문서 파일 -->
+    <None Include="Docs\YAML_후처리_가이드.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <EmbeddedResource Include="Docs\YAML_후처리_가이드.html">
+      <LogicalName>ExcelToYamlAddin.Docs.YAML_후처리_가이드.html</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Ribbon.resx">

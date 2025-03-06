@@ -44,6 +44,7 @@ namespace ExcelToYamlAddin.Forms
             this.cancelButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.lblConfigPath = new System.Windows.Forms.Label();
+            this.helpButton = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView)).BeginInit();
             this.SuspendLayout();
             // 
@@ -108,18 +109,18 @@ namespace ExcelToYamlAddin.Forms
             // 
             // YamlEmptyFields
             // 
-            this.YamlEmptyFields.HeaderText = "YAML 선택적 필드";
+            this.YamlEmptyFields.HeaderText = "빈 필드 표시";
             this.YamlEmptyFields.MinimumWidth = 8;
             this.YamlEmptyFields.Name = "YamlEmptyFields";
-            this.YamlEmptyFields.ToolTipText = "YAML 파일에 선택적 필드를 빈 값으로 포함할지 여부";
+            this.YamlEmptyFields.ToolTipText = "YAML 파일에 빈 필드를 포함할지 여부";
             this.YamlEmptyFields.Width = 120;
             // 
             // IdPathColumn
             // 
-            this.IdPathColumn.HeaderText = "ID 경로";
+            this.IdPathColumn.HeaderText = "식별자 경로";
             this.IdPathColumn.MinimumWidth = 8;
             this.IdPathColumn.Name = "IdPathColumn";
-            this.IdPathColumn.ToolTipText = "ID가 있는 경로 (기본값: id)";
+            this.IdPathColumn.ToolTipText = "병합할 항목의 식별자가 있는 경로";
             this.IdPathColumn.Width = 90;
             // 
             // MergePathsColumn
@@ -132,7 +133,7 @@ namespace ExcelToYamlAddin.Forms
             // 
             // KeyPathsColumn
             // 
-            this.KeyPathsColumn.HeaderText = "키 경로 전략";
+            this.KeyPathsColumn.HeaderText = "병합 방식 설정";
             this.KeyPathsColumn.MinimumWidth = 8;
             this.KeyPathsColumn.Name = "KeyPathsColumn";
             this.KeyPathsColumn.ToolTipText = "키 경로:전략 문자열 (예: level:merge;achievement:append)";
@@ -140,7 +141,7 @@ namespace ExcelToYamlAddin.Forms
             // 
             // ArrayFieldPathsColumn
             // 
-            this.ArrayFieldPathsColumn.HeaderText = "배열 필드 경로";
+            this.ArrayFieldPathsColumn.HeaderText = "배열 병합 방식";
             this.ArrayFieldPathsColumn.MinimumWidth = 8;
             this.ArrayFieldPathsColumn.Name = "ArrayFieldPathsColumn";
             this.ArrayFieldPathsColumn.ToolTipText = "배열 필드 경로:전략 문자열 (예: results;append)";
@@ -148,16 +149,17 @@ namespace ExcelToYamlAddin.Forms
             // 
             // FlowStyleFieldsColumn
             // 
-            this.FlowStyleFieldsColumn.HeaderText = "Flow 필드";
+            this.FlowStyleFieldsColumn.HeaderText = "한줄표시항목";
             this.FlowStyleFieldsColumn.MinimumWidth = 8;
             this.FlowStyleFieldsColumn.Name = "FlowStyleFieldsColumn";
-            this.FlowStyleFieldsColumn.ToolTipText = "Flow 스타일로 변환할 필드 (예: details,info)";
+            this.FlowStyleFieldsColumn.ToolTipText = "Flow 스타일로 변환할 필드";
             // 
             // FlowStyleItemsFieldsColumn
             // 
-            this.FlowStyleItemsFieldsColumn.HeaderText = "Flow Style 항목 필드";
+            this.FlowStyleItemsFieldsColumn.HeaderText = "목록 한줄표시";
             this.FlowStyleItemsFieldsColumn.MinimumWidth = 8;
             this.FlowStyleItemsFieldsColumn.Name = "FlowStyleItemsFieldsColumn";
+            this.FlowStyleItemsFieldsColumn.ToolTipText = "목록의 항목들을 Flow 스타일로 변환할 필드";
             this.FlowStyleItemsFieldsColumn.Width = 150;
             // 
             // saveButton
@@ -192,7 +194,7 @@ namespace ExcelToYamlAddin.Forms
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(382, 18);
             this.label1.TabIndex = 2;
-            this.label1.Text = "각 시트별 JSON 파일 저장 경로를 설정합니다.";
+            this.label1.Text = "각 시트별 YAML 파일 저장 경로를 설정합니다.";
             // 
             // lblConfigPath
             // 
@@ -206,11 +208,22 @@ namespace ExcelToYamlAddin.Forms
             this.lblConfigPath.TabIndex = 3;
             this.lblConfigPath.Text = "설정 파일 경로:";
             // 
+            // helpButton
+            // 
+            this.helpButton.Location = new System.Drawing.Point(17, 40);
+            this.helpButton.Name = "helpButton";
+            this.helpButton.Size = new System.Drawing.Size(107, 26);
+            this.helpButton.TabIndex = 4;
+            this.helpButton.Text = "도움말";
+            this.helpButton.UseVisualStyleBackColor = true;
+            this.helpButton.Click += new System.EventHandler(this.HelpButton_Click);
+            // 
             // SheetPathSettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1325, 780);
+            this.Controls.Add(this.helpButton);
             this.Controls.Add(this.lblConfigPath);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.cancelButton);
@@ -245,5 +258,6 @@ namespace ExcelToYamlAddin.Forms
         private System.Windows.Forms.DataGridViewTextBoxColumn FlowStyleFieldsColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn FlowStyleItemsFieldsColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn ArrayFieldPathsColumn;
+        private System.Windows.Forms.Button helpButton;
     }
 }

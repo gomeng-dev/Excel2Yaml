@@ -1,11 +1,9 @@
 {
   "version": 2,
-  "dgSpecHash": "oR6abK0wtR4=",
+  "dgSpecHash": "VNHUSxxxFs0=",
   "success": true,
   "projectFilePath": "C:\\Work\\excel2json-1.1.1-standalone.jar.src\\ExcelToJsonAddin\\ExcelToYamlAddin.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\정영훈\\.nuget\\packages\\microsoft-windowsapicodepack-core\\1.1.5\\microsoft-windowsapicodepack-core.1.1.5.nupkg.sha512",
-    "C:\\Users\\정영훈\\.nuget\\packages\\microsoft-windowsapicodepack-shell\\1.1.5\\microsoft-windowsapicodepack-shell.1.1.5.nupkg.sha512",
     "C:\\Users\\정영훈\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\9.0.2\\microsoft.bcl.asyncinterfaces.9.0.2.nupkg.sha512",
     "C:\\Users\\정영훈\\.nuget\\packages\\microsoft.netcore.platforms\\7.0.0\\microsoft.netcore.platforms.7.0.0.nupkg.sha512",
     "C:\\Users\\정영훈\\.nuget\\packages\\sharpyaml\\2.1.1\\sharpyaml.2.1.1.nupkg.sha512",
