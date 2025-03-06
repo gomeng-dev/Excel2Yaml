@@ -268,9 +268,10 @@ namespace ExcelToJsonAddin
                 
                 // 변환 결과 추적
                 int successCount = 0;
-                int optionalFieldsSuccessCount = 0;
                 int mergeKeyPathsSuccessCount = 0;
                 int flowStyleSuccessCount = 0;
+                // 선택적 필드 처리가 SerializeToYaml에 통합되어 제거
+                //bool processYamlEmptyFields = false;
                 
                 // YAML 후처리 기능 적용
                 if (convertedFiles != null && convertedFiles.Count > 0)
@@ -302,8 +303,6 @@ namespace ExcelToJsonAddin
                                 string matchedSheetName = null;
                                 
                                 // YAML 선택적 필드 후처리
-                                bool processYamlEmptyFields = false;
-                                
                                 // 워크북 내 시트 이름 매칭
                                 foreach (var sheet in convertibleSheets)
                                 {
@@ -336,50 +335,43 @@ namespace ExcelToJsonAddin
                                         option = addEmptyYamlFields;
                                     }
                                     
-                                    processYamlEmptyFields = option;
-                                }
-                                else
-                                {
-                                    processYamlEmptyFields = addEmptyYamlFields;
-                                }
-                                
-                                // YAML 선택적 필드 처리 실행
-                                if (processYamlEmptyFields)
-                                {
-                                    Debug.WriteLine($"[Ribbon] YAML 선택적 필드 후처리 실행: {filePath}");
-                                    var processor = new YamlOptionalFieldsProcessor();
-                                    processor.ProcessYamlFile(filePath);
-                                    optionalFieldsSuccessCount++;
-                                }
-                                
-                                // 키 경로 병합 후처리
-                                if (matchedSheetName != null)
-                                {
-                                    // Excel !Config 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
-                                    string sheetMergeKeyPaths = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "MergeKeyPaths", "");
+                                    // 빈 필드 처리는 이제 불필요함 - SerializeToYaml 메서드가 직접 처리
+                                    // config.IncludeEmptyFields 옵션을 통해 빈 필드를 유지하거나 제거하도록 설정됨
                                     
-                                    // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                    if (string.IsNullOrEmpty(sheetMergeKeyPaths))
+                                    // 키 경로 병합 후처리
+                                    if (matchedSheetName != null)
                                     {
-                                        sheetMergeKeyPaths = SheetPathManager.Instance.GetMergeKeyPaths(matchedSheetName);
-                                    }
-                                    
-                                    // YAML 병합 키 경로 처리 실행 (YamlMergeKeyPathsProcessor 사용)
-                                    if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
-                                    {
-                                        Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실행: {filePath}, 설정: {sheetMergeKeyPaths}");
+                                        // Excel !Config 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
+                                        string sheetMergeKeyPaths = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "MergeKeyPaths", "");
                                         
-                                        // 개선된 YamlMergeKeyPathsProcessor를 사용하여 병합 처리
-                                        bool success = YamlMergeKeyPathsProcessor.ProcessYamlFileFromConfig(filePath, sheetMergeKeyPaths);
-                                        
-                                        if (success)
+                                        // Excel에 설정이 없으면 SheetPathManager에서 확인
+                                        if (string.IsNullOrEmpty(sheetMergeKeyPaths))
                                         {
-                                            Debug.WriteLine($"[Ribbon] YAML 병합 후처리 완료: {filePath}");
-                                            mergeKeyPathsSuccessCount++;
+                                            sheetMergeKeyPaths = SheetPathManager.Instance.GetMergeKeyPaths(matchedSheetName);
                                         }
-                                        else
+                                        
+                                        // YAML 병합 키 경로 처리 실행 (YamlMergeKeyPathsProcessor 사용)
+                                        if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
                                         {
-                                            Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실패: {filePath}");
+                                            Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실행: {filePath}, 설정: {sheetMergeKeyPaths}");
+                                            
+                                            // 개선된 YamlMergeKeyPathsProcessor를 사용하여 병합 처리
+                                            // YamlEmptyFields 옵션이 true이면 빈 필드를 유지하도록 includeEmptyFields 매개변수를 전달
+                                            bool success = YamlMergeKeyPathsProcessor.ProcessYamlFileFromConfig(
+                                                filePath, 
+                                                sheetMergeKeyPaths,
+                                                option // YamlEmptyFields 옵션 전달
+                                            );
+                                            
+                                            if (success)
+                                            {
+                                                Debug.WriteLine($"[Ribbon] YAML 병합 후처리 완료: {filePath}");
+                                                mergeKeyPathsSuccessCount++;
+                                            }
+                                            else
+                                            {
+                                                Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실패: {filePath}");
+                                            }
                                         }
                                     }
                                 }
@@ -421,7 +413,7 @@ namespace ExcelToJsonAddin
                             }
                         }
                         
-                        Debug.WriteLine($"[Ribbon] YAML 선택적 필드 후처리 완료: {optionalFieldsSuccessCount}/{convertedFiles.Count} 파일 처리됨");
+                        Debug.WriteLine($"[Ribbon] YAML 선택적 필드 후처리 완료: {successCount}/{convertedFiles.Count} 파일 처리됨");
                         Debug.WriteLine($"[Ribbon] YAML 키 경로 병합 후처리 완료: {mergeKeyPathsSuccessCount}/{convertedFiles.Count} 파일 처리됨");
                         Debug.WriteLine($"[Ribbon] YAML Flow Style 후처리 완료: {flowStyleSuccessCount}/{convertedFiles.Count} 파일 처리됨");
                     }
@@ -432,9 +424,6 @@ namespace ExcelToJsonAddin
                     
                     // 모든 후처리 작업이 완료된 후 메시지 표시
                     string message = $"{successCount}개의 시트가 성공적으로 변환되었습니다.";
-                    
-                    if (optionalFieldsSuccessCount > 0)
-                        message += $"\n선택적 필드 처리: {optionalFieldsSuccessCount}개 파일";
                     
                     if (mergeKeyPathsSuccessCount > 0)
                         message += $"\n키 경로 병합 처리: {mergeKeyPathsSuccessCount}개 파일";
@@ -674,7 +663,9 @@ namespace ExcelToJsonAddin
 
                 int successCount = 0;
                 int skipCount = 0;
-
+                // 선택적 필드 처리가 SerializeToYaml에 통합되어 제거
+                //bool processYamlEmptyFields = false;
+                
                 // 모든 변환 가능한 시트에 대해 처리
                 foreach (var sheet in convertibleSheets)
                 {

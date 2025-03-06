@@ -35,6 +35,7 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
         private readonly bool preserveArrayOrder;
         private readonly INamingConvention namingConvention;
         private readonly bool debugMode;
+        private readonly bool includeEmptyFields;
 
         /// <summary>
         /// 따옴표 없이 YAML 값을 직렬화하기 위한 도우미 클래스
@@ -69,6 +70,7 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
             private bool preserveArrayOrder = false;
             private INamingConvention namingConvention = CamelCaseNamingConvention.Instance;
             private bool debugMode = false;
+            private bool includeEmptyFields = false;
 
             public Builder WithIdPath(string idPath)
             {
@@ -130,6 +132,12 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                 return this;
             }
 
+            public Builder WithIncludeEmptyFields(bool includeEmptyFields)
+            {
+                this.includeEmptyFields = includeEmptyFields;
+                return this;
+            }
+
             public YamlMergeKeyPathsProcessor Build()
             {
                 return new YamlMergeKeyPathsProcessor(
@@ -142,7 +150,8 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                     arrayPathSeparator,
                     preserveArrayOrder,
                     namingConvention,
-                    debugMode
+                    debugMode,
+                    includeEmptyFields
                 );
             }
         }
@@ -167,6 +176,7 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
         /// <param name="preserveArrayOrder">배열 순서 유지 여부 (기본값 false)</param>
         /// <param name="namingConvention">YAML 네이밍 컨벤션 (기본값 CamelCase)</param>
         /// <param name="debugMode">디버그 모드 여부 (기본값 false)</param>
+        /// <param name="includeEmptyFields">빈 필드 포함 여부 (기본값 false)</param>
         public YamlMergeKeyPathsProcessor(
             string idPath = "", 
             string mergePaths = "", 
@@ -177,7 +187,8 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
             char arrayPathSeparator = ';', 
             bool preserveArrayOrder = false, 
             INamingConvention namingConvention = null, 
-            bool debugMode = false)
+            bool debugMode = false,
+            bool includeEmptyFields = false)
         {
             this.idPath = idPath;
             this.mergePaths = string.IsNullOrWhiteSpace(mergePaths) 
@@ -191,6 +202,7 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
             this.preserveArrayOrder = preserveArrayOrder;
             this.namingConvention = namingConvention ?? CamelCaseNamingConvention.Instance;
             this.debugMode = debugMode;
+            this.includeEmptyFields = includeEmptyFields;
 
             // 키 경로와 배열 필드 경로 파싱
             ParseKeyPaths(keyPaths);
@@ -201,8 +213,9 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
         /// 설정 문자열을 파싱하여 프로세서를 생성합니다.
         /// </summary>
         /// <param name="mergeKeyPathsConfig">설정 문자열 (형식: "idPath|mergePaths|keyPaths|arrayFieldPaths")</param>
+        /// <param name="includeEmptyFields">빈 필드 포함 여부 (기본값 false)</param>
         /// <returns>YamlMergeKeyPathsProcessor 인스턴스</returns>
-        public static YamlMergeKeyPathsProcessor FromConfigString(string mergeKeyPathsConfig)
+        public static YamlMergeKeyPathsProcessor FromConfigString(string mergeKeyPathsConfig, bool includeEmptyFields = false)
         {
             string idPath = "";
             string mergePaths = "";
@@ -222,14 +235,19 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                     arrayFieldPaths = parts[3];
             }
             
-            var builder = CreateBuilder()
-                .WithIdPath(idPath)
-                .WithMergePaths(mergePaths)
-                .WithKeyPaths(keyPaths)
-                .WithArrayFieldPaths(arrayFieldPaths)
-                .WithDebugMode(true);
-            
-            return builder.Build();
+            return new YamlMergeKeyPathsProcessor(
+                idPath,
+                mergePaths,
+                keyPaths,
+                arrayFieldPaths,
+                '.',
+                ':',
+                ';',
+                false,
+                null,
+                false,
+                includeEmptyFields
+            );
         }
 
         /// <summary>
@@ -340,8 +358,9 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
         /// </summary>
         /// <param name="yamlPath">처리할 YAML 파일 경로</param>
         /// <param name="mergeKeyPathsConfig">설정 문자열 (형식: "idPath|mergePaths|keyPaths|arrayFieldPaths")</param>
+        /// <param name="includeEmptyFields">빈 필드 포함 여부 (기본값 false)</param>
         /// <returns>처리 성공 여부</returns>
-        public static bool ProcessYamlFileFromConfig(string yamlPath, string mergeKeyPathsConfig)
+        public static bool ProcessYamlFileFromConfig(string yamlPath, string mergeKeyPathsConfig, bool includeEmptyFields = false)
         {
             try
             {
@@ -349,26 +368,25 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                 Debug.WriteLine($"[YamlMergeKeyPathsProcessor] 설정 문자열 파싱: {mergeKeyPathsConfig}");
 
                 // 비어있는 경우에도 FromConfigString에서 기본값 적용
-                YamlMergeKeyPathsProcessor processor = FromConfigString(mergeKeyPathsConfig);
+                YamlMergeKeyPathsProcessor processor = FromConfigString(mergeKeyPathsConfig, includeEmptyFields);
             
-            string idPath = "";
-            string mergePaths = "";
-            string keyPaths = "";
+                string idPath = "";
+                string mergePaths = "";
+                string keyPaths = "";
                 string arrayFieldPaths = "";
             
                 if (!string.IsNullOrWhiteSpace(mergeKeyPathsConfig))
                 {
-            string[] parts = mergeKeyPathsConfig.Split('|');
-            if (parts.Length >= 1)
+                    string[] parts = mergeKeyPathsConfig.Split('|');
+                    if (parts.Length >= 1)
                         idPath = parts[0];
-            if (parts.Length >= 2)
+                    if (parts.Length >= 2)
                         mergePaths = parts[1];
-            if (parts.Length >= 3)
+                    if (parts.Length >= 3)
                         keyPaths = parts[2];
                     if (parts.Length >= 4)
                         arrayFieldPaths = parts[3];
                 }
-
                 
                 return processor.ProcessYamlFile(yamlPath, keyPaths);
             }
@@ -588,7 +606,8 @@ namespace ExcelToJsonAddin.Core.YamlPostProcessors
                 
                 // OrderedYamlFactory를 사용하여 YAML 문자열로 직렬화
                 // preserveQuotes를 false로 설정하여 필요한 경우에만 따옴표 사용
-                return OrderedYamlFactory.SerializeToYaml(rootArray, 2, YamlStyle.Block, false);
+                // includeEmptyFields 옵션을 전달하여 빈 필드 포함 여부 제어
+                return OrderedYamlFactory.SerializeToYaml(rootArray, 2, YamlStyle.Block, false, includeEmptyFields);
             }
             catch (Exception ex)
             {

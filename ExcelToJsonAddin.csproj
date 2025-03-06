@@ -327,8 +327,6 @@
       <DependentUpon>SheetPathSettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Extensions\LoggingExtensions.cs" />
-    <Compile Include="Core\YamlSchemaProcessor.cs" />
-    <Compile Include="Core\YamlPostProcessors\YamlOptionalFieldsProcessor.cs" />
     <Compile Include="Core\YamlPostProcessors\YamlMergeKeyPathsProcessor.cs" />
     <Compile Include="Core\YamlPostProcessors\YamlFlowStyleProcessor.cs" />
   </ItemGroup>

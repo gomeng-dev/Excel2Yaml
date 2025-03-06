@@ -98,15 +98,18 @@ namespace ExcelToJsonAddin.Core
             {
                 var propertiesToRemove = new List<string>();
                 
+                // 먼저 모든 자식 속성을 처리
+                foreach (var prop in obj.Properties)
+                {
+                    RemoveEmptyProperties(prop.Value);
+                }
+                
+                // 그 다음 빈 속성 확인 및 제거
                 foreach (var prop in obj.Properties)
                 {
                     if (IsEmpty(prop.Value))
                     {
                         propertiesToRemove.Add(prop.Key);
-                    }
-                    else
-                    {
-                        RemoveEmptyProperties(prop.Value);
                     }
                 }
                 
@@ -117,15 +120,18 @@ namespace ExcelToJsonAddin.Core
             }
             else if (token is YamlArray array)
             {
+                // 먼저 모든 배열 항목 처리
+                for (int i = 0; i < array.Count; i++)
+                {
+                    RemoveEmptyProperties(array[i]);
+                }
+                
+                // 그 다음 빈 항목 제거 (뒤에서부터 제거해야 인덱스가 유효함)
                 for (int i = array.Count - 1; i >= 0; i--)
                 {
                     if (IsEmpty(array[i]))
                     {
                         array.RemoveAt(i);
-                    }
-                    else
-                    {
-                        RemoveEmptyProperties(array[i]);
                     }
                 }
             }
@@ -142,8 +148,23 @@ namespace ExcelToJsonAddin.Core
             if (token is YamlObject obj && !obj.HasValues)
                 return true;
                 
-            if (token is YamlArray array && !array.HasValues)
-                return true;
+            if (token is YamlArray array)
+            {
+                if (!array.HasValues)
+                    return true;
+                    
+                // 추가: 배열의 모든 항목이 빈 경우 전체 배열을 빈 것으로 간주
+                bool allItemsEmpty = true;
+                foreach (var item in array.Items)
+                {
+                    if (!IsEmpty(item))
+                    {
+                        allItemsEmpty = false;
+                        break;
+                    }
+                }
+                return allItemsEmpty;
+            }
                 
             return false;
         }
@@ -236,6 +257,7 @@ namespace ExcelToJsonAddin.Core
                               value.Contains(':') || 
                               value.Contains('#') || 
                               value.Contains(',') ||
+                              value.Contains('_') ||
                               value.StartsWith(" ") || 
                               value.EndsWith(" ") ||
                               value == "true" || 
