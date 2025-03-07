@@ -77,7 +77,9 @@
             border: 1px solid #999;
             padding: 10px;
             margin: 15px 0;
-            overflow-x: auto;
+            overflow-x: hidden;
+            max-width: 100%;
+            width: 98%;
         }
         .merged-cell {
             background-color: #e8f4fc;
@@ -89,14 +91,17 @@
             margin: 15px 0;
             width: 100%;
             border: 1px solid #999;
+            table-layout: fixed;
         }
         .excel-row {
             display: table-row;
         }
         .excel-cell, .excel-header {
             border: 1px solid #999;
-            padding: 8px 12px;
-            min-width: 80px;
+            padding: 6px;
+            min-width: auto;
+            word-wrap: break-word;
+            font-size: 0.9em;
         }
         .excel-header {
             background-color: #f2f2f2;
@@ -671,22 +676,22 @@ character:
         <h4>1. 기본 스키마 구조</h4>
         
         <div class="excel-example">
-            <table class="excel-grid">
+            <table class="excel-grid" style="width: 100%;">
                 <thead>
                     <tr class="excel-row">
-                        <th class="excel-header" colspan="4">$[]</th>
+                        <th class="excel-header" colspan="4" style="background-color: #00CC00;">$[]</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="excel-row">
                         <td class="excel-cell">^</td>
-                        <td class="excel-cell" colspan="3">${}</td>
+                        <td class="excel-cell" colspan="3" style="background-color: #CCFFCC;">${}</td>
                     </tr>
                     <tr class="excel-row">
-                        <td class="excel-cell">^</td>
-                        <td class="excel-cell">Id</td>
-                        <td class="excel-cell">Name</td>
-                        <td class="excel-cell">Value</td>
+                        <td class="excel-cell" style="width: 10%;">^</td>
+                        <td class="excel-cell" style="width: 30%;">Id</td>
+                        <td class="excel-cell" style="width: 30%;">Name</td>
+                        <td class="excel-cell" style="width: 30%;">Value</td>
                     </tr>
                     <tr class="excel-row" style="background-color: #ff0000; color: white;">
                         <td class="excel-cell" colspan="4" style="text-align: center;">$scheme_end</td>
@@ -731,24 +736,28 @@ character:
         <h4>2. 중첩 배열 구조</h4>
         
         <div class="excel-example">
-            <table class="excel-grid">
+            <table class="excel-grid" style="width: 100%;">
                 <thead>
                     <tr class="excel-row">
-                        <th class="excel-header" colspan="8">$[]</th>
+                        <th class="excel-header" colspan="8" style="background-color: #00CC00;">$[]</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="excel-row">
                         <td class="excel-cell">^</td>
-                        <td class="excel-cell">Rarity</td>
-                        <td class="excel-cell" colspan="6">Materials$[]</td>
+                        <td class="excel-cell" colspan="7" style="background-color: #CCFFCC;">${}</td>
+                    </tr>
+                    <tr class="excel-row">
+                        <td class="excel-cell" style="width: 5%;">^</td>
+                        <td class="excel-cell" style="width: 15%;">Rarity</td>
+                        <td class="excel-cell" colspan="6" style="width: 80%;">Materials$[]</td>
                     </tr>
                     <tr class="excel-row">
                         <td class="excel-cell">^</td>
                         <td class="excel-cell">^</td>
-                        <td class="excel-cell" colspan="2">${}</td>
-                        <td class="excel-cell" colspan="2">${}</td>
-                        <td class="excel-cell" colspan="2">${}</td>
+                        <td class="excel-cell" colspan="2" style="width: 26%;">${}</td>
+                        <td class="excel-cell" colspan="2" style="width: 26%;">${}</td>
+                        <td class="excel-cell" colspan="2" style="width: 26%;">${}</td>
                     </tr>
                     <tr class="excel-row">
                         <td class="excel-cell">^</td>
@@ -814,20 +823,24 @@ character:
         <p>실전에서는 객체, 배열, 키-값이 복합적으로 사용됩니다. 아래 예시를 통해 복합 구조를 작성하는 방법을 알아보겠습니다.</p>
         
         <div class="excel-example">
-            <table class="excel-grid">
+            <table class="excel-grid" style="width: 100%;">
                 <thead>
                     <tr class="excel-row">
-                        <th class="excel-header" colspan="11">$[]</th>
+                        <th class="excel-header" colspan="11" style="background-color: #00CC00;">$[]</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="excel-row">
                         <td class="excel-cell">^</td>
-                        <td class="excel-cell">id</td>
-                        <td class="excel-cell">name</td>
-                        <td class="excel-cell">type</td>
-                        <td class="excel-cell" colspan="3">inventory$[]</td>
-                        <td class="excel-cell" colspan="4">skills$[]</td>
+                        <td class="excel-cell" colspan="10" style="background-color: #CCFFCC;">${}</td>
+                    </tr>
+                    <tr class="excel-row">
+                        <td class="excel-cell" style="width: 3%;">^</td>
+                        <td class="excel-cell" style="width: 7%;">id</td>
+                        <td class="excel-cell" style="width: 8%;">name</td>
+                        <td class="excel-cell" style="width: 7%;">type</td>
+                        <td class="excel-cell" colspan="3" style="width: 30%;">inventory$[]</td>
+                        <td class="excel-cell" colspan="4" style="width: 45%;">skills$[]</td>
                     </tr>
                     <tr class="excel-row">
                         <td class="excel-cell">^</td>
