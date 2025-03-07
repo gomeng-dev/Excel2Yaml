@@ -1,0 +1,16 @@
+- Rarity: Rare
+  Materials: 
+    - Id: iron
+      Count: 10
+    - Id: gold
+      Count: 5
+    - Id: gem
+      Count: 2
+- Rarity: Epic
+  Materials: 
+    - Id: steel
+      Count: 15
+    - Id: diamond
+      Count: 3
+    - Id: magic
+      Count: 7

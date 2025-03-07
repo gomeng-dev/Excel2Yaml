@@ -46,6 +46,16 @@
                   screentip="고급 설정" 
                   supertip="변환 관련 고급 설정을 변경합니다." />
         </group>
+        
+        <group id="groupHelp" label="도움말">
+          <button id="btnHelp" 
+                  label="사용 설명서" 
+                  size="large" 
+                  onAction="OnHelpClick" 
+                  imageMso="Help" 
+                  screentip="Excel2YAML 사용 설명서" 
+                  supertip="Excel2YAML 사용 설명서를 엽니다." />
+        </group>
       </tab>
     </tabs>
   </ribbon>

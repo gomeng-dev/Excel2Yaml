@@ -1133,17 +1133,32 @@ namespace ExcelToYamlAddin.Forms
                 {
                     if (stream == null)
                     {
-                        MessageBox.Show(
-                            "도움말 리소스를 찾을 수 없습니다.",
-                            "리소스 없음",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        return;
+                        // 임베디드 리소스를 찾을 수 없는 경우, 물리적 파일을 시도해봅니다.
+                        string addinPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                        string docsPath = Path.Combine(addinPath, "Docs", "YAML_후처리_가이드.html");
+                        
+                        if (File.Exists(docsPath))
+                        {
+                            // 물리적 파일이 존재하면 그 내용을 읽어옵니다.
+                            htmlContent = File.ReadAllText(docsPath, Encoding.UTF8);
+                        }
+                        else
+                        {
+                            MessageBox.Show(
+                                "도움말 리소스를 찾을 수 없습니다.",
+                                "리소스 없음",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            return;
+                        }
                     }
-
-                    using (StreamReader reader = new StreamReader(stream))
+                    else
                     {
-                        htmlContent = reader.ReadToEnd();
+                        // 임베디드 리소스가 있으면 내용을 읽어옵니다.
+                        using (StreamReader reader = new StreamReader(stream))
+                        {
+                            htmlContent = reader.ReadToEnd();
+                        }
                     }
                 }
 
@@ -1166,14 +1181,18 @@ namespace ExcelToYamlAddin.Forms
 
                 helpForm.Controls.Add(browser);
                 helpForm.Show(); // 비모달로 표시
+                
+                // 로그 기록
+                Debug.WriteLine($"[HelpButton_Click] 도움말 내용을 플로팅 윈도우에 표시했습니다.");
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    "도움말을 표시하는 중 오류가 발생했습니다: " + ex.Message,
+                    $"도움말을 표시하는 중 오류가 발생했습니다: {ex.Message}",
                     "오류",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
+                Debug.WriteLine($"[HelpButton_Click] 오류: {ex.Message}");
             }
         }
     }

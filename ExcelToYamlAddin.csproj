@@ -334,12 +334,17 @@
     <Compile Include="Forms\ProgressForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <!-- 도움말 문서 파일 -->
-    <None Include="Docs\YAML_후처리_가이드.md">
+    <!-- 도움말 문서 파일을 출력 디렉토리로 복사 -->
+    <Content Include="Docs\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
+    <!-- YAML_후처리_가이드.html 파일을 임베디드 리소스로 추가 -->
     <EmbeddedResource Include="Docs\YAML_후처리_가이드.html">
       <LogicalName>ExcelToYamlAddin.Docs.YAML_후처리_가이드.html</LogicalName>
+    </EmbeddedResource>
+    <!-- Readme.html 파일을 임베디드 리소스로 추가 -->
+    <EmbeddedResource Include="Docs\Readme.html">
+      <LogicalName>ExcelToYamlAddin.Docs.Readme.html</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

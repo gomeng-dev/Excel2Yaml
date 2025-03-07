@@ -1,0 +1,24 @@
+- id: C001
+  name: "전사"
+  type: "근접"
+  inventory: 
+    - hp: 200
+      atk: 35
+      def: 40
+  skills: 
+    - id: shieldBash
+      name: "방패강타"
+      damage: 15
+      cost: 15
+- id: C002
+  name: "마법사"
+  type: "원거리"
+  inventory: 
+    - hp: 150
+      atk: 80
+      def: 20
+  skills: 
+    - id: firaball
+      name: "화염구"
+      damage: 60
+      cost: 35

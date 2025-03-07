@@ -13,6 +13,8 @@ using System.Reflection;
 using ExcelToYamlAddin.Properties;
 using ExcelToYamlAddin.Forms;
 using Microsoft.Office.Interop.Excel;
+using System.Text;
+using System.Drawing;
 
 namespace ExcelToYamlAddin
 {
@@ -789,7 +791,84 @@ namespace ExcelToYamlAddin
         // 고급 설정 버튼 클릭
         public void OnSettingsClick(IRibbonControl control)
         {
-            MessageBox.Show("고급 설정 기능은 개발 중입니다.", "정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            OnSheetPathSettingsClick(null, null);
+        }
+
+        // 도움말 버튼 클릭 이벤트 핸들러
+        private void OnHelpButtonClick(object sender, RibbonControlEventArgs e)
+        {
+            OnHelpClick(null);
+        }
+
+        public void OnHelpClick(IRibbonControl control)
+        {
+            try
+            {
+                // 임베디드 리소스에서 HTML 내용 로드
+                string htmlContent = null;
+                using (Stream stream = System.Reflection.Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("ExcelToYamlAddin.Docs.Readme.html"))
+                {
+                    if (stream == null)
+                    {
+                        // 임베디드 리소스를 찾을 수 없는 경우, 물리적 파일을 시도해봅니다.
+                        string addinPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                        string readmePath = Path.Combine(addinPath, "Docs", "Readme.html");
+                        
+                        if (File.Exists(readmePath))
+                        {
+                            // 물리적 파일이 존재하면 내용을 읽어옵니다.
+                            htmlContent = File.ReadAllText(readmePath, Encoding.UTF8);
+                        }
+                        else
+                        {
+                            MessageBox.Show("도움말 리소스를 찾을 수 없습니다.", 
+                                           "리소스 없음", 
+                                           MessageBoxButtons.OK, 
+                                           MessageBoxIcon.Warning);
+                            Debug.WriteLine("[OnHelpClick] 도움말 리소스를 찾을 수 없습니다.");
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // 임베디드 리소스가 있으면 내용을 읽어옵니다.
+                        using (StreamReader reader = new StreamReader(stream))
+                        {
+                            htmlContent = reader.ReadToEnd();
+                        }
+                    }
+                }
+                
+                // 도움말 폼 생성 (비모달)
+                Form helpForm = new Form()
+                {
+                    Text = "Excel2YAML 사용 설명서",
+                    Size = new Size(1000, 700),
+                    StartPosition = FormStartPosition.CenterScreen,
+                    FormBorderStyle = FormBorderStyle.SizableToolWindow,
+                    ShowInTaskbar = false,
+                    TopMost = true
+                };
+
+                var browser = new WebBrowser();
+                browser.Dock = DockStyle.Fill;
+                browser.ScriptErrorsSuppressed = true;
+                browser.DocumentText = htmlContent;
+
+                helpForm.Controls.Add(browser);
+                helpForm.Show(); // 비모달로 표시
+                
+                Debug.WriteLine("[OnHelpClick] 도움말 내용을 플로팅 윈도우에 표시했습니다.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"도움말 파일을 열 수 없습니다: {ex.Message}", 
+                               "오류", 
+                               MessageBoxButtons.OK, 
+                               MessageBoxIcon.Error);
+                Debug.WriteLine($"[OnHelpClick] 오류: {ex.Message}");
+            }
         }
 
         // 시트별 경로 설정 버튼 클릭
