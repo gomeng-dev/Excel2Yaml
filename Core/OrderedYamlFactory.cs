@@ -302,9 +302,13 @@ namespace ExcelToYamlAddin.Core
         {
             if (!obj.HasValues)
             {
-                sb.Append("{}");
+                if (style == YamlStyle.Flow)
+                {
+                    sb.Append("{}");
+                }
                 if (style == YamlStyle.Block)
                 {
+                    // 빈 객체는 Block 스타일에서 줄바꿈만 수행
                     sb.AppendLine();
                 }
                 return;
@@ -349,12 +353,19 @@ namespace ExcelToYamlAddin.Core
                     // 빈 배열인 경우 바로 개행 처리
                     if (kvp.Value is YamlArray yamlArray && !yamlArray.HasValues)
                     {
-                        sb.AppendLine("[]");
+                        // 이미 콜론(:)이 추가되었으므로 빈 배열 표시
+                        sb.AppendLine();  // 빈 리스트를 []로 표시하지 않고 YAML 표준에 맞게 처리
+                    }
+                    // 빈 객체인 경우 바로 개행 처리
+                    else if (kvp.Value is YamlObject yamlObj && !yamlObj.HasValues)
+                    {
+                        // 이미 콜론(:)이 추가되었으므로 빈 객체 표시
+                        sb.AppendLine();  // 빈 객체를 {}로 표시하지 않고 YAML 표준에 맞게 처리
                     }
                     else if (kvp.Value is YamlObject || kvp.Value is YamlArray)
                     {
                         // MAP 노드의 자식들은 2 레벨 더 들여쓰기
-                        SerializeObject(kvp.Value, sb, level + 2, indentSize, style, preserveQuotes);
+                        SerializeObject(kvp.Value, sb, level + 1, indentSize, style, preserveQuotes);
                     }
                     else
                     {
@@ -371,9 +382,13 @@ namespace ExcelToYamlAddin.Core
         {
             if (!array.HasValues)
             {
-                sb.Append("[]");
+                if (style == YamlStyle.Flow)
+                {
+                    sb.Append("[]");
+                }
                 if (style == YamlStyle.Block)
                 {
+                    // 빈 배열도 YAML 표준에 맞게 처리
                     sb.AppendLine();
                 }
                 return;
@@ -451,7 +466,7 @@ namespace ExcelToYamlAddin.Core
                                     if (prop.Value is YamlObject || prop.Value is YamlArray)
                                     {
                                         // MAP 노드의 자식들은 2 레벨 더 들여쓰기
-                                        SerializeObject(prop.Value, sb, level + 2, indentSize, style, preserveQuotes);
+                                        SerializeObject(prop.Value, sb, level + 1, indentSize, style, preserveQuotes);
                                     }
                                     else
                                     {
@@ -465,7 +480,7 @@ namespace ExcelToYamlAddin.Core
                     else if (item is YamlArray)
                     {
                         // 배열의 자식들도 2 레벨 더 들여쓰기
-                        SerializeObject(item, sb, level + 2, indentSize, style, preserveQuotes);
+                        SerializeObject(item, sb, level + 1, indentSize, style, preserveQuotes);
                     }
                     else
                     {

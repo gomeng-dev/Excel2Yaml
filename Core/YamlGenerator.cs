@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using ExcelToYamlAddin.Config;
 using System.Diagnostics;
+using System.Windows.Forms;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -174,8 +175,29 @@ namespace ExcelToYamlAddin.Core
         {
             string key = GetNodeKey(node, row);
             
+            // 부모가 객체이고 키가 비어있는 경우 (이는 JSON/YAML 표준에 맞지 않음)
             if (string.IsNullOrEmpty(key) && parentObject is YamlObject)
             {
+                string errorMessage = "오류: JSON/YAML 표준에서는 객체 내에 이름 없는 속성을 가질 수 없습니다. 키 값이 비어있습니다.";
+                Logger.Error(errorMessage);
+                
+                // 오류 창 표시
+                DialogResult result = MessageBox.Show(
+                    errorMessage,
+                    "JSON/YAML 표준 오류",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error,
+                    MessageBoxDefaultButton.Button1,
+                    MessageBoxOptions.DefaultDesktopOnly);
+                
+                // 확인 버튼을 누른 경우 변환 과정 중단
+                if (result == DialogResult.OK)
+                {
+                    string abortMessage = "사용자 요청에 의해 변환 작업이 중단되었습니다.";
+                    Logger.Error(abortMessage);
+                    throw new InvalidOperationException(abortMessage);
+                }
+                
                 Logger.Debug($"컨테이너 노드의 키가 비어 있어 무시: 타입={node.NodeType}");
                 return;
             }
@@ -204,11 +226,33 @@ namespace ExcelToYamlAddin.Core
                 }
                 else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY)
                 {
+                    // JSON/YAML 표준: 배열 안에 직접 배열을 넣는 것은 권장되지 않음
+                    // 경고 메시지를 표시하고 처리를 중단함
+                    string warningMessage = "경고: 배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
+                    Logger.Warning(warningMessage);
+                    
+                    // 경고 창 표시 (UI 스레드에서 실행되도록 함)
+                    DialogResult result = MessageBox.Show(
+                        warningMessage,
+                        "JSON/YAML 표준 주의",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning,
+                        MessageBoxDefaultButton.Button1,
+                        MessageBoxOptions.DefaultDesktopOnly);
+                    
+                    // 확인 버튼을 누른 경우 변환 과정 중단
+                    if (result == DialogResult.OK)
+                    {
+                        string errorMessage = "사용자 요청에 의해 변환 작업이 중단되었습니다.";
+                        Logger.Error(errorMessage);
+                        throw new InvalidOperationException(errorMessage);
+                    }
+                    
                     YamlArray newArray = OrderedYamlFactory.CreateArray();
                     parentMap.Add(key, newArray);
                     Push(parentObject);
                     Push(newArray);
-                    Logger.Debug($"새 ARRAY 객체 생성: 키={key}");
+                    Logger.Debug($"배열에 새 ARRAY 객체 추가 (비표준)");
                 }
             }
             // 부모가 배열인 경우
@@ -224,11 +268,33 @@ namespace ExcelToYamlAddin.Core
                 }
                 else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY)
                 {
+                    // JSON/YAML 표준: 배열 안에 직접 배열을 넣는 것은 권장되지 않음
+                    // 경고 메시지를 표시하고 처리를 중단함
+                    string warningMessage = "경고: 배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
+                    Logger.Warning(warningMessage);
+                    
+                    // 경고 창 표시 (UI 스레드에서 실행되도록 함)
+                    DialogResult result = MessageBox.Show(
+                        warningMessage,
+                        "JSON/YAML 표준 주의",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning,
+                        MessageBoxDefaultButton.Button1,
+                        MessageBoxOptions.DefaultDesktopOnly);
+                    
+                    // 확인 버튼을 누른 경우 변환 과정 중단
+                    if (result == DialogResult.OK)
+                    {
+                        string errorMessage = "사용자 요청에 의해 변환 작업이 중단되었습니다.";
+                        Logger.Error(errorMessage);
+                        throw new InvalidOperationException(errorMessage);
+                    }
+                    
                     YamlArray newArray = OrderedYamlFactory.CreateArray();
                     parentArray.Add(newArray);
                     Push(parentObject);
                     Push(newArray);
-                    Logger.Debug($"배열에 새 ARRAY 객체 추가");
+                    Logger.Debug($"배열에 새 ARRAY 객체 추가 (비표준)");
                 }
             }
         }
@@ -243,6 +309,39 @@ namespace ExcelToYamlAddin.Core
             {
                 Logger.Debug($"VALUE 노드가 KEY 노드의 자식이므로 중복 추가 방지를 위해 스킵: 부모={node.Parent.GetKey(row)}");
                 return;
+            }
+            
+            // 값 노드의 키 가져오기 (여러 곳에서 사용하므로 먼저 선언)
+            string key = GetNodeKey(node, row);
+            
+            // 부모가 객체인 경우, 키 확인
+            if (parentObject is YamlObject)
+            {
+                if (string.IsNullOrEmpty(key))
+                {
+                    string errorMessage = $"오류: JSON/YAML 표준에서는 객체 내에 이름 없는 값을 가질 수 없습니다. 노드 타입: {node.NodeType}";
+                    Logger.Error(errorMessage);
+                    
+                    // 오류 창 표시
+                    DialogResult result = MessageBox.Show(
+                        errorMessage,
+                        "JSON/YAML 표준 오류",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error,
+                        MessageBoxDefaultButton.Button1,
+                        MessageBoxOptions.DefaultDesktopOnly);
+                    
+                    // 확인 버튼을 누른 경우 변환 과정 중단
+                    if (result == DialogResult.OK)
+                    {
+                        string abortMessage = "사용자 요청에 의해 변환 작업이 중단되었습니다.";
+                        Logger.Error(abortMessage);
+                        throw new InvalidOperationException(abortMessage);
+                    }
+                    
+                    Logger.Debug($"값 노드의 키가 비어 있어 무시: 타입={node.NodeType}");
+                    return;
+                }
             }
             
             // 값 가져오기
@@ -270,10 +369,7 @@ namespace ExcelToYamlAddin.Core
                 }
             }
             
-            // 기존 처리 방식
-            string key = GetNodeKey(node, row);
-            
-            // 부모가 객체인 경우
+            // 부모가 객체인 경우 - 이미 키를 확인했으므로 중복 선언 제거
             if (parentObject is YamlObject parentMap)
             {
                 if (!string.IsNullOrEmpty(key))

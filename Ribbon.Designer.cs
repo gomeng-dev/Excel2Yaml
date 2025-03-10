@@ -37,10 +37,10 @@ namespace ExcelToYamlAddin
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Ribbon));
             this.tabExcelToJson = this.Factory.CreateRibbonTab();
             this.groupConvert = this.Factory.CreateRibbonGroup();
-            this.groupSettings = this.Factory.CreateRibbonGroup();
-            this.groupHelp = this.Factory.CreateRibbonGroup();
             this.btnConvertToYaml = this.Factory.CreateRibbonButton();
+            this.groupSettings = this.Factory.CreateRibbonGroup();
             this.btnSheetPathSettings = this.Factory.CreateRibbonButton();
+            this.groupHelp = this.Factory.CreateRibbonGroup();
             this.btnHelp = this.Factory.CreateRibbonButton();
             this.tabExcelToJson.SuspendLayout();
             this.groupConvert.SuspendLayout();
@@ -63,18 +63,6 @@ namespace ExcelToYamlAddin
             this.groupConvert.Label = "변환";
             this.groupConvert.Name = "groupConvert";
             // 
-            // groupSettings
-            // 
-            this.groupSettings.Items.Add(this.btnSheetPathSettings);
-            this.groupSettings.Label = "설정";
-            this.groupSettings.Name = "groupSettings";
-            // 
-            // groupHelp
-            // 
-            this.groupHelp.Items.Add(this.btnHelp);
-            this.groupHelp.Label = "도움말";
-            this.groupHelp.Name = "groupHelp";
-            // 
             // btnConvertToYaml
             // 
             this.btnConvertToYaml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
@@ -86,6 +74,12 @@ namespace ExcelToYamlAddin
             this.btnConvertToYaml.SuperTip = "현재 워크시트의 데이터를 YAML 형식으로 변환합니다.";
             this.btnConvertToYaml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnConvertToYamlClick);
             // 
+            // groupSettings
+            // 
+            this.groupSettings.Items.Add(this.btnSheetPathSettings);
+            this.groupSettings.Label = "설정";
+            this.groupSettings.Name = "groupSettings";
+            // 
             // btnSheetPathSettings
             // 
             this.btnSheetPathSettings.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
@@ -96,6 +90,12 @@ namespace ExcelToYamlAddin
             this.btnSheetPathSettings.ShowImage = true;
             this.btnSheetPathSettings.SuperTip = "시트별로 저장 경로를 설정합니다. 각 시트마다 다른 경로에 저장할 수 있습니다.";
             this.btnSheetPathSettings.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnSheetPathSettingsClick);
+            // 
+            // groupHelp
+            // 
+            this.groupHelp.Items.Add(this.btnHelp);
+            this.groupHelp.Label = "도움말";
+            this.groupHelp.Name = "groupHelp";
             // 
             // btnHelp
             // 
