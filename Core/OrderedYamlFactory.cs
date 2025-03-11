@@ -328,7 +328,7 @@ namespace ExcelToYamlAddin.Core
                     }
                     
                     sb.Append(kvp.Key).Append(": ");
-                    SerializeObject(kvp.Value, sb, level + 1, indentSize, style, preserveQuotes);
+                    SerializeObject(kvp.Value, sb, level + 2, indentSize, style, preserveQuotes);
                     isFirst = false;
                 }
                 
@@ -364,8 +364,8 @@ namespace ExcelToYamlAddin.Core
                     }
                     else if (kvp.Value is YamlObject || kvp.Value is YamlArray)
                     {
-                        // MAP 노드의 자식들은 2 레벨 더 들여쓰기
-                        SerializeObject(kvp.Value, sb, level + 1, indentSize, style, preserveQuotes);
+                        // MAP 노드의 자식들은 2 레벨 더 들여쓰기 (일관성 유지)
+                        SerializeObject(kvp.Value, sb, level + 2, indentSize, style, preserveQuotes);
                     }
                     else
                     {
@@ -445,7 +445,7 @@ namespace ExcelToYamlAddin.Core
                                     
                                     if (prop.Value is YamlObject || prop.Value is YamlArray)
                                     {
-                                        // 복잡한 값은 다음 줄에 표시
+                                        // MAP 노드의 자식들은 2 레벨 더 들여쓰기 (일관성 유지)
                                         SerializeObject(prop.Value, sb, level + 2, indentSize, style, preserveQuotes);
                                     }
                                     else
@@ -465,8 +465,8 @@ namespace ExcelToYamlAddin.Core
                                     
                                     if (prop.Value is YamlObject || prop.Value is YamlArray)
                                     {
-                                        // MAP 노드의 자식들은 2 레벨 더 들여쓰기
-                                        SerializeObject(prop.Value, sb, level + 1, indentSize, style, preserveQuotes);
+                                        // MAP 노드의 자식들은 2 레벨 더 들여쓰기 (일관성 유지)
+                                        SerializeObject(prop.Value, sb, level + 2, indentSize, style, preserveQuotes);
                                     }
                                     else
                                     {

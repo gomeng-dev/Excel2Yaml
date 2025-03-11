@@ -226,33 +226,12 @@ namespace ExcelToYamlAddin.Core
                 }
                 else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY)
                 {
-                    // JSON/YAML 표준: 배열 안에 직접 배열을 넣는 것은 권장되지 않음
-                    // 경고 메시지를 표시하고 처리를 중단함
-                    string warningMessage = "경고: 배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
-                    Logger.Warning(warningMessage);
-                    
-                    // 경고 창 표시 (UI 스레드에서 실행되도록 함)
-                    DialogResult result = MessageBox.Show(
-                        warningMessage,
-                        "JSON/YAML 표준 주의",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning,
-                        MessageBoxDefaultButton.Button1,
-                        MessageBoxOptions.DefaultDesktopOnly);
-                    
-                    // 확인 버튼을 누른 경우 변환 과정 중단
-                    if (result == DialogResult.OK)
-                    {
-                        string errorMessage = "사용자 요청에 의해 변환 작업이 중단되었습니다.";
-                        Logger.Error(errorMessage);
-                        throw new InvalidOperationException(errorMessage);
-                    }
-                    
+                    // 객체 안에 배열 추가 - 이는 표준에 맞는 정상적인 동작임
                     YamlArray newArray = OrderedYamlFactory.CreateArray();
                     parentMap.Add(key, newArray);
                     Push(parentObject);
                     Push(newArray);
-                    Logger.Debug($"배열에 새 ARRAY 객체 추가 (비표준)");
+                    Logger.Debug($"객체에 새 ARRAY 추가: 키={key}");
                 }
             }
             // 부모가 배열인 경우
@@ -268,33 +247,16 @@ namespace ExcelToYamlAddin.Core
                 }
                 else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY)
                 {
-                    // JSON/YAML 표준: 배열 안에 직접 배열을 넣는 것은 권장되지 않음
-                    // 경고 메시지를 표시하고 처리를 중단함
-                    string warningMessage = "경고: 배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
-                    Logger.Warning(warningMessage);
-                    
-                    // 경고 창 표시 (UI 스레드에서 실행되도록 함)
-                    DialogResult result = MessageBox.Show(
-                        warningMessage,
-                        "JSON/YAML 표준 주의",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning,
-                        MessageBoxDefaultButton.Button1,
-                        MessageBoxOptions.DefaultDesktopOnly);
-                    
-                    // 확인 버튼을 누른 경우 변환 과정 중단
-                    if (result == DialogResult.OK)
-                    {
-                        string errorMessage = "사용자 요청에 의해 변환 작업이 중단되었습니다.";
-                        Logger.Error(errorMessage);
-                        throw new InvalidOperationException(errorMessage);
-                    }
+                    // JSON/YAML 표준: 배열 안에 직접 배열을 넣는 것은 권장되지 않지만 처리 가능
+                    // 경고나 중단 없이 처리함
+                    string warningMessage = "배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
+                    Logger.Warning(warningMessage); // 로그에만 기록하고 사용자에게 표시하지 않음
                     
                     YamlArray newArray = OrderedYamlFactory.CreateArray();
                     parentArray.Add(newArray);
                     Push(parentObject);
                     Push(newArray);
-                    Logger.Debug($"배열에 새 ARRAY 객체 추가 (비표준)");
+                    Logger.Debug($"배열에 새 ARRAY 객체 추가 (비권장)");
                 }
             }
         }
