@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using ExcelToYamlAddin.Config;
 using ExcelToYamlAddin.Core;
 using Newtonsoft.Json;
+using System.Diagnostics;
 
 namespace ExcelToYamlAddin
 {
@@ -100,12 +101,45 @@ namespace ExcelToYamlAddin
                         else
                         {
                             // YAML 생성 및 저장
+                            Debug.WriteLine($"[ExcelReader] YAML 생성 전 config.IncludeEmptyFields 값: {config.IncludeEmptyFields}");
+                            
+                            // 현재 Sheet 정보 로깅
+                            string sheetNameWithMarker = sheet.Name;
+                            string cleanSheetName = RemoveAutoGenMarkerFromSheetName(sheet);
+                            Debug.WriteLine($"[ExcelReader] 처리 중인 시트: '{sheetNameWithMarker}' (마커 제외: '{cleanSheetName}')");
+                            
+                            // 현재 처리 중인 시트에 대한 설정 확인하고 적용 (Ribbon에서 전달된 설정은 활성 시트 기준)
+                            bool sheetSetting = SheetPathManager.Instance.GetYamlEmptyFieldsOption(sheetNameWithMarker);
+                            bool excelSheetSetting = ExcelConfigManager.Instance.GetConfigBool(sheetNameWithMarker, "YamlEmptyFields", false);
+                            bool globalSetting = Properties.Settings.Default.AddEmptyYamlFields;
+                            
+                            // 시트별 설정을 우선적으로 확인하고, 없으면 전역 설정 사용
+                            bool effectiveSetting = excelSheetSetting || sheetSetting || globalSetting;
+                            
+                            // 중요: 현재 시트에 맞게 config 값을 업데이트
+                            bool originalConfigValue = config.IncludeEmptyFields;
+                            config.IncludeEmptyFields = effectiveSetting;
+                            
+                            Debug.WriteLine($"[ExcelReader] 시트 '{sheetNameWithMarker}'의 설정 - Excel 시트별: {excelSheetSetting}, SheetPath 설정: {sheetSetting}, 전역: {globalSetting}");
+                            Debug.WriteLine($"[ExcelReader] 설정 변경: {originalConfigValue} -> {config.IncludeEmptyFields} (시트별 설정 적용)");
+                            Debug.WriteLine($"[ExcelReader] config 객체 참조 확인: HashCode={config.GetHashCode()}, 실제 IncludeEmptyFields={config.IncludeEmptyFields}");
+                            
+                            // 추가 확인을 위해 설정값을 복사하여 로컬 변수로 전달
+                            bool localIncludeEmptyFields = config.IncludeEmptyFields; // 값 복사
+                            Debug.WriteLine($"[ExcelReader] 로컬 변수로 복사: localIncludeEmptyFields={localIncludeEmptyFields}");
+                            
                             string yamlStr = YamlGenerator.Generate(
                                 scheme,
                                 config.YamlStyle,
                                 config.YamlIndentSize,
                                 config.YamlPreserveQuotes,
                                 config.IncludeEmptyFields);
+                            Debug.WriteLine($"[ExcelReader] YAML 생성 완료 (includeEmptyFields: {config.IncludeEmptyFields})");
+                            
+                            // YAML 결과 확인
+                            bool hasEmptyArraySyntax = yamlStr.Contains("[]");
+                            Debug.WriteLine($"[ExcelReader] YAML 결과에 빈 배열 표기([]) 포함 여부: {hasEmptyArraySyntax}");
+                            
                             File.WriteAllText(sheetOutputPath, yamlStr);
                         }
 

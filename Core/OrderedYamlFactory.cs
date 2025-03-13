@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using ExcelToYamlAddin.Config;
 using System.Linq;
+using System.Diagnostics;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -171,10 +172,23 @@ namespace ExcelToYamlAddin.Core
 
         public static string SerializeToYaml(object obj, int indentSize = 2, YamlStyle style = YamlStyle.Block, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
+            // 디버깅 로그 추가
+            Debug.WriteLine($"[OrderedYamlFactory] SerializeToYaml 시작, includeEmptyFields: {includeEmptyFields}, 객체 타입: {(obj != null ? obj.GetType().Name : "null")}");
+            Debug.WriteLine($"[OrderedYamlFactory] *** 중요 *** includeEmptyFields 값 확인: {includeEmptyFields}, 스택 트레이스: {Environment.StackTrace}");
+            
             // includeEmptyFields가 true일 경우 빈 속성 유지, false일 경우 제거
             if (!includeEmptyFields)
             {
+                Debug.WriteLine($"[OrderedYamlFactory] 빈 속성 제거 시작 (includeEmptyFields: {includeEmptyFields})");
                 RemoveEmptyProperties(obj);
+                Debug.WriteLine($"[OrderedYamlFactory] 빈 속성 제거 완료");
+            }
+            else
+            {
+                Debug.WriteLine($"[OrderedYamlFactory] 빈 속성 유지 모드 (includeEmptyFields: {includeEmptyFields})");
+                // 빈 배열 안의 빈 객체들 처리
+                CleanEmptyArrays(obj);
+                Debug.WriteLine($"[OrderedYamlFactory] 빈 배열 처리 완료");
             }
             
             var sb = new StringBuilder();
@@ -300,6 +314,7 @@ namespace ExcelToYamlAddin.Core
         
         private static void SerializeYamlObject(YamlObject obj, StringBuilder sb, int level, int indentSize, YamlStyle style, bool preserveQuotes)
         {
+            // 빈 객체 처리
             if (!obj.HasValues)
             {
                 if (style == YamlStyle.Flow)
@@ -353,14 +368,15 @@ namespace ExcelToYamlAddin.Core
                     // 빈 배열인 경우 바로 개행 처리
                     if (kvp.Value is YamlArray yamlArray && !yamlArray.HasValues)
                     {
-                        // 이미 콜론(:)이 추가되었으므로 빈 배열 표시
-                        sb.AppendLine();  // 빈 리스트를 []로 표시하지 않고 YAML 표준에 맞게 처리
+                        // 빈 배열은 [] 표기로 출력 (CleanEmptyArrays에서 처리됨)
+                        sb.Append("[]");
+                        sb.AppendLine();
                     }
                     // 빈 객체인 경우 바로 개행 처리
                     else if (kvp.Value is YamlObject yamlObj && !yamlObj.HasValues)
                     {
                         // 이미 콜론(:)이 추가되었으므로 빈 객체 표시
-                        sb.AppendLine();  // 빈 객체를 {}로 표시하지 않고 YAML 표준에 맞게 처리
+                        sb.AppendLine();
                     }
                     else if (kvp.Value is YamlObject || kvp.Value is YamlArray)
                     {
@@ -380,17 +396,12 @@ namespace ExcelToYamlAddin.Core
         
         private static void SerializeYamlArray(YamlArray array, StringBuilder sb, int level, int indentSize, YamlStyle style, bool preserveQuotes)
         {
+            // 빈 배열 처리
             if (!array.HasValues)
             {
-                if (style == YamlStyle.Flow)
-                {
-                    sb.Append("[]");
-                }
-                if (style == YamlStyle.Block)
-                {
-                    // 빈 배열도 YAML 표준에 맞게 처리
-                    sb.AppendLine();
-                }
+                // 빈 배열은 [] 표기로 출력 (CleanEmptyArrays에서 처리됨)
+                sb.Append("[]");
+                sb.AppendLine();
                 return;
             }
             
@@ -497,6 +508,101 @@ namespace ExcelToYamlAddin.Core
             {
                 sb.Append(' ');
             }
+        }
+
+        // 빈 객체만 포함하는 배열을 빈 배열로 변환 및 루트 배열의 빈 항목 제거
+        public static void CleanEmptyArrays(object token, bool isRoot = true)
+        {
+            if (token is YamlArray array)
+            {
+                // 루트 배열인 경우, 빈 항목 제거 처리
+                if (isRoot)
+                {
+                    Debug.WriteLine("[OrderedYamlFactory] 루트 배열 처리 중");
+                    
+                    // 먼저 빈 항목이 있는지 확인
+                    bool hasEmptyItems = false;
+                    foreach (var item in array.Items)
+                    {
+                        if (IsEmptyItem(item))
+                        {
+                            hasEmptyItems = true;
+                            break;
+                        }
+                    }
+                    
+                    // 빈 항목이 있으면 제거
+                    if (hasEmptyItems)
+                    {
+                        Debug.WriteLine("[OrderedYamlFactory] 루트 배열에서 빈 항목 제거");
+                        
+                        // 뒤에서부터 제거 (인덱스 변경 방지)
+                        for (int i = array.Count - 1; i >= 0; i--)
+                        {
+                            if (IsEmptyItem(array[i]))
+                            {
+                                array.RemoveAt(i);
+                            }
+                        }
+                    }
+                }
+                
+                // 배열 내의 항목을 재귀적으로 처리 (루트가 아닌 것으로 처리)
+                foreach (var item in array.Items)
+                {
+                    CleanEmptyArrays(item, false);
+                }
+                
+                // 모든 항목이 빈 객체인지 확인 (빈 배열로 만들지 판단)
+                bool allItemsAreEmptyObjects = true;
+                foreach (var item in array.Items)
+                {
+                    if (!(item is YamlObject obj) || obj.HasValues)
+                    {
+                        allItemsAreEmptyObjects = false;
+                        break;
+                    }
+                }
+                
+                // 모든 항목이 빈 객체라면 빈 배열로 변환 (루트가 아닌 경우에만)
+                if (allItemsAreEmptyObjects && array.Count > 0 && !isRoot)
+                {
+                    Debug.WriteLine("[OrderedYamlFactory] 빈 객체들만 포함한 배열을 빈 배열로 변환");
+                    
+                    // 배열 내 모든 항목 제거
+                    for (int i = array.Count - 1; i >= 0; i--)
+                    {
+                        array.RemoveAt(i);
+                    }
+                }
+            }
+            else if (token is YamlObject obj)
+            {
+                // 모든 속성에 대해 재귀적으로 처리 (루트가 아닌 것으로 처리)
+                foreach (var prop in obj.Properties)
+                {
+                    CleanEmptyArrays(prop.Value, false);
+                }
+            }
+        }
+        
+        // 항목이 빈 항목인지 확인 (null, 빈 문자열, 빈 객체, 빈 배열)
+        private static bool IsEmptyItem(object item)
+        {
+            if (item == null)
+                return true;
+                
+            if (item is string str && string.IsNullOrEmpty(str))
+                return true;
+                
+            if (item is YamlObject obj && !obj.HasValues)
+                return true;
+            
+            // 여기서는 빈 배열도 빈 항목으로 간주 (루트 배열에서 제거)
+            if (item is YamlArray arr && !arr.HasValues)
+                return true;
+                
+            return false;
         }
     }
 }

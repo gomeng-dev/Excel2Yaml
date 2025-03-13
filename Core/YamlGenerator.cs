@@ -45,18 +45,24 @@ namespace ExcelToYamlAddin.Core
         }
 
         // 외부에서 호출할 정적 메서드
-        public static string Generate(Scheme scheme, YamlStyle style = YamlStyle.Block, 
-            int indentSize = 2, bool preserveQuotes = false, bool includeEmptyFields = false)
+        public static string Generate(Scheme scheme, YamlStyle style = YamlStyle.Block, int indentSize = 2, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
             try 
             {
+                Debug.WriteLine($"[YamlGenerator] Generate 호출됨: style={style}, includeEmptyFields={includeEmptyFields}");
+                Debug.WriteLine($"[YamlGenerator] Generate 호출 스택: {Environment.StackTrace}");
                 var generator = new YamlGenerator(scheme);
                 object rootObj = generator.ProcessRootNode();
                 
+                // 디버그 로그 추가
+                Debug.WriteLine($"[YamlGenerator] 정적 Generate 메서드: includeEmptyFields={includeEmptyFields}, 이 값이 SerializeToYaml에 전달됩니다");
+                
                 // SerializeToYaml에서 includeEmptyFields 매개변수를 통해 빈 속성 처리를 수행하므로
                 // 여기서는 RemoveEmptyProperties 호출을 제거합니다.
-                
-                return OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes, includeEmptyFields);
+                Debug.WriteLine($"[YamlGenerator] OrderedYamlFactory.SerializeToYaml 호출 전: includeEmptyFields={includeEmptyFields}");
+                var result = OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes, includeEmptyFields);
+                Debug.WriteLine($"[YamlGenerator] OrderedYamlFactory.SerializeToYaml 호출 후 결과 길이: {result?.Length ?? 0}");
+                return result;
             }
             catch (Exception ex)
             {

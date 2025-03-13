@@ -43,6 +43,7 @@ namespace ExcelToYamlAddin.Core
         private const int CONFIG_KEY_COL = 2;      // B열 - 설정 키
         private const int CONFIG_VALUE_COL = 3;    // C열 - 설정 값
         private const int YAML_EMPTY_FIELDS_COL = 4; // D열 - YAML 선택적 필드 설정
+        private const int EMPTY_ARRAY_FIELDS_COL = 5; // E열 - 빈 배열 필드 설정
         
         // 헤더 로우 인덱스
         private const int HEADER_ROW = 1;
@@ -123,7 +124,7 @@ namespace ExcelToYamlAddin.Core
                     if (sheet.Name == CONFIG_SHEET_NAME)
                     {
                         configSheetExists = true;
-                        Debug.WriteLine("[ExcelConfigManager] !Config 시트가 이미 존재합니다.");
+                        Debug.WriteLine("[ExcelConfigManager] excel2yamlconfig 시트가 이미 존재합니다.");
                         break;
                     }
                 }
@@ -131,11 +132,11 @@ namespace ExcelToYamlAddin.Core
                 // 이미 존재하면 더 진행하지 않음
                 if (configSheetExists)
                 {
-                    Debug.WriteLine("[ExcelConfigManager] !Config 시트가 이미 존재하므로 생성을 건너뜁니다.");
+                    Debug.WriteLine("[ExcelConfigManager] excel2yamlconfig 시트가 이미 존재하므로 생성을 건너뜁니다.");
                     return;
                 }
                 
-                Debug.WriteLine("[ExcelConfigManager] !Config 시트가 존재하지 않습니다. 생성 조건 확인 중...");
+                Debug.WriteLine("[ExcelConfigManager] excel2yamlconfig 시트가 존재하지 않습니다. 생성 조건 확인 중...");
                 
                 // '!'로 시작하는 시트가 있는지 확인
                 bool hasExclamationSheet = false;
@@ -152,24 +153,25 @@ namespace ExcelToYamlAddin.Core
                 // '!'로 시작하는 시트가 없으면 생성하지 않음
                 if (!hasExclamationSheet)
                 {
-                    Debug.WriteLine("[ExcelConfigManager] '!'로 시작하는 시트가 없어 !Config 시트를 생성하지 않습니다.");
+                    Debug.WriteLine("[ExcelConfigManager] '!'로 시작하는 시트가 없어 excel2yamlconfig 시트를 생성하지 않습니다.");
                     return;
                 }
 
                 // 설정 시트가 없고 '!'로 시작하는 시트가 있으면 생성
-                Debug.WriteLine("[ExcelConfigManager] 설정 시트 생성 조건 만족: !Config 시트 생성 시작");
+                Debug.WriteLine("[ExcelConfigManager] 설정 시트 생성 조건 만족: excel2yamlconfig 시트 생성 시작");
                 try {
                     Worksheet configSheet = workbook.Worksheets.Add();
                     Debug.WriteLine("[ExcelConfigManager] 새 워크시트 추가 성공");
                     
                     configSheet.Name = CONFIG_SHEET_NAME;
-                    Debug.WriteLine("[ExcelConfigManager] 새 워크시트 이름을 !Config로 변경 성공");
+                    Debug.WriteLine("[ExcelConfigManager] 새 워크시트 이름을 excel2yamlconfig로 변경 성공");
                     
                     // 헤더 작성
                     configSheet.Cells[HEADER_ROW, SHEET_NAME_COL] = "SheetName";
                     configSheet.Cells[HEADER_ROW, CONFIG_KEY_COL] = "ConfigKey";
                     configSheet.Cells[HEADER_ROW, CONFIG_VALUE_COL] = "ConfigValue";
                     configSheet.Cells[HEADER_ROW, YAML_EMPTY_FIELDS_COL] = "YamlEmptyFields";
+                    configSheet.Cells[HEADER_ROW, EMPTY_ARRAY_FIELDS_COL] = "EmptyArrayFields";
                     Debug.WriteLine("[ExcelConfigManager] 헤더 작성 완료");
                     
                     // 시트 숨기기
@@ -180,15 +182,15 @@ namespace ExcelToYamlAddin.Core
                     // 헤더 스타일 설정
                     Range headerRange = configSheet.Range[
                         configSheet.Cells[HEADER_ROW, SHEET_NAME_COL],
-                        configSheet.Cells[HEADER_ROW, YAML_EMPTY_FIELDS_COL]
+                        configSheet.Cells[HEADER_ROW, EMPTY_ARRAY_FIELDS_COL]
                     ];
                     headerRange.Font.Bold = true;
                     Debug.WriteLine("[ExcelConfigManager] 헤더 스타일 설정 완료");
                     
-                    Debug.WriteLine("[ExcelConfigManager] !Config 시트 생성 완료");
+                    Debug.WriteLine("[ExcelConfigManager] excel2yamlconfig 시트 생성 완료");
                 }
                 catch (Exception innerEx) {
-                    Debug.WriteLine($"[ExcelConfigManager] !Config 시트 생성 중 오류 발생: {innerEx.Message}");
+                    Debug.WriteLine($"[ExcelConfigManager] excel2yamlconfig 시트 생성 중 오류 발생: {innerEx.Message}");
                     Debug.WriteLine($"[ExcelConfigManager] 스택 트레이스: {innerEx.StackTrace}");
                 }
             }
@@ -200,7 +202,7 @@ namespace ExcelToYamlAddin.Core
         }
         
         /// <summary>
-        /// !Config 시트에서 모든 설정 로드
+        /// excel2yamlconfig 시트에서 모든 설정 로드
         /// </summary>
         public void LoadAllSettings()
         {
