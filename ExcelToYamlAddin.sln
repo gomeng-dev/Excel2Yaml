@@ -5,7 +5,7 @@ VisualStudioVersion = 17.10.35122.118
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelToYamlAddin", "ExcelToYamlAddin.csproj", "{B1744A7C-3688-48FB-8A19-710192117D49}"
 EndProject
-Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "Excel2YamlSetup", "..\Excel2YamlSetup\Excel2YamlSetup.vdproj", "{FDA18E00-BB8F-4848-8CC3-93DD475E28B5}"
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "ExcelToYamlAddInSetup", "ExcelToYamlAddInSetup\ExcelToYamlAddInSetup.vdproj", "{61000FFF-A6C1-4139-9DB7-0C76382605F6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,9 +17,8 @@ Global
 		{B1744A7C-3688-48FB-8A19-710192117D49}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B1744A7C-3688-48FB-8A19-710192117D49}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B1744A7C-3688-48FB-8A19-710192117D49}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FDA18E00-BB8F-4848-8CC3-93DD475E28B5}.Debug|Any CPU.ActiveCfg = Debug
-		{FDA18E00-BB8F-4848-8CC3-93DD475E28B5}.Release|Any CPU.ActiveCfg = Release
-		{FDA18E00-BB8F-4848-8CC3-93DD475E28B5}.Release|Any CPU.Build.0 = Release
+		{61000FFF-A6C1-4139-9DB7-0C76382605F6}.Debug|Any CPU.ActiveCfg = Debug
+		{61000FFF-A6C1-4139-9DB7-0C76382605F6}.Release|Any CPU.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
