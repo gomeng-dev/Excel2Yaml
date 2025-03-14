@@ -1,11 +1,10 @@
-using ExcelToYamlAddin.Logging;
 using ClosedXML.Excel;
+using ExcelToYamlAddin.Config;
+using ExcelToYamlAddin.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using ExcelToYamlAddin.Config;
 using System.Diagnostics;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace ExcelToYamlAddin.Core
@@ -47,16 +46,16 @@ namespace ExcelToYamlAddin.Core
         // 외부에서 호출할 정적 메서드
         public static string Generate(Scheme scheme, YamlStyle style = YamlStyle.Block, int indentSize = 2, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
-            try 
+            try
             {
                 Debug.WriteLine($"[YamlGenerator] Generate 호출됨: style={style}, includeEmptyFields={includeEmptyFields}");
                 Debug.WriteLine($"[YamlGenerator] Generate 호출 스택: {Environment.StackTrace}");
                 var generator = new YamlGenerator(scheme);
                 object rootObj = generator.ProcessRootNode();
-                
+
                 // 디버그 로그 추가
                 Debug.WriteLine($"[YamlGenerator] 정적 Generate 메서드: includeEmptyFields={includeEmptyFields}, 이 값이 SerializeToYaml에 전달됩니다");
-                
+
                 // SerializeToYaml에서 includeEmptyFields 매개변수를 통해 빈 속성 처리를 수행하므로
                 // 여기서는 RemoveEmptyProperties 호출을 제거합니다.
                 Debug.WriteLine($"[YamlGenerator] OrderedYamlFactory.SerializeToYaml 호출 전: includeEmptyFields={includeEmptyFields}");
@@ -76,9 +75,9 @@ namespace ExcelToYamlAddin.Core
             try
             {
                 Logger.Debug("YAML 생성 시작: 스타일={0}, 들여쓰기={1}, 빈 필드 포함={2}", style, indentSize, includeEmptyFields);
-                
+
                 object rootObj = ProcessRootNode();
-                
+
                 return OrderedYamlFactory.SerializeToYaml(rootObj, indentSize, style, preserveQuotes, includeEmptyFields);
             }
             catch (Exception ex)
@@ -87,13 +86,13 @@ namespace ExcelToYamlAddin.Core
                 throw;
             }
         }
-        
+
         // Java 버전과 유사한 스택 기반 루트 노드 처리 메서드
         public object ProcessRootNode()
         {
             SchemeNode rootNode = _scheme.Root;
             Logger.Debug($"ProcessRootNode 시작: 루트 타입={rootNode.NodeType}, 키={rootNode.Key}, 자식 수={rootNode.ChildCount}");
-            
+
             // 루트 노드에 따른 객체 생성
             object rootObj;
             if (rootNode.NodeType == SchemeNode.SchemeNodeType.MAP)
@@ -111,29 +110,29 @@ namespace ExcelToYamlAddin.Core
                 Logger.Warning($"지원되지 않는 루트 노드 타입: {rootNode.NodeType}, MAP으로 처리합니다.");
                 rootObj = OrderedYamlFactory.CreateObject();
             }
-            
+
             // 스택에 루트 객체 추가
             Push(rootObj);
-            
+
             // 모든 데이터 행 처리
             for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
             {
                 IXLRow row = _sheet.Row(rowNum);
                 if (row == null) continue;
-                
+
                 Logger.Debug($"행 {rowNum} 처리 중");
-                
+
                 // 현재 객체는 항상 스택의 맨 위에 있는 객체
                 object currentObject = rootObj;
-                
+
                 // 스키마 노드를 순회하며 처리
                 var linearNodes = _scheme.GetLinearNodes().ToList();
-                
+
                 for (int i = 0; i < linearNodes.Count; i++)
                 {
                     SchemeNode currentNode = linearNodes[i];
                     Logger.Debug($"노드 처리: 키={currentNode.Key}, 타입={currentNode.NodeType}, 스키마 행={currentNode.SchemeRowNum}");
-                    
+
                     // 노드 깊이와 스택 크기를 비교하여 스택 관리
                     int stackSize = GetStackSize();
                     if (currentNode.SchemeRowNum < stackSize)
@@ -144,9 +143,9 @@ namespace ExcelToYamlAddin.Core
                             currentObject = Pop();
                         }
                     }
-                    
+
                     // 컨테이너 타입 노드 처리 (MAP, ARRAY)
-                    if (currentNode.NodeType == SchemeNode.SchemeNodeType.MAP || 
+                    if (currentNode.NodeType == SchemeNode.SchemeNodeType.MAP ||
                         currentNode.NodeType == SchemeNode.SchemeNodeType.ARRAY)
                     {
                         ProcessContainerNode(currentNode, currentObject, row);
@@ -154,7 +153,7 @@ namespace ExcelToYamlAddin.Core
                     // 값 타입 노드 처리 (PROPERTY, VALUE)
                     else if (currentNode.NodeType == SchemeNode.SchemeNodeType.PROPERTY ||
                              currentNode.NodeType == SchemeNode.SchemeNodeType.VALUE)
-                    { 
+                    {
                         ProcessValueNode(currentNode, currentObject, row);
                     }
                     // KEY-VALUE 쌍 처리
@@ -163,7 +162,7 @@ namespace ExcelToYamlAddin.Core
                         ProcessKeyNode(currentNode, currentObject, row);
                     }
                 }
-                
+
                 // 행 처리 후 스택 초기화 - 루트 객체만 남기기
                 while (GetStackSize() > 1)
                 {
@@ -171,22 +170,22 @@ namespace ExcelToYamlAddin.Core
                 }
                 currentObject = _stack.Peek();
             }
-            
+
             // 마지막 객체 반환
             return Pop();
         }
-        
+
         // 컨테이너 노드 처리 (MAP, ARRAY)
         private void ProcessContainerNode(SchemeNode node, object parentObject, IXLRow row)
         {
             string key = GetNodeKey(node, row);
-            
+
             // 부모가 객체이고 키가 비어있는 경우 (이는 JSON/YAML 표준에 맞지 않음)
             if (string.IsNullOrEmpty(key) && parentObject is YamlObject)
             {
                 string errorMessage = "오류: JSON/YAML 표준에서는 객체 내에 이름 없는 속성을 가질 수 없습니다. 키 값이 비어있습니다.";
                 Logger.Error(errorMessage);
-                
+
                 // 오류 창 표시
                 DialogResult result = MessageBox.Show(
                     errorMessage,
@@ -195,7 +194,7 @@ namespace ExcelToYamlAddin.Core
                     MessageBoxIcon.Error,
                     MessageBoxDefaultButton.Button1,
                     MessageBoxOptions.DefaultDesktopOnly);
-                
+
                 // 확인 버튼을 누른 경우 변환 과정 중단
                 if (result == DialogResult.OK)
                 {
@@ -203,11 +202,11 @@ namespace ExcelToYamlAddin.Core
                     Logger.Error(abortMessage);
                     throw new InvalidOperationException(abortMessage);
                 }
-                
+
                 Logger.Debug($"컨테이너 노드의 키가 비어 있어 무시: 타입={node.NodeType}");
                 return;
             }
-            
+
             // 부모가 객체인 경우
             if (parentObject is YamlObject parentMap)
             {
@@ -220,7 +219,7 @@ namespace ExcelToYamlAddin.Core
                     Logger.Debug($"기존 객체 사용: 키={key}, 타입={existingObj.GetType().Name}");
                     return;
                 }
-                
+
                 // 새 객체 생성
                 if (node.NodeType == SchemeNode.SchemeNodeType.MAP)
                 {
@@ -257,7 +256,7 @@ namespace ExcelToYamlAddin.Core
                     // 경고나 중단 없이 처리함
                     string warningMessage = "배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
                     Logger.Warning(warningMessage); // 로그에만 기록하고 사용자에게 표시하지 않음
-                    
+
                     YamlArray newArray = OrderedYamlFactory.CreateArray();
                     parentArray.Add(newArray);
                     Push(parentObject);
@@ -266,22 +265,22 @@ namespace ExcelToYamlAddin.Core
                 }
             }
         }
-        
+
         // 값 노드 처리 (PROPERTY, VALUE)
         private void ProcessValueNode(SchemeNode node, object parentObject, IXLRow row)
         {
             // KEY 노드의 VALUE 자식인 경우, 이미 KEY 노드에서 처리됐으므로 중복 추가 방지
-            if (node.NodeType == SchemeNode.SchemeNodeType.VALUE && 
-                node.Parent != null && 
+            if (node.NodeType == SchemeNode.SchemeNodeType.VALUE &&
+                node.Parent != null &&
                 node.Parent.NodeType == SchemeNode.SchemeNodeType.KEY)
             {
                 Logger.Debug($"VALUE 노드가 KEY 노드의 자식이므로 중복 추가 방지를 위해 스킵: 부모={node.Parent.GetKey(row)}");
                 return;
             }
-            
+
             // 값 노드의 키 가져오기 (여러 곳에서 사용하므로 먼저 선언)
             string key = GetNodeKey(node, row);
-            
+
             // 부모가 객체인 경우, 키 확인
             if (parentObject is YamlObject)
             {
@@ -289,7 +288,7 @@ namespace ExcelToYamlAddin.Core
                 {
                     string errorMessage = $"오류: JSON/YAML 표준에서는 객체 내에 이름 없는 값을 가질 수 없습니다. 노드 타입: {node.NodeType}";
                     Logger.Error(errorMessage);
-                    
+
                     // 오류 창 표시
                     DialogResult result = MessageBox.Show(
                         errorMessage,
@@ -298,7 +297,7 @@ namespace ExcelToYamlAddin.Core
                         MessageBoxIcon.Error,
                         MessageBoxDefaultButton.Button1,
                         MessageBoxOptions.DefaultDesktopOnly);
-                    
+
                     // 확인 버튼을 누른 경우 변환 과정 중단
                     if (result == DialogResult.OK)
                     {
@@ -306,27 +305,27 @@ namespace ExcelToYamlAddin.Core
                         Logger.Error(abortMessage);
                         throw new InvalidOperationException(abortMessage);
                     }
-                    
+
                     Logger.Debug($"값 노드의 키가 비어 있어 무시: 타입={node.NodeType}");
                     return;
                 }
             }
-            
+
             // 값 가져오기
             object value = node.GetValue(row);
-            
+
             if (value == null || string.IsNullOrEmpty(value.ToString()))
             {
                 Logger.Debug($"값이 비어 있어 무시: 노드={node.SchemeName}");
                 return;
             }
-            
+
             value = FormatStringValue(value);
-            
+
             // VALUE 노드가 직접 ARRAY의 자식인 경우 (독립 $value) - 직접 값 추가
-            if (node.NodeType == SchemeNode.SchemeNodeType.VALUE && 
-                node.Parent != null && 
-                (node.Parent.NodeType == SchemeNode.SchemeNodeType.ARRAY || 
+            if (node.NodeType == SchemeNode.SchemeNodeType.VALUE &&
+                node.Parent != null &&
+                (node.Parent.NodeType == SchemeNode.SchemeNodeType.ARRAY ||
                  node.Parent.NodeType == SchemeNode.SchemeNodeType.MAP))
             {
                 if (parentObject is YamlArray parentArray)
@@ -336,7 +335,7 @@ namespace ExcelToYamlAddin.Core
                     return;
                 }
             }
-            
+
             // 부모가 객체인 경우 - 이미 키를 확인했으므로 중복 선언 제거
             if (parentObject is YamlObject parentMap)
             {
@@ -372,7 +371,7 @@ namespace ExcelToYamlAddin.Core
                 }
             }
         }
-        
+
         // KEY 노드 처리
         private void ProcessKeyNode(SchemeNode node, object parentObject, IXLRow row)
         {
@@ -387,7 +386,7 @@ namespace ExcelToYamlAddin.Core
                     Logger.Debug($"KEY 노드에서 셀 값을 키로 사용: {cellKey}");
                 }
             }
-            
+
             // 기존 코드는 GetKey를 호출하여 고정된 키("value")를 사용함
             string dynamicKey = node.GetKey(row);
             if (string.IsNullOrEmpty(dynamicKey))
@@ -395,7 +394,7 @@ namespace ExcelToYamlAddin.Core
                 Logger.Debug("KEY 노드에서 동적 키를 가져올 수 없음");
                 return;
             }
-            
+
             // KEY 노드의 VALUE 자식 찾기
             SchemeNode valueNode = node.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.VALUE);
             if (valueNode == null)
@@ -403,16 +402,16 @@ namespace ExcelToYamlAddin.Core
                 Logger.Debug($"KEY 노드에 대응하는 VALUE 노드가 없음: 키={dynamicKey}");
                 return;
             }
-            
+
             object value = valueNode.GetValue(row);
             if (value == null || string.IsNullOrEmpty(value.ToString()))
             {
                 Logger.Debug($"VALUE 값이 비어 있어 무시: 키={dynamicKey}");
                 return;
             }
-            
+
             value = FormatStringValue(value);
-            
+
             // 부모가 객체인 경우
             if (parentObject is YamlObject parentMap)
             {
@@ -424,14 +423,14 @@ namespace ExcelToYamlAddin.Core
             {
                 // cellKey가 있으면 사용, 없으면 dynamicKey 사용
                 string actualKey = !string.IsNullOrEmpty(cellKey) ? cellKey : dynamicKey;
-                
+
                 YamlObject keyValueObj = OrderedYamlFactory.CreateObject();
                 keyValueObj.Add(actualKey, value);
                 parentArray.Add(keyValueObj);
                 Logger.Debug($"배열에 동적 키-값 쌍 추가: 키={actualKey}, 값={value}");
             }
         }
-        
+
         // 노드에서 키 가져오기
         private string GetNodeKey(SchemeNode node, IXLRow row)
         {
@@ -440,39 +439,39 @@ namespace ExcelToYamlAddin.Core
             {
                 return node.Key;
             }
-            
+
             // KEY 타입 노드는 GetKey 메서드로 키를 가져옴
             if (node.NodeType == SchemeNode.SchemeNodeType.KEY)
             {
                 return node.GetKey(row);
             }
-            
+
             // 노드에 키가 지정된 자식이 있는 경우 (MAP, ARRAY 타입에서 사용)
             var keyChild = node.Children.FirstOrDefault(c => c.NodeType == SchemeNode.SchemeNodeType.KEY);
             if (keyChild != null)
             {
                 return keyChild.GetKey(row);
             }
-            
+
             // 스키마 이름이 있으면 키로 사용
             if (!string.IsNullOrEmpty(node.SchemeName))
             {
                 return node.SchemeName;
             }
-            
+
             return string.Empty;
         }
-        
+
         // 문자열 값 포맷
         private object FormatStringValue(object value)
         {
             if (value == null)
                 return null;
-                
+
             string strValue = value.ToString();
             if (string.IsNullOrEmpty(strValue))
                 return strValue;
-                
+
             // 개행 문자 포함 여부 확인 및 처리
             if (strValue.Contains('\n') || strValue.Contains('\r'))
             {
@@ -484,15 +483,15 @@ namespace ExcelToYamlAddin.Core
                     return strValue;
                 }
             }
-            
+
             return strValue;
         }
-        
+
         // 빈 속성 제거
         private bool RemoveEmptyAttributes(object arg)
         {
             bool valueExist = false;
-            
+
             if (arg is string str)
             {
                 valueExist = !string.IsNullOrEmpty(str);
@@ -508,7 +507,7 @@ namespace ExcelToYamlAddin.Core
             else if (arg is YamlObject yamlObject)
             {
                 var keysToRemove = new List<string>();
-                
+
                 foreach (var property in yamlObject.Properties)
                 {
                     if (!RemoveEmptyAttributes(property.Value))
@@ -520,7 +519,7 @@ namespace ExcelToYamlAddin.Core
                         valueExist = true;
                     }
                 }
-                
+
                 foreach (var key in keysToRemove)
                 {
                     yamlObject.Remove(key);
@@ -542,8 +541,8 @@ namespace ExcelToYamlAddin.Core
                     }
                 }
             }
-            
+
             return valueExist;
         }
     }
-} 
+}

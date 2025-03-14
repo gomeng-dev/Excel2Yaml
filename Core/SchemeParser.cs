@@ -1,9 +1,7 @@
-using ExcelToYamlAddin.Logging;
 using ClosedXML.Excel;
+using ExcelToYamlAddin.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Diagnostics;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -112,15 +110,17 @@ namespace ExcelToYamlAddin.Core
 
             // 자바 코드와 유사하게 단일 호출로 전체 파싱 처리
             SchemeNode rootNode = Parse(null, _schemeStartRow.RowNumber(), _firstCellNum, _lastCellNum);
-            
+
             if (rootNode == null)
             {
                 Logger.Error("Root node is null. Creating default ARRAY node.");
-                try {
+                try
+                {
                     rootNode = new SchemeNode(_sheet, _schemeStartRow.RowNumber(), _firstCellNum, "$[]");
                     Logger.Debug("기본 ARRAY 형식의 루트 노드 생성");
                 }
-                catch (Exception ex) {
+                catch (Exception ex)
+                {
                     Logger.Error("루트 노드 생성 중 오류: " + ex.Message);
                     throw new InvalidOperationException("스키마 파싱 실패", ex);
                 }
@@ -148,7 +148,7 @@ namespace ExcelToYamlAddin.Core
             {
                 IXLRow currentRow = _sheet.Row(rowNum);
                 if (currentRow == null) continue;
-                
+
                 IXLCell cell = currentRow.Cell(cellNum);
 
                 if (cell == null || cell.IsEmpty())

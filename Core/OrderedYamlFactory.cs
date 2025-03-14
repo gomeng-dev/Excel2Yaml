@@ -1,10 +1,10 @@
+using ExcelToYamlAddin.Config;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using ExcelToYamlAddin.Config;
-using System.Linq;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -98,13 +98,13 @@ namespace ExcelToYamlAddin.Core
             if (token is YamlObject obj)
             {
                 var propertiesToRemove = new List<string>();
-                
+
                 // 먼저 모든 자식 속성을 처리
                 foreach (var prop in obj.Properties)
                 {
                     RemoveEmptyProperties(prop.Value);
                 }
-                
+
                 // 그 다음 빈 속성 확인 및 제거
                 foreach (var prop in obj.Properties)
                 {
@@ -113,7 +113,7 @@ namespace ExcelToYamlAddin.Core
                         propertiesToRemove.Add(prop.Key);
                     }
                 }
-                
+
                 foreach (var propName in propertiesToRemove)
                 {
                     obj.Remove(propName);
@@ -126,7 +126,7 @@ namespace ExcelToYamlAddin.Core
                 {
                     RemoveEmptyProperties(array[i]);
                 }
-                
+
                 // 그 다음 빈 항목 제거 (뒤에서부터 제거해야 인덱스가 유효함)
                 for (int i = array.Count - 1; i >= 0; i--)
                 {
@@ -142,18 +142,18 @@ namespace ExcelToYamlAddin.Core
         {
             if (token == null)
                 return true;
-                
+
             if (token is string str && string.IsNullOrEmpty(str))
                 return true;
-                
+
             if (token is YamlObject obj && !obj.HasValues)
                 return true;
-                
+
             if (token is YamlArray array)
             {
                 if (!array.HasValues)
                     return true;
-                    
+
                 // 추가: 배열의 모든 항목이 빈 경우 전체 배열을 빈 것으로 간주
                 bool allItemsEmpty = true;
                 foreach (var item in array.Items)
@@ -166,7 +166,7 @@ namespace ExcelToYamlAddin.Core
                 }
                 return allItemsEmpty;
             }
-                
+
             return false;
         }
 
@@ -175,7 +175,7 @@ namespace ExcelToYamlAddin.Core
             // 디버깅 로그 추가
             Debug.WriteLine($"[OrderedYamlFactory] SerializeToYaml 시작, includeEmptyFields: {includeEmptyFields}, 객체 타입: {(obj != null ? obj.GetType().Name : "null")}");
             Debug.WriteLine($"[OrderedYamlFactory] *** 중요 *** includeEmptyFields 값 확인: {includeEmptyFields}, 스택 트레이스: {Environment.StackTrace}");
-            
+
             // includeEmptyFields가 true일 경우 빈 속성 유지, false일 경우 제거
             if (!includeEmptyFields)
             {
@@ -190,12 +190,12 @@ namespace ExcelToYamlAddin.Core
                 CleanEmptyArrays(obj);
                 Debug.WriteLine($"[OrderedYamlFactory] 빈 배열 처리 완료");
             }
-            
+
             var sb = new StringBuilder();
             SerializeObject(obj, sb, 0, indentSize, style, preserveQuotes);
             return sb.ToString();
         }
-        
+
         public static void SaveToYaml(object obj, string filePath, int indentSize = 2, YamlStyle style = YamlStyle.Block, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
             string yaml = SerializeToYaml(obj, indentSize, style, preserveQuotes, includeEmptyFields);
@@ -209,41 +209,41 @@ namespace ExcelToYamlAddin.Core
                 sb.Append("null");
                 return;
             }
-            
+
             if (obj is string s)
             {
                 SerializeString(s, sb, preserveQuotes);
                 return;
             }
-            
+
             if (obj is int || obj is long || obj is float || obj is double || obj is decimal)
             {
                 sb.Append(Convert.ToString(obj));
                 return;
             }
-            
+
             if (obj is bool b)
             {
                 sb.Append(b ? "true" : "false");
                 return;
             }
-            
+
             if (obj is YamlObject yamlObj)
             {
                 SerializeYamlObject(yamlObj, sb, level, indentSize, style, preserveQuotes);
                 return;
             }
-            
+
             if (obj is YamlArray yamlArray)
             {
                 SerializeYamlArray(yamlArray, sb, level, indentSize, style, preserveQuotes);
                 return;
             }
-            
+
             // 기타 타입은 문자열로 변환
             SerializeString(obj.ToString(), sb, preserveQuotes);
         }
-        
+
         private static void SerializeString(string value, StringBuilder sb, bool preserveQuotes)
         {
             if (string.IsNullOrEmpty(value))
@@ -251,10 +251,10 @@ namespace ExcelToYamlAddin.Core
                 sb.Append(preserveQuotes ? "\"\"" : "");
                 return;
             }
-            
+
             // 숫자로만 이루어진 문자열인지 확인
             bool isNumericString = !string.IsNullOrEmpty(value) && value.All(char.IsDigit);
-            
+
             // 한글 문자 포함 여부 확인
             bool containsKorean = false;
             foreach (char c in value)
@@ -265,26 +265,26 @@ namespace ExcelToYamlAddin.Core
                     break;
                 }
             }
-            
-            bool needQuotes = preserveQuotes || 
+
+            bool needQuotes = preserveQuotes ||
                               containsKorean ||  // 한글 포함 시 따옴표 추가
-                              value.Contains(':') || 
-                              value.Contains('#') || 
+                              value.Contains(':') ||
+                              value.Contains('#') ||
                               value.Contains(',') ||
-                              value.StartsWith(" ") || 
+                              value.StartsWith(" ") ||
                               value.EndsWith(" ") ||
-                              value == "true" || 
-                              value == "false" || 
+                              value == "true" ||
+                              value == "false" ||
                               value == "null" ||
                               (value.Length > 0 && char.IsDigit(value[0]) && !isNumericString);
-                              
+
             // 개행 문자 포함 여부 확인
             bool containsNewline = value.Contains('\n') || value.Contains('\r');
             if (containsNewline)
             {
                 needQuotes = true;  // 개행 포함 시 무조건 따옴표 필요
             }
-            
+
             if (needQuotes)
             {
                 sb.Append('"');
@@ -311,7 +311,7 @@ namespace ExcelToYamlAddin.Core
                 sb.Append(value);
             }
         }
-        
+
         private static void SerializeYamlObject(YamlObject obj, StringBuilder sb, int level, int indentSize, YamlStyle style, bool preserveQuotes)
         {
             // 빈 객체 처리
@@ -328,25 +328,25 @@ namespace ExcelToYamlAddin.Core
                 }
                 return;
             }
-            
+
             bool isFirst = true;
-            
+
             if (style == YamlStyle.Flow)
             {
                 sb.Append('{');
-                
+
                 foreach (var kvp in obj.Properties)
                 {
                     if (!isFirst)
                     {
                         sb.Append(", ");
                     }
-                    
+
                     sb.Append(kvp.Key).Append(": ");
                     SerializeObject(kvp.Value, sb, level + 2, indentSize, style, preserveQuotes);
                     isFirst = false;
                 }
-                
+
                 sb.Append('}');
             }
             else // Block 스타일
@@ -355,16 +355,16 @@ namespace ExcelToYamlAddin.Core
                 {
                     sb.AppendLine();
                 }
-                
+
                 foreach (var kvp in obj.Properties)
                 {
                     if (!isFirst || level > 0)
                     {
                         Indent(sb, level, indentSize);
                     }
-                    
+
                     sb.Append(kvp.Key).Append(": ");
-                    
+
                     // 빈 배열인 경우 바로 개행 처리
                     if (kvp.Value is YamlArray yamlArray && !yamlArray.HasValues)
                     {
@@ -388,12 +388,12 @@ namespace ExcelToYamlAddin.Core
                         SerializeObject(kvp.Value, sb, level, indentSize, style, preserveQuotes);
                         sb.AppendLine();
                     }
-                    
+
                     isFirst = false;
                 }
             }
         }
-        
+
         private static void SerializeYamlArray(YamlArray array, StringBuilder sb, int level, int indentSize, YamlStyle style, bool preserveQuotes)
         {
             // 빈 배열 처리
@@ -404,23 +404,23 @@ namespace ExcelToYamlAddin.Core
                 sb.AppendLine();
                 return;
             }
-            
+
             if (style == YamlStyle.Flow)
             {
                 sb.Append('[');
                 bool isFirst = true;
-                
+
                 foreach (var item in array.Items)
                 {
                     if (!isFirst)
                     {
                         sb.Append(", ");
                     }
-                    
+
                     SerializeObject(item, sb, level + 1, indentSize, style, preserveQuotes);
                     isFirst = false;
                 }
-                
+
                 sb.Append(']');
             }
             else // Block 스타일
@@ -429,12 +429,12 @@ namespace ExcelToYamlAddin.Core
                 {
                     sb.AppendLine();
                 }
-                
+
                 foreach (var item in array.Items)
                 {
                     Indent(sb, level, indentSize);
                     sb.Append("- ");
-                    
+
                     if (item is YamlObject yamlObj)
                     {
                         // 객체 내 속성들 처리
@@ -446,14 +446,14 @@ namespace ExcelToYamlAddin.Core
                         {
                             // 첫 번째 속성을 "- " 다음에 바로 표시
                             bool isFirstProperty = true;
-                            
+
                             foreach (var prop in yamlObj.Properties)
                             {
                                 if (isFirstProperty)
                                 {
                                     // 첫 번째 속성은 같은 줄에 표시
                                     sb.Append(prop.Key).Append(": ");
-                                    
+
                                     if (prop.Value is YamlObject || prop.Value is YamlArray)
                                     {
                                         // MAP 노드의 자식들은 2 레벨 더 들여쓰기 (일관성 유지)
@@ -465,7 +465,7 @@ namespace ExcelToYamlAddin.Core
                                         SerializeObject(prop.Value, sb, level, indentSize, style, preserveQuotes);
                                         sb.AppendLine();
                                     }
-                                    
+
                                     isFirstProperty = false;
                                 }
                                 else
@@ -473,7 +473,7 @@ namespace ExcelToYamlAddin.Core
                                     // 두 번째 이후 속성은 새 줄에 들여쓰기 적용하여 표시
                                     Indent(sb, level + 1, indentSize);
                                     sb.Append(prop.Key).Append(": ");
-                                    
+
                                     if (prop.Value is YamlObject || prop.Value is YamlArray)
                                     {
                                         // MAP 노드의 자식들은 2 레벨 더 들여쓰기 (일관성 유지)
@@ -501,7 +501,7 @@ namespace ExcelToYamlAddin.Core
                 }
             }
         }
-        
+
         private static void Indent(StringBuilder sb, int level, int indentSize)
         {
             for (int i = 0; i < level * indentSize; i++)
@@ -519,7 +519,7 @@ namespace ExcelToYamlAddin.Core
                 if (isRoot)
                 {
                     Debug.WriteLine("[OrderedYamlFactory] 루트 배열 처리 중");
-                    
+
                     // 먼저 빈 항목이 있는지 확인
                     bool hasEmptyItems = false;
                     foreach (var item in array.Items)
@@ -530,12 +530,12 @@ namespace ExcelToYamlAddin.Core
                             break;
                         }
                     }
-                    
+
                     // 빈 항목이 있으면 제거
                     if (hasEmptyItems)
                     {
                         Debug.WriteLine("[OrderedYamlFactory] 루트 배열에서 빈 항목 제거");
-                        
+
                         // 뒤에서부터 제거 (인덱스 변경 방지)
                         for (int i = array.Count - 1; i >= 0; i--)
                         {
@@ -546,13 +546,13 @@ namespace ExcelToYamlAddin.Core
                         }
                     }
                 }
-                
+
                 // 배열 내의 항목을 재귀적으로 처리 (루트가 아닌 것으로 처리)
                 foreach (var item in array.Items)
                 {
                     CleanEmptyArrays(item, false);
                 }
-                
+
                 // 모든 항목이 빈 객체인지 확인 (빈 배열로 만들지 판단)
                 bool allItemsAreEmptyObjects = true;
                 foreach (var item in array.Items)
@@ -563,12 +563,12 @@ namespace ExcelToYamlAddin.Core
                         break;
                     }
                 }
-                
+
                 // 모든 항목이 빈 객체라면 빈 배열로 변환 (루트가 아닌 경우에만)
                 if (allItemsAreEmptyObjects && array.Count > 0 && !isRoot)
                 {
                     Debug.WriteLine("[OrderedYamlFactory] 빈 객체들만 포함한 배열을 빈 배열로 변환");
-                    
+
                     // 배열 내 모든 항목 제거
                     for (int i = array.Count - 1; i >= 0; i--)
                     {
@@ -585,23 +585,23 @@ namespace ExcelToYamlAddin.Core
                 }
             }
         }
-        
+
         // 항목이 빈 항목인지 확인 (null, 빈 문자열, 빈 객체, 빈 배열)
         private static bool IsEmptyItem(object item)
         {
             if (item == null)
                 return true;
-                
+
             if (item is string str && string.IsNullOrEmpty(str))
                 return true;
-                
+
             if (item is YamlObject obj && !obj.HasValues)
                 return true;
-            
+
             // 여기서는 빈 배열도 빈 항목으로 간주 (루트 배열에서 제거)
             if (item is YamlArray arr && !arr.HasValues)
                 return true;
-                
+
             return false;
         }
     }

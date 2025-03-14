@@ -35,27 +35,27 @@ namespace ExcelToYamlAddin
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Ribbon));
-            this.tabExcelToJson = this.Factory.CreateRibbonTab();
+            this.tabExcelToYaml = this.Factory.CreateRibbonTab();
             this.groupConvert = this.Factory.CreateRibbonGroup();
             this.btnConvertToYaml = this.Factory.CreateRibbonButton();
             this.groupSettings = this.Factory.CreateRibbonGroup();
             this.btnSheetPathSettings = this.Factory.CreateRibbonButton();
             this.groupHelp = this.Factory.CreateRibbonGroup();
             this.btnHelp = this.Factory.CreateRibbonButton();
-            this.tabExcelToJson.SuspendLayout();
+            this.tabExcelToYaml.SuspendLayout();
             this.groupConvert.SuspendLayout();
             this.groupSettings.SuspendLayout();
             this.groupHelp.SuspendLayout();
             this.SuspendLayout();
             // 
-            // tabExcelToJson
+            // tabExcelToYaml
             // 
-            this.tabExcelToJson.ControlId.ControlIdType = Microsoft.Office.Tools.Ribbon.RibbonControlIdType.Office;
-            this.tabExcelToJson.Groups.Add(this.groupConvert);
-            this.tabExcelToJson.Groups.Add(this.groupSettings);
-            this.tabExcelToJson.Groups.Add(this.groupHelp);
-            this.tabExcelToJson.Label = "Excel2Yaml";
-            this.tabExcelToJson.Name = "tabExcelToJson";
+            this.tabExcelToYaml.ControlId.ControlIdType = Microsoft.Office.Tools.Ribbon.RibbonControlIdType.Office;
+            this.tabExcelToYaml.Groups.Add(this.groupConvert);
+            this.tabExcelToYaml.Groups.Add(this.groupSettings);
+            this.tabExcelToYaml.Groups.Add(this.groupHelp);
+            this.tabExcelToYaml.Label = "Excel2Yaml";
+            this.tabExcelToYaml.Name = "tabExcelToYaml";
             // 
             // groupConvert
             // 
@@ -112,10 +112,10 @@ namespace ExcelToYamlAddin
             // 
             this.Name = "Ribbon";
             this.RibbonType = "Microsoft.Excel.Workbook";
-            this.Tabs.Add(this.tabExcelToJson);
+            this.Tabs.Add(this.tabExcelToYaml);
             this.Load += new Microsoft.Office.Tools.Ribbon.RibbonUIEventHandler(this.Ribbon_Load);
-            this.tabExcelToJson.ResumeLayout(false);
-            this.tabExcelToJson.PerformLayout();
+            this.tabExcelToYaml.ResumeLayout(false);
+            this.tabExcelToYaml.PerformLayout();
             this.groupConvert.ResumeLayout(false);
             this.groupConvert.PerformLayout();
             this.groupSettings.ResumeLayout(false);
@@ -128,7 +128,7 @@ namespace ExcelToYamlAddin
 
         #endregion
 
-        internal Microsoft.Office.Tools.Ribbon.RibbonTab tabExcelToJson;
+        internal Microsoft.Office.Tools.Ribbon.RibbonTab tabExcelToYaml;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupConvert;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertToYaml;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupSettings;

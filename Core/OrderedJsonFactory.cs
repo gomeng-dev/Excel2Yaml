@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Text.Json;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -60,7 +58,7 @@ namespace ExcelToYamlAddin.Core
         {
             var sb = new StringBuilder();
             sb.Append('{');
-            
+
             bool first = true;
             foreach (var key in propertyOrder)
             {
@@ -71,12 +69,12 @@ namespace ExcelToYamlAddin.Core
                         sb.Append(',');
                     }
                     first = false;
-                    
+
                     sb.Append('"').Append(OrderedJsonFactory.EscapeJsonString(key)).Append('"').Append(':');
                     OrderedJsonFactory.AppendValue(sb, properties[key]);
                 }
             }
-            
+
             sb.Append('}');
             return sb.ToString();
         }
@@ -112,7 +110,7 @@ namespace ExcelToYamlAddin.Core
         {
             var sb = new StringBuilder();
             sb.Append('[');
-            
+
             bool first = true;
             foreach (var item in items)
             {
@@ -121,10 +119,10 @@ namespace ExcelToYamlAddin.Core
                     sb.Append(',');
                 }
                 first = false;
-                
+
                 OrderedJsonFactory.AppendValue(sb, item);
             }
-            
+
             sb.Append(']');
             return sb.ToString();
         }
@@ -145,7 +143,7 @@ namespace ExcelToYamlAddin.Core
             if (token is JsonObject obj)
             {
                 var propertiesToRemove = new List<string>();
-                
+
                 foreach (var prop in obj.Properties)
                 {
                     if (IsEmpty(prop.Value))
@@ -157,7 +155,7 @@ namespace ExcelToYamlAddin.Core
                         RemoveEmptyProperties(prop.Value);
                     }
                 }
-                
+
                 foreach (var propName in propertiesToRemove)
                 {
                     obj.Remove(propName);
@@ -183,16 +181,16 @@ namespace ExcelToYamlAddin.Core
         {
             if (token == null)
                 return true;
-                
+
             if (token is string str && string.IsNullOrEmpty(str))
                 return true;
-                
+
             if (token is JsonObject obj && !obj.HasValues)
                 return true;
-                
+
             if (token is JsonArray array && !array.HasValues)
                 return true;
-                
+
             return false;
         }
 

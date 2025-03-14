@@ -17,12 +17,12 @@ Ribbon 클래스는 두 개의 파일로 구성되어 있습니다:
 ### 탭과 그룹
 
 ```csharp
-internal Microsoft.Office.Tools.Ribbon.RibbonTab tabExcelToJson;
+internal Microsoft.Office.Tools.Ribbon.RibbonTab tabExcelToYaml;
 internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupConvert;
 internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupSettings;
 ```
 
-- **tabExcelToJson**: 엑셀 리본에 추가되는 주 탭으로, 모든 Excel2YAML 기능을 포함합니다.
+- **tabExcelToYaml**: 엑셀 리본에 추가되는 주 탭으로, 모든 Excel2YAML 기능을 포함합니다.
 - **groupConvert**: 변환 관련 버튼들을 그룹화합니다.
 - **groupSettings**: 설정 관련 버튼들을 그룹화합니다.
 
@@ -115,7 +115,7 @@ private bool addEmptyYamlFields = false;
 ## 변환 프로세스
 
 ```csharp
-private List<string> ConvertExcelFile(ExcelToJsonConfig config)
+private List<string> ConvertExcelFile(ExcelToYamlConfig config)
 {
     // 엑셀 파일 변환 로직...
 }

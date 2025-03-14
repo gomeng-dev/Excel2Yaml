@@ -1,10 +1,8 @@
-using ExcelToYamlAddin.Logging;
 using ClosedXML.Excel;
+using ExcelToYamlAddin.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Diagnostics;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -58,7 +56,7 @@ namespace ExcelToYamlAddin.Core
             {
                 // 원본 CS 코드와 동일하게 구현
                 string[] splitted = schemeName.Split(new char[] { '$' }, StringSplitOptions.RemoveEmptyEntries);
-                
+
                 // 키와 타입을 분리
                 if (splitted.Length > 0)
                 {
@@ -98,7 +96,7 @@ namespace ExcelToYamlAddin.Core
                 {
                     // 타입 문자열 추출 - 원본 CS 코드처럼 마지막 요소 사용
                     string typeString = splitted.Length > 0 ? splitted[splitted.Length - 1] : "";
-                    
+
                     Logger.Debug("스키마 문자열 분석: 원본='" + schemeName + "', 키='" + key + "', 타입 문자열='" + typeString + "'");
 
                     switch (typeString)
@@ -154,7 +152,7 @@ namespace ExcelToYamlAddin.Core
                 Logger.Warning("null 자식 추가 시도 무시");
                 return;
             }
-            
+
             // 자바 코드 기반으로 타입별 자식 노드 추가 제약 조건 구현
             switch (this.type)
             {
@@ -195,7 +193,7 @@ namespace ExcelToYamlAddin.Core
                     Logger.Warning($"IGNORE 노드에 자식 추가 시도 무시: {child.key}");
                     return;
             }
-            
+
             child.SetParent(this);
             children.AddLast(child);
             Logger.Debug($"자식 노드 추가됨: {this.key} ({this.type}) -> {child.key} ({child.NodeType})");

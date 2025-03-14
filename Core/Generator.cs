@@ -1,11 +1,9 @@
-using ExcelToYamlAddin.Logging;
 using ClosedXML.Excel;
+using ExcelToYamlAddin.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
 using System.IO;
-using System.Diagnostics;
+using System.Linq;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -29,7 +27,7 @@ namespace ExcelToYamlAddin.Core
             var generator = new Generator(scheme);
             Logger.Debug("JSON 생성 시작: 스키마 노드 타입={0}", scheme.Root.NodeType);
             var result = generator.Generate();
-            
+
             if (!includeEmptyOptionals)
             {
                 try
@@ -53,7 +51,7 @@ namespace ExcelToYamlAddin.Core
                     // 오류 발생 시 원본 결과 반환
                 }
             }
-            
+
             return result;
         }
 
@@ -62,7 +60,7 @@ namespace ExcelToYamlAddin.Core
             SchemeNode rootNode = _scheme.Root;
             Logger.Debug("JSON 생성 시작");
             Logger.Information("루트 노드: {0}, 타입={1}", rootNode.Key, rootNode.NodeType);
-            
+
             object rootJson;
             if (rootNode.NodeType == SchemeNode.SchemeNodeType.MAP)
             {
@@ -76,21 +74,21 @@ namespace ExcelToYamlAddin.Core
                 Logger.Information("ARRAY 루트 노드 처리");
                 // 루트 배열 노드의 항목들을 직접 추출
                 JsonArray array = OrderedJsonFactory.CreateArray();
-                
+
                 // 모든 데이터 행에 대해 처리
                 for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
                 {
                     IXLRow row = _sheet.Row(rowNum);
                     if (row == null) continue;
-                    
+
                     // 행마다 새 객체 생성
                     JsonObject rowObj = OrderedJsonFactory.CreateObject();
-                    
+
                     // 각 자식 노드에 대해 처리
                     foreach (var child in rootNode.Children)
                     {
                         string key = GetNodeKey(child, row);
-                        
+
                         // PROPERTY 노드 처리
                         if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
                         {
@@ -151,16 +149,16 @@ namespace ExcelToYamlAddin.Core
                             }
                         }
                     }
-                    
+
                     Logger.Debug("행 {0} 처리 결과: 유효한 값={1}", rowNum, rowObj.HasValues);
-                    
+
                     // 비어있지 않은 객체만 추가
                     if (rowObj.HasValues)
                     {
                         array.Add(rowObj);
                     }
                 }
-                
+
                 rootJson = array;
             }
             else
@@ -168,27 +166,27 @@ namespace ExcelToYamlAddin.Core
                 Logger.Error("지원되지 않는 루트 노드 타입: {0}", rootNode.NodeType);
                 throw new InvalidOperationException("Illegal root json node type. must be unnamed map or array");
             }
-            
+
             RemoveEmptyAttributes(rootJson);
             return OrderedJsonFactory.SerializeObject(rootJson, true);
         }
-        
+
         private JsonObject ProcessMapNode(SchemeNode node)
         {
             JsonObject result = OrderedJsonFactory.CreateObject();
-            
+
             // 모든 데이터 행에 대해 처리
             for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
             {
                 IXLRow row = _sheet.Row(rowNum);
                 if (row == null) continue;
-                
+
                 // 각 자식 노드에 대해 처리
                 foreach (var child in node.Children)
                 {
                     string key = GetNodeKey(child, row);
                     if (string.IsNullOrEmpty(key)) continue;
-                    
+
                     // PROPERTY 노드 처리
                     if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
                     {
@@ -228,23 +226,23 @@ namespace ExcelToYamlAddin.Core
                     }
                 }
             }
-            
+
             return result;
         }
-        
+
         private JsonArray ProcessArrayNode(SchemeNode node)
         {
             JsonArray result = OrderedJsonFactory.CreateArray();
-            
+
             // 모든 데이터 행에 대해 처리
             for (int rowNum = _scheme.ContentStartRowNum; rowNum <= _scheme.EndRowNum; rowNum++)
             {
                 IXLRow row = _sheet.Row(rowNum);
                 if (row == null) continue;
-                
+
                 // 행마다 새 객체 생성
                 JsonObject rowObj = OrderedJsonFactory.CreateObject();
-                
+
                 // 각 자식 노드에 대해 처리
                 foreach (var child in node.Children)
                 {
@@ -319,21 +317,21 @@ namespace ExcelToYamlAddin.Core
                         }
                     }
                 }
-                
+
                 // 비어있지 않은 객체만 추가
                 if (rowObj.HasValues)
                 {
                     result.Add(rowObj);
                 }
             }
-            
+
             return result;
         }
-        
+
         private JsonArray ProcessArrayItems(SchemeNode node, IXLRow row)
         {
             JsonArray result = OrderedJsonFactory.CreateArray();
-            
+
             // 직접 자식 노드가 있는 경우 처리
             if (node.Children.Any())
             {
@@ -390,7 +388,7 @@ namespace ExcelToYamlAddin.Core
                 JsonObject obj = OrderedJsonFactory.CreateObject();
                 string key = GetNodeKey(node, row);
                 object value = node.GetValue(row);
-                
+
                 if (!string.IsNullOrEmpty(key) && value != null && !string.IsNullOrEmpty(value.ToString()))
                 {
                     obj.Add(key, value);
@@ -400,17 +398,17 @@ namespace ExcelToYamlAddin.Core
                     }
                 }
             }
-            
+
             return result;
         }
-        
+
         private void AddChildProperties(SchemeNode node, JsonObject parent, IXLRow row)
         {
             foreach (var child in node.Children)
             {
                 string key = GetNodeKey(child, row);
                 if (string.IsNullOrEmpty(key)) continue;
-                
+
                 // PROPERTY 노드 처리
                 if (child.NodeType == SchemeNode.SchemeNodeType.PROPERTY)
                 {
@@ -441,7 +439,7 @@ namespace ExcelToYamlAddin.Core
                 }
             }
         }
-        
+
         private string GetNodeKey(SchemeNode node, IXLRow row)
         {
             string key = node.Key;
@@ -455,11 +453,11 @@ namespace ExcelToYamlAddin.Core
             }
             return key;
         }
-        
+
         private bool RemoveEmptyAttributes(object arg)
         {
             bool valueExist = false;
-            
+
             if (arg is string str)
             {
                 valueExist = !string.IsNullOrEmpty(str);
@@ -475,7 +473,7 @@ namespace ExcelToYamlAddin.Core
             else if (arg is JsonObject jsonObject)
             {
                 var keysToRemove = new List<string>();
-                
+
                 foreach (var property in jsonObject.Properties)
                 {
                     if (!RemoveEmptyAttributes(property.Value))
@@ -487,7 +485,7 @@ namespace ExcelToYamlAddin.Core
                         valueExist = true;
                     }
                 }
-                
+
                 foreach (var key in keysToRemove)
                 {
                     jsonObject.Remove(key);
@@ -509,12 +507,12 @@ namespace ExcelToYamlAddin.Core
                     }
                 }
             }
-            
+
             return valueExist;
         }
 
         // 워크시트 변환 메서드 추가
-        public string ConvertWorksheet(Microsoft.Office.Interop.Excel.Worksheet worksheet, Config.ExcelToJsonConfig config)
+        public string ConvertWorksheet(Microsoft.Office.Interop.Excel.Worksheet worksheet, Config.ExcelToYamlConfig config)
         {
             try
             {
@@ -522,16 +520,16 @@ namespace ExcelToYamlAddin.Core
                 string tempFile = Path.GetTempFileName() + ".xlsx";
                 var app = worksheet.Application;
                 var workbook = worksheet.Parent as Microsoft.Office.Interop.Excel.Workbook;
-                
+
                 // 현재 워크북을 임시 파일로 저장
                 workbook.SaveCopyAs(tempFile);
-                
+
                 // ClosedXML로 워크시트 열기
                 using (var wb = new XLWorkbook(tempFile))
                 {
                     var sheet = wb.Worksheets.First();
                     var scheme = new Scheme(sheet);
-                    
+
                     // 출력 형식에 따라 변환
                     string result;
                     if (config.OutputFormat == Config.OutputFormat.Json)
@@ -541,17 +539,17 @@ namespace ExcelToYamlAddin.Core
                     else
                     {
                         result = YamlGenerator.Generate(
-                            scheme, 
-                            config.YamlStyle, 
-                            config.YamlIndentSize, 
-                            config.YamlPreserveQuotes, 
+                            scheme,
+                            config.YamlStyle,
+                            config.YamlIndentSize,
+                            config.YamlPreserveQuotes,
                             config.IncludeEmptyFields
                         );
                     }
-                    
+
                     // 임시 파일 삭제
                     try { File.Delete(tempFile); } catch { /* 무시 */ }
-                    
+
                     return result;
                 }
             }

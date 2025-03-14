@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
-using ExcelToYamlAddin.Properties;
-using System.Diagnostics;
-using System.Xml;
 
 namespace ExcelToYamlAddin.Config
 {
@@ -71,26 +69,26 @@ namespace ExcelToYamlAddin.Config
             // OneDrive/SharePoint 경로에서 특수 문자 처리
             string normalizedPath = NormalizeWorkbookPath(workbookPath);
             string fileName = Path.GetFileName(workbookPath);
-            
+
             // 디버그용 정보 출력
             Debug.WriteLine($"[SetCurrentWorkbook] 워크북 정보: 원본 경로='{workbookPath}', 정규화된 경로='{normalizedPath}', 파일명='{fileName}'");
-            
+
             // 현재 워크북 정보 설정
             _currentWorkbookPath = workbookPath; // 원본 경로 유지 (참조용)
-            
+
             // 현재 워크북에 대한 시트 정보 출력
             if (LazyLoadSheetPaths().ContainsKey(workbookPath))
             {
                 Debug.WriteLine($"[SetCurrentWorkbook] 원본 경로 '{workbookPath}'에 저장된 시트 정보:");
                 DumpSheetInfo(LazyLoadSheetPaths()[workbookPath]);
             }
-            
+
             if (normalizedPath != workbookPath && LazyLoadSheetPaths().ContainsKey(normalizedPath))
             {
                 Debug.WriteLine($"[SetCurrentWorkbook] 정규화된 경로 '{normalizedPath}'에 저장된 시트 정보:");
                 DumpSheetInfo(LazyLoadSheetPaths()[normalizedPath]);
             }
-            
+
             if (LazyLoadSheetPaths().ContainsKey(fileName))
             {
                 Debug.WriteLine($"[SetCurrentWorkbook] 파일명 '{fileName}'에 저장된 시트 정보:");
@@ -103,7 +101,7 @@ namespace ExcelToYamlAddin.Config
                 LazyLoadSheetPaths()[workbookPath] = new Dictionary<string, SheetPathInfo>();
                 Debug.WriteLine($"[SetCurrentWorkbook] 원본 경로 '{workbookPath}'에 대한 새 사전 생성");
             }
-            
+
             // 정규화된 경로에 대한 딕셔너리 생성
             if (normalizedPath != workbookPath && !LazyLoadSheetPaths().ContainsKey(normalizedPath))
             {
@@ -124,23 +122,23 @@ namespace ExcelToYamlAddin.Config
             {
                 Debug.WriteLine($"[SetCurrentWorkbook] 로드된 워크북: {wb}, 시트 수: {LazyLoadSheetPaths()[wb].Count}");
             }
-            
+
             // 원본 경로와 정규화된 경로, 파일명 간의 데이터 동기화
             SynchronizeWorkbookData(workbookPath, normalizedPath, fileName);
         }
-        
+
         // 워크북 데이터 동기화 (원본 경로, 정규화된 경로, 파일명 간의 시트 정보 복사)
         private void SynchronizeWorkbookData(string originalPath, string normalizedPath, string fileName)
         {
             // 세 가지 키: 원본 경로, 정규화된 경로, 파일명 
             var paths = new List<string> { originalPath };
-            
+
             if (normalizedPath != originalPath)
                 paths.Add(normalizedPath);
-                
+
             if (!string.IsNullOrEmpty(fileName))
                 paths.Add(fileName);
-                
+
             // 먼저 모든 시트 이름 수집
             HashSet<string> allSheetNames = new HashSet<string>();
             foreach (string path in paths)
@@ -153,17 +151,17 @@ namespace ExcelToYamlAddin.Config
                     }
                 }
             }
-            
+
             // 각 시트에 대해 모든 경로에 대한 시트 정보 동기화
             foreach (string sheetName in allSheetNames)
             {
                 // 각 시트의 모든 경로에 대한 활성화 상태 확인
                 bool anyEnabled = false;
-                
+
                 // 먼저 어떤 경로에서든 해당 시트가 활성화되어 있는지 확인
                 foreach (string path in paths)
                 {
-                    if (LazyLoadSheetPaths().ContainsKey(path) && 
+                    if (LazyLoadSheetPaths().ContainsKey(path) &&
                         LazyLoadSheetPaths()[path].ContainsKey(sheetName) &&
                         LazyLoadSheetPaths()[path][sheetName].Enabled)
                     {
@@ -172,14 +170,14 @@ namespace ExcelToYamlAddin.Config
                         break;
                     }
                 }
-                
+
                 // 시트의 SavePath 및 기타 정보를 위한 참조 경로와 정보 찾기
                 string referencePath = null;
                 SheetPathInfo referenceInfo = null;
-                
+
                 foreach (string path in paths)
                 {
-                    if (LazyLoadSheetPaths().ContainsKey(path) && 
+                    if (LazyLoadSheetPaths().ContainsKey(path) &&
                         LazyLoadSheetPaths()[path].ContainsKey(sheetName))
                     {
                         referencePath = path;
@@ -187,7 +185,7 @@ namespace ExcelToYamlAddin.Config
                         break;
                     }
                 }
-                
+
                 if (referencePath != null && referenceInfo != null)
                 {
                     // 참조 정보를 기반으로 모든 경로에 대해 시트 정보 동기화
@@ -198,7 +196,7 @@ namespace ExcelToYamlAddin.Config
                             LazyLoadSheetPaths()[path] = new Dictionary<string, SheetPathInfo>();
                             Debug.WriteLine($"[SynchronizeWorkbookData] 경로 '{path}'에 대한 새 사전 생성");
                         }
-                        
+
                         if (!LazyLoadSheetPaths()[path].ContainsKey(sheetName))
                         {
                             // 시트가 없으면 새로 추가
@@ -217,7 +215,7 @@ namespace ExcelToYamlAddin.Config
                             LazyLoadSheetPaths()[path][sheetName].SavePath = referenceInfo.SavePath;
                             LazyLoadSheetPaths()[path][sheetName].Enabled = anyEnabled; // 활성화 상태 동기화
                             LazyLoadSheetPaths()[path][sheetName].YamlEmptyFields = referenceInfo.YamlEmptyFields;
-                            
+
                             if (oldEnabled != anyEnabled)
                             {
                                 Debug.WriteLine($"[SynchronizeWorkbookData] 경로 '{path}'의 시트 '{sheetName}' 활성화 상태 변경: {oldEnabled} -> {anyEnabled}");
@@ -226,9 +224,9 @@ namespace ExcelToYamlAddin.Config
                     }
                 }
             }
-            
+
             Debug.WriteLine($"[SynchronizeWorkbookData] 모든 경로 간 시트 정보 동기화 완료");
-            
+
             // 설정 저장
             SaveSettings();
         }
@@ -241,7 +239,7 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine("    (시트 정보 없음)");
                 return;
             }
-            
+
             foreach (var sheet in sheetInfos)
             {
                 Debug.WriteLine($"    시트: '{sheet.Key}', 활성화: {sheet.Value.Enabled}, 경로: '{sheet.Value.SavePath}'");
@@ -261,10 +259,10 @@ namespace ExcelToYamlAddin.Config
             {
                 // URL 인코딩된 문자 디코딩
                 string decoded = Uri.UnescapeDataString(path);
-                
+
                 // 슬래시 방향 통일
                 decoded = decoded.Replace('\\', '/');
-                
+
                 // 중복 슬래시 제거 - https:// 부분은 유지
                 if (decoded.StartsWith("http://"))
                 {
@@ -280,16 +278,16 @@ namespace ExcelToYamlAddin.Config
                     remaining = remaining.Replace("//", "/");
                     decoded = protocol + remaining;
                 }
-                
+
                 Debug.WriteLine($"[NormalizeWorkbookPath] 원본 경로: {path}");
                 Debug.WriteLine($"[NormalizeWorkbookPath] 정규화된 경로: {decoded}");
-                
+
                 return decoded;
             }
-            
+
             return path;
         }
-        
+
         /// <summary>
         /// 경로가 OneDrive/SharePoint URL 경로인지 확인합니다
         /// </summary>
@@ -297,9 +295,9 @@ namespace ExcelToYamlAddin.Config
         {
             if (string.IsNullOrEmpty(path))
                 return false;
-                
-            return path.StartsWith("http://") || 
-                   path.StartsWith("https://") || 
+
+            return path.StartsWith("http://") ||
+                   path.StartsWith("https://") ||
                    path.Contains("sharepoint.com") ||
                    path.Contains("onedrive.com");
         }
@@ -320,18 +318,18 @@ namespace ExcelToYamlAddin.Config
                 // 워크북 경로 정규화
                 string normalizedPath = NormalizeWorkbookPath(workbookName);
                 string fileName = Path.GetFileName(workbookName);
-                
+
                 // 전체 경로로 시트 경로 설정 시도
                 bool setFullPathResult = SetSheetPathInternal(normalizedPath, sheetName, path);
                 Debug.WriteLine($"[SetSheetPath] 전체 경로 '{normalizedPath}'에 시트 '{sheetName}' 경로 설정 {(setFullPathResult ? "성공" : "실패")}");
-                
+
                 // 파일명만으로 시트 경로 설정 시도 (성공한 경우만)
                 if (setFullPathResult && !string.IsNullOrEmpty(fileName))
                 {
                     bool setFileNameResult = SetSheetPathInternal(fileName, sheetName, path);
                     Debug.WriteLine($"[SetSheetPath] 파일명 '{fileName}'에 시트 '{sheetName}' 경로 설정 {(setFileNameResult ? "성공" : "실패")}");
                 }
-                
+
                 // 설정 저장 - 항상 즉시 저장하도록 수정
                 Debug.WriteLine($"[SetSheetPath] 설정 즉시 저장");
                 SaveSheetPaths();
@@ -341,7 +339,7 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine($"[SetSheetPath] 시트 경로 설정 중 예외 발생: {ex.Message}\n{ex.StackTrace}");
             }
         }
-        
+
         /// <summary>
         /// 내부적으로 시트의 경로를 설정합니다.
         /// </summary>
@@ -367,7 +365,7 @@ namespace ExcelToYamlAddin.Config
                 bool currentEnabled = false; // 기본값은 비활성화
                 if (!LazyLoadSheetPaths()[workbookKey].ContainsKey(sheetName))
                 {
-                    LazyLoadSheetPaths()[workbookKey][sheetName] = new SheetPathInfo 
+                    LazyLoadSheetPaths()[workbookKey][sheetName] = new SheetPathInfo
                     {
                         SavePath = "",
                         Enabled = false, // 시트를 새로 추가할 때는 기본적으로 비활성화 상태로 설정
@@ -420,19 +418,19 @@ namespace ExcelToYamlAddin.Config
                 // 현재 워크북 경로가 없으면 빈 문자열 반환
                 if (string.IsNullOrEmpty(_currentWorkbookPath))
                     return "";
-                
+
                 string normalizedPath = NormalizeWorkbookPath(_currentWorkbookPath);
                 string fileName = Path.GetFileName(_currentWorkbookPath);
-                
+
                 List<string> pathsToTry = new List<string>();
-                
+
                 // 검색할 경로 우선순위 설정
                 pathsToTry.Add(normalizedPath);
                 if (!string.IsNullOrEmpty(fileName) && fileName != normalizedPath)
                 {
                     pathsToTry.Add(fileName);
                 }
-                
+
                 // 다양한 시트 이름 형식 시도 (원본과 "!" 접두사 추가된 형식)
                 List<string> sheetNamesToTry = new List<string>();
                 sheetNamesToTry.Add(sheetName);
@@ -444,13 +442,13 @@ namespace ExcelToYamlAddin.Config
                 {
                     sheetNamesToTry.Add(sheetName.Substring(1));
                 }
-                
+
                 // 모든 경로와 시트 이름 조합 시도
                 foreach (string pathToTry in pathsToTry)
                 {
                     foreach (string sheetNameToTry in sheetNamesToTry)
                     {
-                        if (TryGetSheetPathInternal(pathToTry, sheetNameToTry, out string pathResult) && 
+                        if (TryGetSheetPathInternal(pathToTry, sheetNameToTry, out string pathResult) &&
                             !string.IsNullOrEmpty(pathResult))
                         {
                             Debug.WriteLine($"[GetSheetPath] 워크북 '{pathToTry}'에서 시트 '{sheetNameToTry}'의 경로 찾음: {pathResult}");
@@ -458,7 +456,7 @@ namespace ExcelToYamlAddin.Config
                         }
                     }
                 }
-                
+
                 Debug.WriteLine($"[GetSheetPath] 시트 경로 조회 실패: workbook={_currentWorkbookPath}, sheet={sheetName}");
                 return "";
             }
@@ -468,24 +466,24 @@ namespace ExcelToYamlAddin.Config
                 return "";
             }
         }
-        
+
         /// <summary>
         /// 지정한 워크북과 시트에 대한 경로를 내부적으로 찾는 메서드
         /// </summary>
         private bool TryGetSheetPathInternal(string workbookKey, string sheetName, out string path)
         {
             path = "";
-            
+
             if (string.IsNullOrEmpty(workbookKey) || string.IsNullOrEmpty(sheetName))
                 return false;
-                
+
             try
             {
                 if (LazyLoadSheetPaths().ContainsKey(workbookKey))
                 {
                     Debug.WriteLine($"[GetSheetPath] 워크북 '{workbookKey}'가 딕셔너리에 있음");
                     Debug.WriteLine($"[GetSheetPath] 워크북 '{workbookKey}'에 등록된 시트 수: {LazyLoadSheetPaths()[workbookKey].Count}");
-                    
+
                     var sheetDict = LazyLoadSheetPaths()[workbookKey];
                     if (sheetDict.ContainsKey(sheetName))
                     {
@@ -506,23 +504,23 @@ namespace ExcelToYamlAddin.Config
         public bool GetSheetEnabled(string sheetName)
         {
             Debug.WriteLine($"[GetSheetEnabled] 호출: 시트='{sheetName}', 현재 워크북='{_currentWorkbookPath}'");
-            
+
             if (string.IsNullOrEmpty(_currentWorkbookPath))
             {
                 Debug.WriteLine($"[GetSheetEnabled] 현재 워크북이 설정되지 않았습니다.");
                 return false;
             }
-            
+
             // 0. 파일명과 정규화된 경로
             string normalizedPath = NormalizeWorkbookPath(_currentWorkbookPath);
             string fileName = Path.GetFileName(_currentWorkbookPath);
-            
+
             Debug.WriteLine($"[GetSheetEnabled] 워크북 정보: 원본 경로='{_currentWorkbookPath}', 정규화된 경로='{normalizedPath}', 파일명='{fileName}'");
-            
+
             // 원래 시트 이름과 ! 접두사를 추가/제거한 대체 시트 이름 준비
             string originalSheetName = sheetName;
             string alternateSheetName;
-            
+
             if (sheetName.StartsWith("!"))
             {
                 alternateSheetName = sheetName.Substring(1);
@@ -533,7 +531,7 @@ namespace ExcelToYamlAddin.Config
                 alternateSheetName = "!" + sheetName;
                 Debug.WriteLine($"[GetSheetEnabled] 원본 시트 이름 '{sheetName}'에 ! 접두사 추가한 대체 이름: '{alternateSheetName}'");
             }
-            
+
             // 원본 시트 이름으로 검색
             bool originalEnabled = CheckSheetEnabled(originalSheetName);
             if (originalEnabled)
@@ -541,7 +539,7 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine($"[GetSheetEnabled] 원본 시트 이름 '{originalSheetName}'로 활성화 상태 확인: true");
                 return true;
             }
-            
+
             // 대체 시트 이름으로 검색
             bool alternateEnabled = CheckSheetEnabled(alternateSheetName);
             if (alternateEnabled)
@@ -549,37 +547,37 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine($"[GetSheetEnabled] 대체 시트 이름 '{alternateSheetName}'로 활성화 상태 확인: true");
                 return true;
             }
-            
+
             Debug.WriteLine($"[GetSheetEnabled] 시트 '{sheetName}'의 활성화 상태를 찾을 수 없음. 기본값 'false' 반환");
             return false;
         }
-        
+
         // 내부적으로 시트의 활성화 상태를 확인하는 헬퍼 메서드
         private bool CheckSheetEnabled(string sheetName)
         {
             // 1. 전체 워크북 경로로 확인
-            if (LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath) && 
+            if (LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath) &&
                 LazyLoadSheetPaths()[_currentWorkbookPath].ContainsKey(sheetName))
             {
                 bool enabled = LazyLoadSheetPaths()[_currentWorkbookPath][sheetName].Enabled;
                 Debug.WriteLine($"[CheckSheetEnabled] 전체 경로 '{_currentWorkbookPath}'로 시트 '{sheetName}'의 활성화 상태 확인: {enabled}");
                 return enabled;
             }
-            
+
             // 1-1. 정규화된 경로로 확인 (원본과 다른 경우)
             string normalizedPath = NormalizeWorkbookPath(_currentWorkbookPath);
-            if (_currentWorkbookPath != normalizedPath && 
-                LazyLoadSheetPaths().ContainsKey(normalizedPath) && 
+            if (_currentWorkbookPath != normalizedPath &&
+                LazyLoadSheetPaths().ContainsKey(normalizedPath) &&
                 LazyLoadSheetPaths()[normalizedPath].ContainsKey(sheetName))
             {
                 bool enabled = LazyLoadSheetPaths()[normalizedPath][sheetName].Enabled;
                 Debug.WriteLine($"[CheckSheetEnabled] 정규화된 경로 '{normalizedPath}'로 시트 '{sheetName}'의 활성화 상태 확인: {enabled}");
                 return enabled;
             }
-            
+
             // 2. 파일명으로 확인
             string fileName = Path.GetFileName(_currentWorkbookPath);
-            if (!string.IsNullOrEmpty(fileName) && LazyLoadSheetPaths().ContainsKey(fileName) && 
+            if (!string.IsNullOrEmpty(fileName) && LazyLoadSheetPaths().ContainsKey(fileName) &&
                 LazyLoadSheetPaths()[fileName].ContainsKey(sheetName))
             {
                 bool enabled = LazyLoadSheetPaths()[fileName][sheetName].Enabled;
@@ -589,22 +587,22 @@ namespace ExcelToYamlAddin.Config
 
             // 3. XML에 저장된 모든 워크북 경로 확인 (OneDrive URL 등 다양한 형식의 경로가 있을 수 있음)
             Debug.WriteLine($"[CheckSheetEnabled] 시트 '{sheetName}'의 활성화 상태를 전체/파일명으로 찾지 못함. 모든 경로 탐색 시작");
-            
+
             foreach (var workbookEntry in LazyLoadSheetPaths())
             {
                 string workbookKey = workbookEntry.Key;
                 string entryFileName = Path.GetFileName(workbookKey);
-                
+
                 // 같은 파일명인지 확인
-                if (workbookKey != _currentWorkbookPath && workbookKey != normalizedPath && workbookKey != fileName && 
-                    !string.IsNullOrEmpty(fileName) && entryFileName == fileName && 
+                if (workbookKey != _currentWorkbookPath && workbookKey != normalizedPath && workbookKey != fileName &&
+                    !string.IsNullOrEmpty(fileName) && entryFileName == fileName &&
                     workbookEntry.Value.ContainsKey(sheetName))
                 {
                     bool enabled = workbookEntry.Value[sheetName].Enabled;
                     Debug.WriteLine($"[CheckSheetEnabled] 다른 형식의 경로 '{workbookKey}'에서 시트 '{sheetName}'의 활성화 상태 발견: {enabled}");
                     return enabled;
                 }
-                
+
                 // 시트 이름이 있는지 확인
                 if (workbookEntry.Value.ContainsKey(sheetName))
                 {
@@ -613,7 +611,7 @@ namespace ExcelToYamlAddin.Config
                     return enabled;
                 }
             }
-            
+
             return false;
         }
 
@@ -628,7 +626,7 @@ namespace ExcelToYamlAddin.Config
             // 이 설정은 ExcelConfigManager에서만 관리됨
             return false;
         }
-        
+
         // 특정 시트의 YAML 선택적 필드 처리 설정
         public void SetYamlEmptyFieldsOption(string sheetName, bool yamlEmptyFields)
         {
@@ -647,7 +645,7 @@ namespace ExcelToYamlAddin.Config
         {
             Debug.WriteLine($"[SheetPathManager] SetSheetEnabled 오버로드 호출: 워크북={workbookName}, 시트={sheetName}, Enabled={enabled}");
             SetSheetEnabledInternal(workbookName, sheetName, enabled);
-            
+
             // 변경 후 즉시 저장하여 설정이 유지되도록 함
             Debug.WriteLine($"[SheetPathManager] SetSheetEnabled 후 즉시 SaveSettings 호출");
             SaveSettings();
@@ -663,9 +661,9 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine($"[SheetPathManager] 경고: 현재 워크북 경로가 없습니다. 시트={sheetName}, Enabled={enabled}");
                 return;
             }
-            
+
             Debug.WriteLine($"[SheetPathManager] SetSheetEnabled(2-param) 호출: 현재 워크북={currentWorkbook}, 시트={sheetName}, Enabled={enabled}");
-            
+
             // 3-parameter 오버로드 호출
             SetSheetEnabled(currentWorkbook, sheetName, enabled);
         }
@@ -678,14 +676,14 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine($"[SetSheetEnabledInternal] 잘못된 인수: workbookName='{workbookName}', sheetName='{sheetName}'");
                 return;
             }
-            
+
             // 워크북이 사전에 없으면 추가
             if (!LazyLoadSheetPaths().ContainsKey(workbookName))
             {
                 LazyLoadSheetPaths()[workbookName] = new Dictionary<string, SheetPathInfo>();
                 Debug.WriteLine($"[SetSheetEnabledInternal] 워크북 '{workbookName}'에 대한 새 사전 생성");
             }
-            
+
             // 시트가 사전에 없으면 추가
             if (!LazyLoadSheetPaths()[workbookName].ContainsKey(sheetName))
             {
@@ -703,25 +701,25 @@ namespace ExcelToYamlAddin.Config
                 LazyLoadSheetPaths()[workbookName][sheetName].Enabled = enabled;
                 Debug.WriteLine($"[SetSheetEnabledInternal] 시트 '{sheetName}'의 활성화 상태 업데이트: {enabled}");
             }
-            
+
             // 워크북 경로 처리에 필요한 변수들
             string normalizedPath = NormalizeWorkbookPath(workbookName);
             string fileName = Path.GetFileName(workbookName);
-            
+
             // 다른 형태의 워크북 경로에 대해서도 동일한 시트의 활성화 상태 동기화
             List<string> pathsToSync = new List<string>();
-            
+
             // 원본 경로와 다른 형태들을 리스트에 추가
             if (normalizedPath != workbookName && !string.IsNullOrEmpty(normalizedPath))
             {
                 pathsToSync.Add(normalizedPath);
             }
-            
+
             if (!string.IsNullOrEmpty(fileName) && fileName != workbookName && fileName != normalizedPath)
             {
                 pathsToSync.Add(fileName);
             }
-            
+
             // 다른 형태의 경로에 대해 동일한 시트 활성화 상태 설정
             foreach (var path in pathsToSync)
             {
@@ -730,7 +728,7 @@ namespace ExcelToYamlAddin.Config
                     LazyLoadSheetPaths()[path] = new Dictionary<string, SheetPathInfo>();
                     Debug.WriteLine($"[SetSheetEnabledInternal] 관련 경로 '{path}'에 대한 새 사전 생성");
                 }
-                
+
                 if (!LazyLoadSheetPaths()[path].ContainsKey(sheetName))
                 {
                     // 관련 경로에 시트가 없으면 새로 추가
@@ -749,7 +747,7 @@ namespace ExcelToYamlAddin.Config
                     Debug.WriteLine($"[SetSheetEnabledInternal] 관련 경로 '{path}'의 시트 '{sheetName}' 활성화 상태 업데이트: {enabled}");
                 }
             }
-            
+
             // 활성화 상태 저장 후 사전 내용 출력
             Debug.WriteLine($"[SetSheetEnabledInternal] 워크북 '{workbookName}'의 시트 '{sheetName}' 저장 후 상태:");
             if (LazyLoadSheetPaths().ContainsKey(workbookName) && LazyLoadSheetPaths()[workbookName].ContainsKey(sheetName))
@@ -776,7 +774,7 @@ namespace ExcelToYamlAddin.Config
             Debug.WriteLine($"[SheetPathManager] GetMergeKeyPaths: XML에서 관리하지 않는 설정입니다. ExcelConfigManager를 사용하세요.");
             return "";
         }
-        
+
         /// <summary>
         /// 특정 워크북과 시트의 후처리용 키 경로 인수 값을 가져옵니다.
         /// XML에서는 이 설정을 관리하지 않으므로 항상 빈 문자열을 반환합니다.
@@ -804,7 +802,7 @@ namespace ExcelToYamlAddin.Config
             Debug.WriteLine($"[SheetPathManager] GetFlowStyleConfig: XML에서 관리하지 않는 설정입니다. ExcelConfigManager를 사용하세요.");
             return "";
         }
-        
+
         /// <summary>
         /// 특정 워크북과 시트의 YAML Flow Style 설정을 가져옵니다.
         /// XML에서는 이 설정을 관리하지 않으므로 항상 빈 문자열을 반환합니다.
@@ -852,7 +850,7 @@ namespace ExcelToYamlAddin.Config
             // XML에 저장하지 않고 ExcelConfigManager에서만 관리하므로 아무 작업도 수행하지 않음
             Debug.WriteLine($"[SheetPathManager] SetFlowStyleConfig: XML에 저장하지 않습니다. ExcelConfigManager를 사용하세요.");
         }
-        
+
         /// <summary>
         /// 특정 워크북의 특정 시트의 Flow Style 설정을 저장합니다.
         /// </summary>
@@ -905,7 +903,7 @@ namespace ExcelToYamlAddin.Config
             if (string.IsNullOrEmpty(_currentWorkbookPath) || !LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath))
             {
                 Debug.WriteLine($"[GetAllSheetPaths] 파일명 '{_currentWorkbookPath}'에서 시트 경로 발견: 0개");
-                
+
                 // 전체 경로로도 시도
                 if (_currentWorkbookPath != null)
                 {
@@ -921,22 +919,22 @@ namespace ExcelToYamlAddin.Config
                         return result;
                     }
                 }
-                
+
                 // 또 다른 키 검색
-            foreach (var key in LazyLoadSheetPaths().Keys)
-            {
-                    if (Path.GetFileName(key) == Path.GetFileName(_currentWorkbookPath))
+                foreach (var key in LazyLoadSheetPaths().Keys)
                 {
-                    Debug.WriteLine($"[GetAllSheetPaths] 다른 키 '{key}'에서 시트 경로 발견: {LazyLoadSheetPaths()[key].Count}개");
-                        var result = new Dictionary<string, string>();
-                    foreach (var entry in LazyLoadSheetPaths()[key])
+                    if (Path.GetFileName(key) == Path.GetFileName(_currentWorkbookPath))
                     {
+                        Debug.WriteLine($"[GetAllSheetPaths] 다른 키 '{key}'에서 시트 경로 발견: {LazyLoadSheetPaths()[key].Count}개");
+                        var result = new Dictionary<string, string>();
+                        foreach (var entry in LazyLoadSheetPaths()[key])
+                        {
                             result[entry.Key] = entry.Value.SavePath;
                         }
                         return result;
                     }
                 }
-                
+
                 Debug.WriteLine($"[GetAllSheetPaths] 워크북 '{_currentWorkbookPath}'에 대한 시트 경로를 찾을 수 없습니다.");
                 return new Dictionary<string, string>();
             }
@@ -1018,13 +1016,13 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine($"[RemoveSheetPath] 오류: 현재 워크북이 설정되지 않음");
                 return;
             }
-            
+
             if (!LazyLoadSheetPaths().ContainsKey(_currentWorkbookPath))
             {
                 Debug.WriteLine($"[RemoveSheetPath] 오류: 현재 워크북 '{_currentWorkbookPath}'을 찾을 수 없음");
                 return;
             }
-            
+
             if (!LazyLoadSheetPaths()[_currentWorkbookPath].ContainsKey(sheetName))
             {
                 Debug.WriteLine($"[RemoveSheetPath] 오류: 현재 워크북 '{_currentWorkbookPath}'에서 시트 '{sheetName}'을 찾을 수 없음");
@@ -1045,7 +1043,7 @@ namespace ExcelToYamlAddin.Config
             try
             {
                 Debug.WriteLine($"[SaveSheetPaths] 시트 경로 설정 저장 시작");
-                
+
                 // 설정 디렉토리가 없으면 생성
                 string settingsDir = GetSettingsDirectory();
                 if (!Directory.Exists(settingsDir))
@@ -1059,25 +1057,25 @@ namespace ExcelToYamlAddin.Config
 
                 // 중복 데이터 방지를 위한 사전 - 워크북명 + 시트이름을 키로 사용
                 Dictionary<string, SheetPathData> uniqueEntries = new Dictionary<string, SheetPathData>();
-                
+
                 // 데이터 변환 및 디버깅 출력
                 foreach (var workbook in LazyLoadSheetPaths())
                 {
                     string workbookKey = workbook.Key;
                     bool isFullPath = workbookKey.Contains("/") || workbookKey.Contains("\\") || workbookKey.Contains(":");
                     string fileName = isFullPath ? Path.GetFileName(workbookKey) : workbookKey;
-                    
+
                     Debug.WriteLine($"[SaveSheetPaths] 워크북 '{workbookKey}' 처리 중 ({workbook.Value.Count}개 시트)");
                     Debug.WriteLine($"[SaveSheetPaths] 워크북 타입: {(isFullPath ? "전체 경로" : "파일명")}, 파일명: {fileName}");
-                    
+
                     foreach (var sheet in workbook.Value)
                     {
                         var sheetName = sheet.Key;
                         var sheetInfo = sheet.Value;
-                        
+
                         // 워크북 파일명 + 시트이름을 고유 키로 사용
                         string uniqueKey = fileName + "|" + sheetName;
-                        
+
                         // 여기서는 동일한 워크북(파일명)과 시트 조합에 대해 마지막 항목이 우선함
                         // 그러나 동기화가 제대로 되었다면 모든 항목의 활성화 상태는 동일해야 함
                         SheetPathData pathData = new SheetPathData
@@ -1091,13 +1089,13 @@ namespace ExcelToYamlAddin.Config
                             // MergeKeyPaths = "", // XML에는 저장하지 않음
                             // FlowStyleConfig = "" // XML에는 저장하지 않음
                         };
-                        
+
                         // 이전에 등록된 항목이 있으면 둘 중 하나라도 활성화되어 있으면 활성화 상태로 설정
                         if (uniqueEntries.ContainsKey(uniqueKey))
                         {
                             bool previousEnabled = uniqueEntries[uniqueKey].Enabled;
                             bool newEnabled = pathData.Enabled;
-                            
+
                             // 둘 중 하나라도 활성화되어 있으면 항상 활성화 상태로 설정
                             if (previousEnabled || newEnabled)
                             {
@@ -1105,7 +1103,7 @@ namespace ExcelToYamlAddin.Config
                                 Debug.WriteLine($"[SaveSheetPaths] 시트 '{sheetName}'의 활성화 상태가 충돌함. 활성화 상태로 설정합니다. (이전: {previousEnabled}, 현재: {newEnabled})");
                             }
                         }
-                        
+
                         uniqueEntries[uniqueKey] = pathData;
                         Debug.WriteLine($"[SaveSheetPaths] 저장할 항목: 워크북='{fileName}', 시트='{sheetName}', 경로='{sheetInfo.SavePath}', 활성화={pathData.Enabled}");
                     }
@@ -1114,7 +1112,7 @@ namespace ExcelToYamlAddin.Config
                 // 중복 제거된 항목을 리스트로 변환
                 List<SheetPathData> pathsToSave = uniqueEntries.Values.ToList();
                 Debug.WriteLine($"[SaveSheetPaths] 총 {pathsToSave.Count}개 항목 저장 준비 완료 (중복 제거 후)");
-                
+
                 // XML로 직렬화하여 저장
                 XmlSerializer serializer = new XmlSerializer(typeof(List<SheetPathData>));
                 using (StreamWriter writer = new StreamWriter(GetSettingsFilePath()))
@@ -1129,17 +1127,17 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine($"[SaveSheetPaths] 시트 경로 설정 저장 중 오류 발생: {ex.Message}\n{ex.StackTrace}");
             }
         }
-        
+
         // 모든 워크북 경로 간에 시트 활성화 상태 동기화
         private void SynchronizeAllWorkbookPaths()
         {
             try
             {
                 Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 모든 워크북 경로 간의 시트 활성화 상태 동기화 시작");
-                
+
                 // 파일명별로 워크북 경로 그룹화
                 Dictionary<string, List<string>> workbookGroups = new Dictionary<string, List<string>>();
-                
+
                 foreach (var workbookPath in LazyLoadSheetPaths().Keys)
                 {
                     string fileName = Path.GetFileName(workbookPath);
@@ -1149,26 +1147,26 @@ namespace ExcelToYamlAddin.Config
                         {
                             workbookGroups[fileName] = new List<string>();
                         }
-                        
+
                         workbookGroups[fileName].Add(workbookPath);
                         Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 파일명 '{fileName}'에 워크북 경로 '{workbookPath}' 추가");
                     }
                 }
-                
+
                 // 각 워크북 그룹 내에서 시트별로 활성화 상태 동기화
                 foreach (var group in workbookGroups)
                 {
                     string fileName = group.Key;
                     List<string> paths = group.Value;
-                    
+
                     if (paths.Count <= 1)
                     {
                         Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 파일명 '{fileName}'에 대한 경로가 하나뿐이므로 동기화 불필요");
                         continue;
                     }
-                    
+
                     Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 파일명 '{fileName}'에 대한 {paths.Count}개 경로 간 동기화 시작");
-                    
+
                     // 모든 시트 이름을 수집
                     HashSet<string> allSheetNames = new HashSet<string>();
                     foreach (string path in paths)
@@ -1178,7 +1176,7 @@ namespace ExcelToYamlAddin.Config
                             allSheetNames.Add(sheetName);
                         }
                     }
-                    
+
                     // 각 시트에 대해 활성화 상태 동기화
                     foreach (string sheetName in allSheetNames)
                     {
@@ -1186,7 +1184,7 @@ namespace ExcelToYamlAddin.Config
                         bool anyEnabled = false;
                         foreach (string path in paths)
                         {
-                            if (LazyLoadSheetPaths()[path].ContainsKey(sheetName) && 
+                            if (LazyLoadSheetPaths()[path].ContainsKey(sheetName) &&
                                 LazyLoadSheetPaths()[path][sheetName].Enabled)
                             {
                                 anyEnabled = true;
@@ -1194,7 +1192,7 @@ namespace ExcelToYamlAddin.Config
                                 break;
                             }
                         }
-                        
+
                         // 모든 경로에 대해 동일한 활성화 상태 설정
                         foreach (string path in paths)
                         {
@@ -1210,7 +1208,7 @@ namespace ExcelToYamlAddin.Config
                         }
                     }
                 }
-                
+
                 Debug.WriteLine($"[SynchronizeAllWorkbookPaths] 모든 워크북 경로 간의 시트 활성화 상태 동기화 완료");
             }
             catch (Exception ex)
@@ -1234,23 +1232,23 @@ namespace ExcelToYamlAddin.Config
             {
                 _sheetPaths = new Dictionary<string, Dictionary<string, SheetPathInfo>>();
                 string settingsPath = GetSettingsFilePath();
-                
+
                 if (!File.Exists(settingsPath))
                 {
                     Debug.WriteLine($"[LoadSheetPaths] 설정 파일이 존재하지 않습니다: {settingsPath}");
                     return;
                 }
-                
+
                 Debug.WriteLine($"[LoadSheetPaths] 설정 파일 로드 시작: {settingsPath}");
-                
+
                 List<SheetPathData> loadedPaths = null;
                 XmlSerializer serializer = new XmlSerializer(typeof(List<SheetPathData>));
-                
+
                 using (StreamReader reader = new StreamReader(settingsPath))
                 {
                     loadedPaths = (List<SheetPathData>)serializer.Deserialize(reader);
                 }
-                
+
                 if (loadedPaths == null)
                 {
                     Debug.WriteLine($"[LoadSheetPaths] 설정 파일에서 로드된 데이터가 없습니다.");
@@ -1258,33 +1256,33 @@ namespace ExcelToYamlAddin.Config
                 }
 
                 Debug.WriteLine($"[LoadSheetPaths] 로드된 항목 수: {loadedPaths.Count}");
-                
+
                 // 시트 이름별 중복 제거를 위한 사전
                 Dictionary<string, SheetPathData> uniqueEntries = new Dictionary<string, SheetPathData>();
-                
+
                 // 첫 번째 패스: 중복 엔트리 처리
                 foreach (SheetPathData pathData in loadedPaths)
                 {
                     string sheetName = pathData.SheetName;
-                    
+
                     // 워크북 경로가 파일명인지 전체 경로인지 확인
-                    bool isFullPath = pathData.WorkbookPath.Contains("/") || 
-                                      pathData.WorkbookPath.Contains("\\") || 
+                    bool isFullPath = pathData.WorkbookPath.Contains("/") ||
+                                      pathData.WorkbookPath.Contains("\\") ||
                                       pathData.WorkbookPath.Contains(":");
-                                      
+
                     // 항상 파일명 부분만 추출
-                    string fileName = isFullPath ? 
-                        Path.GetFileName(pathData.WorkbookPath) : 
+                    string fileName = isFullPath ?
+                        Path.GetFileName(pathData.WorkbookPath) :
                         pathData.WorkbookPath;
-                        
+
                     // 중복 항목이 있는 경우 처리
                     if (uniqueEntries.ContainsKey(sheetName))
                     {
                         // 이미 등록된 항목의 워크북 경로가 파일명인지 확인
-                        bool existingIsFullPath = uniqueEntries[sheetName].WorkbookPath.Contains("/") || 
-                                                 uniqueEntries[sheetName].WorkbookPath.Contains("\\") || 
+                        bool existingIsFullPath = uniqueEntries[sheetName].WorkbookPath.Contains("/") ||
+                                                 uniqueEntries[sheetName].WorkbookPath.Contains("\\") ||
                                                  uniqueEntries[sheetName].WorkbookPath.Contains(":");
-                                                 
+
                         // 기존 파일명 항목이 있고 현재 전체 경로인 경우, 전체 경로 우선
                         if (isFullPath && !existingIsFullPath)
                         {
@@ -1310,41 +1308,41 @@ namespace ExcelToYamlAddin.Config
                         uniqueEntries[sheetName] = pathData;
                     }
                 }
-                
+
                 // 두 번째 패스: 정리된 데이터를 _sheetPaths에 로드
                 foreach (var entry in uniqueEntries.Values)
                 {
                     string workbookPath = entry.WorkbookPath;
                     string sheetName = entry.SheetName;
-                    
+
                     // 워크북 경로 정규화
-                    bool isFullPath = workbookPath.Contains("/") || 
-                                     workbookPath.Contains("\\") || 
+                    bool isFullPath = workbookPath.Contains("/") ||
+                                     workbookPath.Contains("\\") ||
                                      workbookPath.Contains(":");
-                                     
+
                     // 파일명만 저장하여 중복 방지
-                    string normalizedWorkbookPath = isFullPath ? 
-                        Path.GetFileName(workbookPath) : 
+                    string normalizedWorkbookPath = isFullPath ?
+                        Path.GetFileName(workbookPath) :
                         workbookPath;
-                    
+
                     if (!_sheetPaths.ContainsKey(normalizedWorkbookPath))
                     {
                         _sheetPaths[normalizedWorkbookPath] = new Dictionary<string, SheetPathInfo>();
                     }
-                    
+
                     _sheetPaths[normalizedWorkbookPath][sheetName] = new SheetPathInfo
                     {
                         SavePath = entry.SavePath,
                         Enabled = entry.Enabled
                     };
-                    
+
                     Debug.WriteLine($"[LoadSheetPaths] 로드된 항목: 워크북='{normalizedWorkbookPath}', 시트='{sheetName}', 경로='{entry.SavePath}', 활성화={entry.Enabled}");
                 }
-                
+
                 // 로드 후 데이터를 저장하여 중복 제거
                 Debug.WriteLine($"[LoadSheetPaths] 중복 제거 후 다시 저장합니다.");
                 SaveSheetPaths();
-                
+
                 Debug.WriteLine($"[LoadSheetPaths] 설정 로드 완료. 총 {_sheetPaths.Count}개 워크북, {uniqueEntries.Count}개 시트 로드됨.");
             }
             catch (Exception ex)
@@ -1373,7 +1371,7 @@ namespace ExcelToYamlAddin.Config
             try
             {
                 Debug.WriteLine($"[Initialize] SheetPathManager 초기화 시작");
-                
+
                 // 설정 디렉토리 생성
                 string settingsDir = GetSettingsDirectory();
                 if (!Directory.Exists(settingsDir))
@@ -1381,7 +1379,7 @@ namespace ExcelToYamlAddin.Config
                     Debug.WriteLine($"[Initialize] 설정 디렉토리 생성: {settingsDir}");
                     Directory.CreateDirectory(settingsDir);
                 }
-                
+
                 // 설정 파일이 없으면 생성
                 string settingsPath = GetSettingsFilePath();
                 if (!File.Exists(settingsPath))
@@ -1395,7 +1393,7 @@ namespace ExcelToYamlAddin.Config
                     Debug.WriteLine($"[Initialize] 기존 설정 파일이 있어 중복 항목을 정리합니다: {settingsPath}");
                     LoadSheetPaths(); // 로드 후 자동으로 중복 제거 및 저장됨
                 }
-                
+
                 Debug.WriteLine($"[Initialize] SheetPathManager 초기화 완료");
             }
             catch (Exception ex)
@@ -1430,7 +1428,7 @@ namespace ExcelToYamlAddin.Config
         public Dictionary<string, string> GetAllSheetPathsByWorkbookPath(string workbookPath)
         {
             Dictionary<string, string> result = new Dictionary<string, string>();
-            
+
             try
             {
                 // 먼저 전체 경로로 시도
@@ -1440,20 +1438,20 @@ namespace ExcelToYamlAddin.Config
                     {
                         var sheetDict = LazyLoadSheetPaths()[workbookPath];
                         Debug.WriteLine($"[GetAllSheetPaths] 파일명 '{workbookPath}'에서 시트 경로 발견: {sheetDict.Count}개");
-                        
+
                         foreach (var entry in sheetDict)
                         {
                             result[entry.Key] = entry.Value.SavePath;
                         }
                     }
-                    
+
                     // 정규화된 경로로 다시 시도
                     string normalizedPath = NormalizeWorkbookPath(workbookPath);
                     if (normalizedPath != workbookPath && LazyLoadSheetPaths().ContainsKey(normalizedPath))
                     {
                         var sheetDict = LazyLoadSheetPaths()[normalizedPath];
                         Debug.WriteLine($"[GetAllSheetPaths] 정규화된 경로 '{normalizedPath}'에서 시트 경로 발견: {sheetDict.Count}개");
-                        
+
                         foreach (var entry in sheetDict)
                         {
                             if (!result.ContainsKey(entry.Key))
@@ -1468,7 +1466,7 @@ namespace ExcelToYamlAddin.Config
             {
                 Debug.WriteLine($"[GetAllSheetPathsByWorkbookPath] 시트 경로 조회 중 예외 발생: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -1532,13 +1530,13 @@ namespace ExcelToYamlAddin.Config
             {
                 bool isEnabled = IsSheetEnabled(workbookName, sheetName);
                 Debug.WriteLine($"[GetSheetPathInternal] 경로가 비어있음: 워크북 '{workbookName}', 시트 '{sheetName}', 활성화 상태: {isEnabled}");
-                
+
                 // 경로가 없더라도 시트가 활성화되어 있으면 로그 기록
                 if (isEnabled)
                 {
                     Debug.WriteLine($"[GetSheetPathInternal] 주의: 시트가 활성화되어 있지만 경로가 없음: 워크북 '{workbookName}', 시트 '{sheetName}'");
                 }
-                
+
                 return string.Empty;
             }
 
@@ -1594,11 +1592,11 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine("[GetAllEnabledSheetPaths] 실패: 현재 워크북 경로가 비어있음");
                 return result;
             }
-            
+
             // 0. 현재 워크북 경로 정규화
             string normalizedPath = NormalizeWorkbookPath(_currentWorkbookPath);
             string fileName = Path.GetFileName(_currentWorkbookPath);
-            
+
             Debug.WriteLine($"[GetAllEnabledSheetPaths] 워크북 정보: 원본='{_currentWorkbookPath}', 정규화='{normalizedPath}', 파일명='{fileName}'");
 
             // 1. 원본 워크북 경로로 시트 정보 확인
@@ -1607,26 +1605,26 @@ namespace ExcelToYamlAddin.Config
                 Debug.WriteLine($"[GetAllEnabledSheetPaths] 원본 경로로 시트 정보 확인: '{_currentWorkbookPath}'");
                 AddEnabledSheetPathsToResult(LazyLoadSheetPaths()[_currentWorkbookPath], result);
             }
-            
+
             // 2. 정규화된 경로로 시트 정보 확인 (원본과 다른 경우만)
             if (_currentWorkbookPath != normalizedPath && LazyLoadSheetPaths().ContainsKey(normalizedPath))
             {
                 Debug.WriteLine($"[GetAllEnabledSheetPaths] 정규화된 경로로 시트 정보 확인: '{normalizedPath}'");
                 AddEnabledSheetPathsToResult(LazyLoadSheetPaths()[normalizedPath], result);
             }
-            
+
             // 3. 파일명으로도 시트 정보 확인
             if (!string.IsNullOrEmpty(fileName) && LazyLoadSheetPaths().ContainsKey(fileName))
             {
                 Debug.WriteLine($"[GetAllEnabledSheetPaths] 파일명으로 시트 정보 확인: '{fileName}'");
                 AddEnabledSheetPathsToResult(LazyLoadSheetPaths()[fileName], result);
             }
-            
+
             // 4. 같은 파일명을 가진 다른 형식의 경로도 확인
             foreach (var workbookEntry in LazyLoadSheetPaths())
             {
                 string workbookKey = workbookEntry.Key;
-                if (workbookKey != _currentWorkbookPath && workbookKey != normalizedPath && workbookKey != fileName && 
+                if (workbookKey != _currentWorkbookPath && workbookKey != normalizedPath && workbookKey != fileName &&
                     !string.IsNullOrEmpty(fileName))
                 {
                     // 파일명이 같은 경우 검사
@@ -1638,7 +1636,7 @@ namespace ExcelToYamlAddin.Config
                     }
                 }
             }
-            
+
             // 5. 결과가 비어있는 경우, 모든 워크북에서 시트 정보 찾기 (최후의 수단)
             if (result.Count == 0)
             {
@@ -1658,32 +1656,32 @@ namespace ExcelToYamlAddin.Config
             }
             return result;
         }
-        
+
         // 활성화된 시트만 결과 사전에 추가하는 헬퍼 메서드
         private void AddEnabledSheetPathsToResult(Dictionary<string, SheetPathInfo> sheetInfos, Dictionary<string, string> result)
         {
             if (sheetInfos == null) return;
-            
+
             Debug.WriteLine($"[AddEnabledSheetPathsToResult] 시트 정보 확인 시작 (총 {sheetInfos.Count}개)");
-            
+
             foreach (var sheet in sheetInfos)
             {
                 string sheetName = sheet.Key;
                 var sheetInfo = sheet.Value;
-                
+
                 // 시트가 활성화되어 있는지 확인
                 bool isEnabled = sheetInfo != null && sheetInfo.Enabled;
                 string path = sheetInfo?.SavePath ?? string.Empty;
-                
+
                 Debug.WriteLine($"[AddEnabledSheetPathsToResult] 시트 확인: '{sheetName}', 활성화 상태: {isEnabled}, 경로: '{path}'");
-                
+
                 if (isEnabled)
                 {
                     // 이미 결과에 추가된 시트가 아닌 경우에만 추가
                     if (!result.ContainsKey(sheetName))
                     {
                         Debug.WriteLine($"[AddEnabledSheetPathsToResult] 활성화된 시트 추가: '{sheetName}', 경로: '{path}'");
-                        
+
                         // 경로가 비어 있더라도 활성화된 시트는 결과에 포함 (경로는 빈 문자열)
                         result[sheetName] = path;
                     }
@@ -1697,7 +1695,7 @@ namespace ExcelToYamlAddin.Config
                     Debug.WriteLine($"[AddEnabledSheetPathsToResult] 비활성화된 시트: '{sheetName}'");
                 }
             }
-            
+
             Debug.WriteLine($"[AddEnabledSheetPathsToResult] 시트 정보 확인 완료, 현재 결과에 추가된 시트 수: {result.Count}");
         }
 
@@ -1705,11 +1703,11 @@ namespace ExcelToYamlAddin.Config
         public bool IsSheetEnabled(string sheetName)
         {
             Debug.WriteLine($"[IsSheetEnabled] 호출: 시트='{sheetName}'");
-            
+
             // 1. GetSheetEnabled로 먼저 확인
             bool result = GetSheetEnabled(sheetName);
             Debug.WriteLine($"[IsSheetEnabled] GetSheetEnabled 결과: 시트 '{sheetName}'의 활성화 상태: {result}");
-            
+
             // 2. 활성화된 모든 시트 경로에서도 확인 (결과가 false인 경우)
             if (!result)
             {
@@ -1720,7 +1718,7 @@ namespace ExcelToYamlAddin.Config
                     result = true;
                     Debug.WriteLine($"[IsSheetEnabled] GetAllEnabledSheetPaths에서 시트 '{sheetName}'이 활성화된 것으로 확인됨");
                 }
-                
+
                 // 3. !로 시작하는 경우와 시작하지 않는 경우 모두 확인
                 if (!result)
                 {
@@ -1737,7 +1735,7 @@ namespace ExcelToYamlAddin.Config
                         alternateSheetName = "!" + sheetName;
                         Debug.WriteLine($"[IsSheetEnabled] ! 접두사 추가 후 다시 확인: '{alternateSheetName}'");
                     }
-                    
+
                     // 접두사를 추가/제거한 이름으로 활성화 상태 다시 확인
                     bool alternateResult = GetSheetEnabled(alternateSheetName);
                     if (alternateResult)
@@ -1745,7 +1743,7 @@ namespace ExcelToYamlAddin.Config
                         Debug.WriteLine($"[IsSheetEnabled] 대체 이름 '{alternateSheetName}'로 활성화된 것으로 확인됨");
                         result = true;
                     }
-                    
+
                     // GetAllEnabledSheetPaths에서도 확인
                     if (!result && allEnabledPaths.ContainsKey(alternateSheetName))
                     {
@@ -1754,7 +1752,7 @@ namespace ExcelToYamlAddin.Config
                     }
                 }
             }
-            
+
             // 최종 결과 반환
             Debug.WriteLine($"[IsSheetEnabled] 최종 결과: 시트 '{sheetName}'의 활성화 상태: {result}");
             return result;
@@ -1770,12 +1768,12 @@ namespace ExcelToYamlAddin.Config
         /// 저장 경로
         /// </summary>
         public string SavePath { get; set; } = "";
-        
+
         /// <summary>
         /// 활성화 여부
         /// </summary>
         public bool Enabled { get; set; } = false; // 기본값을 false로 변경
-        
+
         /// <summary>
         /// YAML 빈 필드 처리 옵션
         /// </summary>

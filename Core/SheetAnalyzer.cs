@@ -1,8 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using ExcelToYamlAddin.Logging;
 using Microsoft.Office.Interop.Excel;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace ExcelToYamlAddin.Core
@@ -18,11 +17,11 @@ namespace ExcelToYamlAddin.Core
         public static List<Worksheet> GetConvertibleSheets(Workbook workbook)
         {
             var result = new List<Worksheet>();
-            
+
             try
             {
                 if (workbook == null) return result;
-                
+
                 // 워크북의 모든 시트를 순회
                 foreach (Worksheet sheet in workbook.Worksheets)
                 {
@@ -37,7 +36,7 @@ namespace ExcelToYamlAddin.Core
                 Logger.Error(ex, "시트 분석 중 오류 발생");
                 Debug.WriteLine($"시트 분석 중 오류 발생: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -47,7 +46,7 @@ namespace ExcelToYamlAddin.Core
             try
             {
                 if (sheet == null) return false;
-                
+
                 // 시트 이름이 '!'로 시작하는지 확인
                 string sheetName = sheet.Name;
                 return sheetName != null && sheetName.StartsWith("!");

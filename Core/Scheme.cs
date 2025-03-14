@@ -1,10 +1,8 @@
-using ExcelToYamlAddin.Logging;
 using ClosedXML.Excel;
+using ExcelToYamlAddin.Logging;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Diagnostics;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -24,30 +22,30 @@ namespace ExcelToYamlAddin.Core
             this.root = root ?? throw new ArgumentNullException(nameof(root));
             this.contentStartRowNum = contentStartRowNum;
             this.endRowNum = endRowNum;
-            
+
             this.linearNodes = root.Linear() ?? new LinkedList<SchemeNode>();
-            
-            Logger.Information("Scheme 생성: 루트={0}, 시작행={1}, 끝행={2}, 노드 수={3}", 
+
+            Logger.Information("Scheme 생성: 루트={0}, 시작행={1}, 끝행={2}, 노드 수={3}",
                 root.Key, contentStartRowNum, endRowNum, linearNodes.Count);
         }
 
         public Scheme(IXLWorksheet sheet)
         {
             if (sheet == null) throw new ArgumentNullException(nameof(sheet));
-            
+
             this.sheet = sheet;
-            
+
             // SchemeParser 생성 및 노드 파싱
             var parser = new SchemeParser(sheet);
             var parsed = parser.Parse();
-            
+
             // 파싱된 스키마에서 값 가져오기
             this.root = parsed.Root;
             this.contentStartRowNum = parsed.ContentStartRowNum;
             this.endRowNum = parsed.EndRowNum;
             this.linearNodes = new LinkedList<SchemeNode>(parsed.GetLinearNodes());
-            
-            Logger.Information("Scheme 생성(자동 파싱): 루트={0}, 시작행={1}, 끝행={2}, 노드 수={3}", 
+
+            Logger.Information("Scheme 생성(자동 파싱): 루트={0}, 시작행={1}, 끝행={2}, 노드 수={3}",
                 root.Key, contentStartRowNum, endRowNum, linearNodes.Count);
         }
 
@@ -55,7 +53,7 @@ namespace ExcelToYamlAddin.Core
         public IXLWorksheet Sheet => sheet;
         public int ContentStartRowNum => contentStartRowNum;
         public int EndRowNum => endRowNum;
-        
+
         public IEnumerator<SchemeNode> GetEnumerator()
         {
             return linearNodes.GetEnumerator();

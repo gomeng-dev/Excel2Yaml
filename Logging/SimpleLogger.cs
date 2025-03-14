@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 
 namespace ExcelToYamlAddin.Logging
@@ -7,14 +6,14 @@ namespace ExcelToYamlAddin.Logging
     public class SimpleLogger : ISimpleLogger
     {
         private readonly string _categoryName;
-        private static readonly string LogDirectory = 
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
+        private static readonly string LogDirectory =
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                        "ExcelToYamlAddin", "Logs");
-        
+
         public SimpleLogger(string categoryName)
         {
             _categoryName = categoryName;
-            
+
             try
             {
                 if (!Directory.Exists(LogDirectory))
@@ -27,12 +26,12 @@ namespace ExcelToYamlAddin.Logging
                 // 디렉토리 생성 실패 시 무시
             }
         }
-        
+
         public void Debug(string message)
         {
             Log("DEBUG", message);
         }
-        
+
         public void Debug(string messageTemplate, params object[] args)
         {
             try
@@ -52,12 +51,12 @@ namespace ExcelToYamlAddin.Logging
                 Log("DEBUG", "로깅 오류: " + messageTemplate + " - 예외: " + ex.Message);
             }
         }
-        
+
         public void Information(string message)
         {
             Log("INFO", message);
         }
-        
+
         public void Information(string messageTemplate, params object[] args)
         {
             try
@@ -77,12 +76,12 @@ namespace ExcelToYamlAddin.Logging
                 Log("INFO", "로깅 오류: " + messageTemplate + " - 예외: " + ex.Message);
             }
         }
-        
+
         public void Warning(string message)
         {
             Log("WARN", message);
         }
-        
+
         public void Warning(string messageTemplate, params object[] args)
         {
             try
@@ -102,12 +101,12 @@ namespace ExcelToYamlAddin.Logging
                 Log("WARN", "로깅 오류: " + messageTemplate + " - 예외: " + ex.Message);
             }
         }
-        
+
         public void Error(string message)
         {
             Log("ERROR", message);
         }
-        
+
         public void Error(string messageTemplate, params object[] args)
         {
             try
@@ -127,24 +126,24 @@ namespace ExcelToYamlAddin.Logging
                 Log("ERROR", "로깅 오류: " + messageTemplate + " - 예외: " + ex.Message);
             }
         }
-        
+
         public void Error(Exception exception, string message)
         {
             Log("ERROR", $"{message} Exception: {exception}");
         }
-        
+
         public void Error(Exception exception, string messageTemplate, params object[] args)
         {
             Log("ERROR", $"{string.Format(messageTemplate, args)} Exception: {exception}");
         }
-        
+
         private void Log(string level, string message)
         {
             var logMessage = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{level}] [{_categoryName}] {message}";
-            
+
             // 디버그 콘솔에 출력
             System.Diagnostics.Debug.WriteLine(logMessage);
-            
+
             try
             {
                 // 파일에도 로깅 (하루 단위로 파일 생성)
@@ -157,14 +156,14 @@ namespace ExcelToYamlAddin.Logging
             }
         }
     }
-    
+
     public static class SimpleLoggerFactory
     {
         public static ISimpleLogger CreateLogger<T>()
         {
             return new SimpleLogger(typeof(T).Name);
         }
-        
+
         public static ISimpleLogger CreateLogger(string categoryName)
         {
             return new SimpleLogger(categoryName);

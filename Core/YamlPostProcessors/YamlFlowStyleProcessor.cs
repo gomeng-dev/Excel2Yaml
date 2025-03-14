@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Diagnostics;
 using System.Text.RegularExpressions;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 using YamlDotNet.RepresentationModel;
-using YamlDotNet.Core.Events;
 
 namespace ExcelToYamlAddin.Core.YamlPostProcessors
 {
@@ -39,7 +36,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
         {
             string flowStyleFields = "";
             string flowStyleItemsFields = "";
-            
+
             if (!string.IsNullOrWhiteSpace(flowStyleConfig))
             {
                 string[] parts = flowStyleConfig.Split('|');
@@ -48,7 +45,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                 if (parts.Length >= 2)
                     flowStyleItemsFields = parts[1]; // 빈 문자열도 그대로 사용
             }
-            
+
             return new YamlFlowStyleProcessor(flowStyleFields, flowStyleItemsFields);
         }
 
@@ -60,13 +57,13 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
         private Dictionary<string, List<int>> ParseFields(string fieldsString)
         {
             var fieldDict = new Dictionary<string, List<int>>();
-            
+
             if (string.IsNullOrWhiteSpace(fieldsString))
                 return fieldDict;
-            
+
             var fields = fieldsString.Split(',').Select(f => f.Trim()).Where(f => !string.IsNullOrWhiteSpace(f));
             var pattern = new Regex(@"^(?<name>\w+)(\[(?<index>\d+)\])?$");
-            
+
             foreach (var field in fields)
             {
                 var match = pattern.Match(field);
@@ -74,12 +71,12 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                 {
                     string name = match.Groups["name"].Value;
                     string indexStr = match.Groups["index"].Value;
-                    
+
                     if (!fieldDict.ContainsKey(name))
                     {
                         fieldDict[name] = new List<int>();
                     }
-                    
+
                     if (!string.IsNullOrEmpty(indexStr) && int.TryParse(indexStr, out int index))
                     {
                         fieldDict[name].Add(index);
@@ -95,7 +92,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                     Debug.WriteLine($"[YamlFlowStyleProcessor] 경고: 필드명 '{field}'이(가) 올바른 형식이 아닙니다. 무시됩니다.");
                 }
             }
-            
+
             return fieldDict;
         }
 
@@ -127,7 +124,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
 
                 // 1. YAML 파일 읽기
                 string yamlContent = File.ReadAllText(yamlPath);
-                
+
                 if (string.IsNullOrWhiteSpace(yamlContent))
                 {
                     Debug.WriteLine($"[YamlFlowStyleProcessor] 오류: YAML 파일이 비어 있습니다.");
@@ -143,7 +140,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                 {
                     Debug.WriteLine($"[YamlFlowStyleProcessor] RepresentationModel 방식 처리 중 오류: {ex.Message}");
                     Debug.WriteLine($"[YamlFlowStyleProcessor] 텍스트 기반 방식으로 대체합니다.");
-                    
+
                     // 실패하면 텍스트 기반 방식으로 처리
                     return ProcessYamlTextDirectly(yamlPath, yamlContent);
                 }
@@ -179,7 +176,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
 
             // 루트 노드 처리
             var rootNode = yaml.Documents[0].RootNode;
-            
+
             // 시퀀스인 경우
             if (rootNode is YamlSequenceNode rootSequence)
             {
@@ -200,12 +197,12 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                 var emitterSettings = new YamlDotNet.Core.EmitterSettings();
                 emitterSettings = emitterSettings.WithBestIndent(2);
                 emitterSettings = emitterSettings.WithIndentedSequences(); // 시퀀스 인덴트 적용
-                
+
                 var emitter = new YamlDotNet.Core.Emitter(writer, emitterSettings);
                 // 문서 종료 마커("...")를 출력하지 않도록 false 설정
                 yaml.Save(emitter, false);
                 processedYaml = writer.ToString();
-                
+
                 // 만약 문서 종료 마커가 여전히 포함되어 있다면 명시적으로 제거
                 processedYaml = processedYaml.TrimEnd('.', ' ', '\r', '\n');
                 if (processedYaml.EndsWith("..."))
@@ -213,10 +210,10 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                     processedYaml = processedYaml.Substring(0, processedYaml.Length - 3);
                 }
             }
-            
+
             // Flow 스타일 내부에 인덴트 적용
             processedYaml = ApplyIndentationToFlowStyle(processedYaml);
-            
+
             // 저장
             File.WriteAllText(yamlPath, processedYaml);
 
@@ -252,7 +249,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                     continue;
 
                 string key = keyNode.Value;
-                
+
                 // 필드 카운팅
                 if (!fieldCounters.ContainsKey(key))
                 {
@@ -270,7 +267,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                         if (entry.Value is YamlMappingNode valueMapping)
                         {
                             valueMapping.Style = YamlDotNet.Core.Events.MappingStyle.Flow;
-                            
+
                             // 인덴트를 유지하기 위해 각 자식 노드의 스타일도 설정
                             foreach (var childEntry in valueMapping.Children)
                             {
@@ -287,7 +284,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                         else if (entry.Value is YamlSequenceNode valueSequence)
                         {
                             valueSequence.Style = YamlDotNet.Core.Events.SequenceStyle.Flow;
-                            
+
                             // 인덴트를 유지하기 위해 각 자식 노드의 스타일도 설정
                             for (int i = 0; i < valueSequence.Children.Count; i++)
                             {
@@ -388,7 +385,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
         private string ApplyFlowStyleToText(string yamlText)
         {
             string processedYaml = yamlText;
-            
+
             // 필드에 Flow 스타일 적용 - 필드 자체를 Flow 스타일로 출력
             foreach (var field in flowStyleFields.Keys)
             {
@@ -396,22 +393,22 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                 // 필드명 다음에 중괄호가 오는 형태 (매핑)
                 string pattern = $@"({field}:)(\s*\n\s*)(\{{\s*\n)";
                 processedYaml = Regex.Replace(processedYaml, pattern, "$1 { ", RegexOptions.Multiline);
-                
+
                 // 중괄호 닫기 스타일 변경
                 pattern = $@"(\n\s*\}})(\s*\n)";
                 processedYaml = Regex.Replace(processedYaml, pattern, " }", RegexOptions.Multiline);
-                
+
                 // 필드명 다음에 대괄호가 오는 형태 (시퀀스)
                 pattern = $@"({field}:)(\s*\n\s*)(\[\s*\n)";
                 processedYaml = Regex.Replace(processedYaml, pattern, "$1 [ ", RegexOptions.Multiline);
-                
+
                 // 대괄호 닫기 스타일 변경
                 pattern = $@"(\n\s*\])(\s*\n)";
                 processedYaml = Regex.Replace(processedYaml, pattern, " ]", RegexOptions.Multiline);
-                
+
                 // 쉼표 뒤에 자동 개행 추가하는 부분 제거
             }
-            
+
             // Flow 항목 필드에 Flow 스타일 적용 - 자식 항목들만 Flow 스타일로 출력
             foreach (var field in flowStyleItemsFields.Keys)
             {
@@ -419,7 +416,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                 // 시퀀스의 각 항목이 매핑인 경우를 찾음 (- 다음에 중괄호가 오는 형태)
                 string fieldPattern = $@"({field}:(?:\s*\n)(?:\s*-).*?)";
                 var matches = Regex.Matches(processedYaml, fieldPattern, RegexOptions.Singleline);
-                
+
                 if (matches.Count > 0)
                 {
                     foreach (Match match in matches)
@@ -428,21 +425,21 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                         string itemReplacement = "$1{ ";
                         string itemText = match.Value;
                         string processedItemText = Regex.Replace(itemText, itemPattern, itemReplacement, RegexOptions.Multiline);
-                        
+
                         // 중괄호 닫기 스타일 변경
                         processedItemText = Regex.Replace(processedItemText, @"(\n\s*\})(\s*\n)", " }", RegexOptions.Multiline);
-                        
+
                         // 쉼표 뒤에 개행과 들여쓰기 추가하는 부분 제거
-                        
+
                         // 원본 텍스트 교체
                         processedYaml = processedYaml.Replace(itemText, processedItemText);
                     }
                 }
-                
+
                 // 시퀀스 항목이 다시 시퀀스인 경우를 처리
                 fieldPattern = $@"({field}:(?:\s*\n)(?:\s*-).*?)";
                 matches = Regex.Matches(processedYaml, fieldPattern, RegexOptions.Singleline);
-                
+
                 if (matches.Count > 0)
                 {
                     foreach (Match match in matches)
@@ -451,18 +448,18 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                         string itemReplacement = "$1[ ";
                         string itemText = match.Value;
                         string processedItemText = Regex.Replace(itemText, itemPattern, itemReplacement, RegexOptions.Multiline);
-                        
+
                         // 대괄호 닫기 스타일 변경
                         processedItemText = Regex.Replace(processedItemText, @"(\n\s*\])(\s*\n)", " ]", RegexOptions.Multiline);
-                        
+
                         // 쉼표 뒤에 개행과 들여쓰기 추가하는 부분 제거
-                        
+
                         // 원본 텍스트 교체
                         processedYaml = processedYaml.Replace(itemText, processedItemText);
                     }
                 }
             }
-            
+
             return processedYaml;
         }
 
@@ -480,9 +477,9 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                 Debug.WriteLine($"[YamlFlowStyleProcessor] 설정 문자열이 비어있어 후처리를 실행하지 않습니다: {yamlPath}");
                 return true; // 후처리를 실행하지 않더라도 성공으로 처리
             }
-            
+
             YamlFlowStyleProcessor processor = FromConfigString(flowStyleConfig);
             return processor.ProcessYamlFile(yamlPath);
         }
     }
-} 
+}

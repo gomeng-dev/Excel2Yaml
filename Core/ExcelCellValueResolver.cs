@@ -1,10 +1,8 @@
-using ExcelToYamlAddin.Logging;
 using ClosedXML.Excel;
+using ExcelToYamlAddin.Logging;
 using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Numerics;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace ExcelToYamlAddin.Core
 {
@@ -69,15 +67,15 @@ namespace ExcelToYamlAddin.Core
                                 Debug.WriteLine($"[ExcelCellValueResolver] 빈 문자열 값");
                                 return null;
                             }
-                            
+
                             try
                             {
                                 // Trim() 메서드 제거하여 공백 유지
                                 var str = stringCellValue;
-                                
+
                                 // 문자열이 숫자만 포함하는 경우에만 숫자로 변환 시도
                                 // 공백을 포함하는 문자열을 숫자로 변환하지 않도록 함
-                                if (!string.IsNullOrWhiteSpace(str) && !str.Contains(" ") && 
+                                if (!string.IsNullOrWhiteSpace(str) && !str.Contains(" ") &&
                                     !str.StartsWith(" ") && !str.EndsWith(" "))
                                 {
                                     if (int.TryParse(str, out int intValue))
@@ -91,7 +89,7 @@ namespace ExcelToYamlAddin.Core
                                         return doubleValue;
                                     }
                                 }
-                                
+
                                 Debug.WriteLine($"[ExcelCellValueResolver] 문자열 그대로 반환: {str}");
                                 return str;
                             }

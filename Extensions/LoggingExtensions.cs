@@ -1,6 +1,6 @@
 using ExcelToYamlAddin.Logging;
 
-namespace ExcelToJsonCSharp.Extensions
+namespace ExcelToYamlCSharp.Extensions
 {
     public static class LoggingExtensions
     {

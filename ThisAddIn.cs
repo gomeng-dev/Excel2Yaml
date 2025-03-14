@@ -1,17 +1,14 @@
+using ExcelToYamlAddin.Logging;
+using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Windows.Forms;
-using System.Runtime.InteropServices;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
 using Office = Microsoft.Office.Core;
-using Microsoft.Office.Tools.Excel;
-using ExcelToYamlAddin.Logging;
-using ExcelToYamlAddin.Config;
-using Microsoft.Win32;
 
 namespace ExcelToYamlAddin
 {
@@ -37,10 +34,10 @@ namespace ExcelToYamlAddin
         {
             Assembly asm = Assembly.GetExecutingAssembly();
             string[] resourceNames = asm.GetManifestResourceNames();
-            
+
             // 실제 리소스 이름 찾기 (대소문자나 경로 차이가 있을 수 있음)
             string actualResourceName = resourceNames.FirstOrDefault(rn => rn.EndsWith("RibbonUI.xml", StringComparison.OrdinalIgnoreCase));
-            
+
             if (actualResourceName != null)
             {
                 using (Stream stream = asm.GetManifestResourceStream(actualResourceName))
@@ -54,7 +51,7 @@ namespace ExcelToYamlAddin
                     }
                 }
             }
-            
+
             Debug.WriteLine($"리소스를 찾을 수 없음: {resourceName}");
             Debug.WriteLine($"사용 가능한 리소스: {string.Join(", ", resourceNames)}");
             return null;
@@ -78,22 +75,22 @@ namespace ExcelToYamlAddin
             {
                 // Add-in 초기화 로깅
                 Logger.Debug("Excel To JSON Add-in 시작");
-                
+
                 // 레지스트리에 LoadBehavior 값을 3으로 강제 설정
                 SetLoadBehaviorToAuto();
-                
+
                 // COM 추가 기능 활성화 상태 확인 및 설정 (스레드 없이 안전하게 실행)
                 SafeEnsureComAddinEnabled();
-                
+
                 // 설치 후 첫 실행 여부 확인 (스레드 중단 문제 없이 안전하게 처리)
-                try 
+                try
                 {
                     bool isFirstRun = IsFirstRun();
-                    
+
                     if (isFirstRun)
                     {
                         Debug.WriteLine("애드인 첫 실행 감지: 자동 활성화 설정을 적용합니다.");
-                        
+
                         // 첫 실행 플래그 설정
                         SetFirstRunFlag(false);
                     }
@@ -103,10 +100,10 @@ namespace ExcelToYamlAddin
                     Debug.WriteLine($"첫 실행 설정 중 오류 (무시됨): {ex.Message}");
                     // 첫 실행 확인은 중요하지만 필수는 아니므로 오류가 발생해도 계속 진행
                 }
-                
+
                 // SheetPathManager 초기화 및 설정 미리 로드
                 ExcelToYamlAddin.Config.SheetPathManager.Instance.Initialize();
-                
+
                 // 현재 워크북 설정
                 if (this.Application.ActiveWorkbook != null)
                 {
@@ -114,7 +111,7 @@ namespace ExcelToYamlAddin
                     ExcelToYamlAddin.Config.SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
                     Logger.Information("현재 워크북 설정: {0}", workbookPath);
                 }
-                
+
                 // Ribbon 인스턴스 생성 및 등록
                 var ribbon = new Ribbon();
                 Debug.WriteLine("Ribbon 인스턴스가 생성되었습니다.");
@@ -128,11 +125,11 @@ namespace ExcelToYamlAddin
             catch (Exception ex)
             {
                 Debug.WriteLine($"애드인 초기화 중 오류: {ex.Message}");
-                try 
+                try
                 {
                     MessageBox.Show($"애드인 초기화 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-                catch 
+                catch
                 {
                     // MessageBox 표시 중 오류가 발생해도 무시
                 }
@@ -146,7 +143,7 @@ namespace ExcelToYamlAddin
             {
                 string keyPath = @"Software\Microsoft\Office\Excel\Addins\ExcelToYamlAddin";
                 RegistryKey key = Registry.CurrentUser.OpenSubKey(keyPath, true);
-                
+
                 if (key != null)
                 {
                     object value = key.GetValue("FirstRun");
@@ -155,10 +152,10 @@ namespace ExcelToYamlAddin
                         // 값이 없으면 첫 실행으로 간주
                         return true;
                     }
-                    
+
                     return Convert.ToBoolean(value);
                 }
-                
+
                 // 키가 없으면 첫 실행으로 간주
                 return true;
             }
@@ -168,7 +165,7 @@ namespace ExcelToYamlAddin
                 return false;
             }
         }
-        
+
         // 첫 실행 플래그 설정
         private void SetFirstRunFlag(bool isFirstRun)
         {
@@ -176,7 +173,7 @@ namespace ExcelToYamlAddin
             {
                 string keyPath = @"Software\Microsoft\Office\Excel\Addins\ExcelToYamlAddin";
                 RegistryKey key = Registry.CurrentUser.OpenSubKey(keyPath, true);
-                
+
                 if (key != null)
                 {
                     key.SetValue("FirstRun", isFirstRun ? 1 : 0, RegistryValueKind.DWord);
@@ -196,10 +193,10 @@ namespace ExcelToYamlAddin
             {
                 // 현재 애드인의 ProgID 가져오기
                 string progID = "ExcelToYamlAddin";
-                
+
                 // COM 추가 기능 컬렉션 가져오기
                 Office.COMAddIns comAddIns = this.Application.COMAddIns;
-                
+
                 // 현재 애드인 찾기
                 foreach (Office.COMAddIn addIn in comAddIns)
                 {
@@ -215,7 +212,7 @@ namespace ExcelToYamlAddin
                         {
                             Debug.WriteLine($"COM 추가 기능 '{addIn.ProgId}'가 이미 활성화되어 있습니다.");
                         }
-                        
+
                         // Sleep 호출 없이 바로 종료
                         break;
                     }
@@ -235,7 +232,7 @@ namespace ExcelToYamlAddin
             {
                 string keyPath = @"Software\Microsoft\Office\Excel\Addins\ExcelToYamlAddin";
                 Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(keyPath, true);
-                
+
                 if (key != null)
                 {
                     key.SetValue("LoadBehavior", 3, Microsoft.Win32.RegistryValueKind.DWord);
@@ -262,12 +259,12 @@ namespace ExcelToYamlAddin
             {
                 // 임시 파일 경로 생성
                 string tempDir = Path.GetTempPath();
-                string tempFileName = $"ExcelToJson_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+                string tempFileName = $"ExcelToYaml_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
                 string tempFile = Path.Combine(tempDir, tempFileName);
-                
+
                 // 현재 활성 워크북 저장
                 this.Application.ActiveWorkbook.SaveCopyAs(tempFile);
-                
+
                 Logger.Information("임시 파일 저장: {0}", tempFile);
                 return tempFile;
             }
@@ -277,7 +274,7 @@ namespace ExcelToYamlAddin
                 return null;
             }
         }
-        
+
         // 현재 워크시트 이름 가져오기
         public string GetActiveSheetName()
         {
@@ -307,7 +304,7 @@ namespace ExcelToYamlAddin
             this.Startup += new System.EventHandler(ThisAddIn_Startup);
             this.Shutdown += new System.EventHandler(ThisAddIn_Shutdown);
         }
-        
+
         #endregion
     }
 }
