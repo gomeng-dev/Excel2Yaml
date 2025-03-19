@@ -328,6 +328,7 @@
     <Compile Include="Extensions\LoggingExtensions.cs" />
     <Compile Include="Core\YamlPostProcessors\YamlMergeKeyPathsProcessor.cs" />
     <Compile Include="Core\YamlPostProcessors\YamlFlowStyleProcessor.cs" />
+    <Compile Include="Core\YamlPostProcessors\YamlToJsonProcessor.cs" />
     <Compile Include="Forms\ProgressForm.cs">
       <SubType>Form</SubType>
     </Compile>

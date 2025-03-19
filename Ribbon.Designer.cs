@@ -38,6 +38,7 @@ namespace ExcelToYamlAddin
             this.tabExcelToYaml = this.Factory.CreateRibbonTab();
             this.groupConvert = this.Factory.CreateRibbonGroup();
             this.btnConvertToYaml = this.Factory.CreateRibbonButton();
+            this.btnConvertYamlToJson = this.Factory.CreateRibbonButton();
             this.groupSettings = this.Factory.CreateRibbonGroup();
             this.btnSheetPathSettings = this.Factory.CreateRibbonButton();
             this.groupHelp = this.Factory.CreateRibbonGroup();
@@ -60,6 +61,7 @@ namespace ExcelToYamlAddin
             // groupConvert
             // 
             this.groupConvert.Items.Add(this.btnConvertToYaml);
+            this.groupConvert.Items.Add(this.btnConvertYamlToJson);
             this.groupConvert.Label = "변환";
             this.groupConvert.Name = "groupConvert";
             // 
@@ -73,6 +75,17 @@ namespace ExcelToYamlAddin
             this.btnConvertToYaml.ShowImage = true;
             this.btnConvertToYaml.SuperTip = "현재 워크시트의 데이터를 YAML 형식으로 변환합니다.";
             this.btnConvertToYaml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnConvertToYamlClick);
+            // 
+            // btnConvertYamlToJson
+            // 
+            this.btnConvertYamlToJson.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnConvertYamlToJson.Image = ((System.Drawing.Image)(resources.GetObject("btnConvertYamlToJson.Image")));
+            this.btnConvertYamlToJson.Label = "JSON 변환";
+            this.btnConvertYamlToJson.Name = "btnConvertYamlToJson";
+            this.btnConvertYamlToJson.ScreenTip = "Excel을 JSON으로 변환";
+            this.btnConvertYamlToJson.ShowImage = true;
+            this.btnConvertYamlToJson.SuperTip = "현재 워크시트의 데이터를 JSON 형식으로 변환합니다.";
+            this.btnConvertYamlToJson.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnConvertYamlToJsonClick);
             // 
             // groupSettings
             // 
@@ -131,6 +144,7 @@ namespace ExcelToYamlAddin
         internal Microsoft.Office.Tools.Ribbon.RibbonTab tabExcelToYaml;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupConvert;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertToYaml;
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertYamlToJson;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnSheetPathSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupHelp;
