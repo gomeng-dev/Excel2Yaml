@@ -16,12 +16,14 @@ namespace ExcelToYamlAddin.Core
         private readonly Scheme _scheme;
         private readonly IXLWorksheet _sheet;
         private readonly Stack<object> _stack = new Stack<object>();  // Java와 같은 스택 기반 접근법 적용
+        private bool _includeEmptyFields; // 빈 필드 포함 여부
 
-        public YamlGenerator(Scheme scheme)
+        public YamlGenerator(Scheme scheme, bool includeEmptyFields = false)
         {
             _scheme = scheme;
             _sheet = scheme.Sheet;
-            Logger.Debug("YamlGenerator 초기화: 스키마 노드 타입={0}", scheme.Root.NodeType);
+            _includeEmptyFields = includeEmptyFields;
+            Logger.Debug("YamlGenerator 초기화: 스키마 노드 타입={0}, 빈 필드 포함={1}", scheme.Root.NodeType, includeEmptyFields);
         }
 
         // 스택 관리 메서드
@@ -50,7 +52,7 @@ namespace ExcelToYamlAddin.Core
             {
                 Debug.WriteLine($"[YamlGenerator] Generate 호출됨: style={style}, includeEmptyFields={includeEmptyFields}");
                 Debug.WriteLine($"[YamlGenerator] Generate 호출 스택: {Environment.StackTrace}");
-                var generator = new YamlGenerator(scheme);
+                var generator = new YamlGenerator(scheme, includeEmptyFields);
                 object rootObj = generator.ProcessRootNode();
 
                 // 디버그 로그 추가
@@ -75,6 +77,9 @@ namespace ExcelToYamlAddin.Core
             try
             {
                 Logger.Debug("YAML 생성 시작: 스타일={0}, 들여쓰기={1}, 빈 필드 포함={2}", style, indentSize, includeEmptyFields);
+
+                // includeEmptyFields 업데이트
+                this._includeEmptyFields = includeEmptyFields;
 
                 object rootObj = ProcessRootNode();
 
@@ -314,13 +319,18 @@ namespace ExcelToYamlAddin.Core
             // 값 가져오기
             object value = node.GetValue(row);
 
-            if (value == null || string.IsNullOrEmpty(value.ToString()))
+            // 빈 값 처리 로직 변경: includeEmptyFields가 true이면 빈 값도 추가하도록 수정
+            bool isEmpty = value == null || (value is string str && string.IsNullOrEmpty(str));
+            if (isEmpty && !_includeEmptyFields)
             {
-                Logger.Debug($"값이 비어 있어 무시: 노드={node.SchemeName}");
+                Logger.Debug($"값이 비어 있고 빈 필드 포함 옵션이 꺼져있어 무시: 노드={node.SchemeName}");
                 return;
             }
 
-            value = FormatStringValue(value);
+            if (!isEmpty)
+            {
+                value = FormatStringValue(value);
+            }
 
             // VALUE 노드가 직접 ARRAY의 자식인 경우 (독립 $value) - 직접 값 추가
             if (node.NodeType == SchemeNode.SchemeNodeType.VALUE &&
@@ -342,7 +352,7 @@ namespace ExcelToYamlAddin.Core
                 if (!string.IsNullOrEmpty(key))
                 {
                     parentMap.Add(key, value);
-                    Logger.Debug($"객체에 값 추가: 키={key}, 값={value}");
+                    Logger.Debug($"객체에 값 추가: 키={key}, 값={value ?? "null"}");
                 }
             }
             // 부모가 배열인 경우
@@ -352,7 +362,7 @@ namespace ExcelToYamlAddin.Core
                 if (node.NodeType == SchemeNode.SchemeNodeType.VALUE && string.IsNullOrEmpty(key))
                 {
                     parentArray.Add(value);
-                    Logger.Debug($"배열에 값 직접 추가: 값={value}");
+                    Logger.Debug($"배열에 값 직접 추가: 값={value ?? "null"}");
                 }
                 // 키가 있는 경우 - 객체로 추가
                 else if (!string.IsNullOrEmpty(key))
@@ -361,13 +371,13 @@ namespace ExcelToYamlAddin.Core
                     YamlObject singlePropObj = OrderedYamlFactory.CreateObject();
                     singlePropObj.Add(key, value);
                     parentArray.Add(singlePropObj);
-                    Logger.Debug($"배열에 객체로 값 추가: 키={key}, 값={value}");
+                    Logger.Debug($"배열에 객체로 값 추가: 키={key}, 값={value ?? "null"}");
                 }
                 else
                 {
                     // 안전장치: 키가 없지만 VALUE 노드가 아닌 경우
                     parentArray.Add(value);
-                    Logger.Debug($"배열에 값 직접 추가 (기타 케이스): 값={value}");
+                    Logger.Debug($"배열에 값 직접 추가 (기타 케이스): 값={value ?? "null"}");
                 }
             }
         }
@@ -404,19 +414,25 @@ namespace ExcelToYamlAddin.Core
             }
 
             object value = valueNode.GetValue(row);
-            if (value == null || string.IsNullOrEmpty(value.ToString()))
+            
+            // 빈 값 처리 로직 변경: includeEmptyFields가 true이면 빈 값도 추가하도록 수정
+            bool isEmpty = value == null || (value is string str && string.IsNullOrEmpty(str));
+            if (isEmpty && !_includeEmptyFields)
             {
-                Logger.Debug($"VALUE 값이 비어 있어 무시: 키={dynamicKey}");
+                Logger.Debug($"VALUE 값이 비어 있고 빈 필드 포함 옵션이 꺼져있어 무시: 키={dynamicKey}");
                 return;
             }
 
-            value = FormatStringValue(value);
+            if (!isEmpty)
+            {
+                value = FormatStringValue(value);
+            }
 
             // 부모가 객체인 경우
             if (parentObject is YamlObject parentMap)
             {
                 parentMap.Add(dynamicKey, value);
-                Logger.Debug($"KEY-VALUE 쌍 추가: 키={dynamicKey}, 값={value}");
+                Logger.Debug($"KEY-VALUE 쌍 추가: 키={dynamicKey}, 값={value ?? "null"}");
             }
             // 부모가 배열인 경우 - 실제 셀 값을 키로 사용
             else if (parentObject is YamlArray parentArray)
@@ -427,7 +443,7 @@ namespace ExcelToYamlAddin.Core
                 YamlObject keyValueObj = OrderedYamlFactory.CreateObject();
                 keyValueObj.Add(actualKey, value);
                 parentArray.Add(keyValueObj);
-                Logger.Debug($"배열에 동적 키-값 쌍 추가: 키={actualKey}, 값={value}");
+                Logger.Debug($"배열에 동적 키-값 쌍 추가: 키={actualKey}, 값={value ?? "null"}");
             }
         }
 

@@ -186,9 +186,20 @@ namespace ExcelToYamlAddin.Core
             else
             {
                 Debug.WriteLine($"[OrderedYamlFactory] 빈 속성 유지 모드 (includeEmptyFields: {includeEmptyFields})");
-                // 빈 배열 안의 빈 객체들 처리
-                CleanEmptyArrays(obj);
-                Debug.WriteLine($"[OrderedYamlFactory] 빈 배열 처리 완료");
+                // 빈 값을 명시적으로 표현하도록 처리 (null 값도 유지)
+                PreserveEmptyValues(obj);
+                
+                // 추가: null 값이 있는 필드가 YAML에 포함되는지 디버깅 로그 출력
+                if (obj is YamlObject yamlObj)
+                {
+                    Debug.WriteLine($"[OrderedYamlFactory] 객체 속성 수: {yamlObj.Properties.Count()}");
+                    foreach (var prop in yamlObj.Properties)
+                    {
+                        Debug.WriteLine($"[OrderedYamlFactory] 속성: {prop.Key}, 값: {(prop.Value == null ? "null" : prop.Value.ToString())}");
+                    }
+                }
+                
+                Debug.WriteLine($"[OrderedYamlFactory] 빈 값 보존 처리 완료");
             }
 
             var sb = new StringBuilder();
@@ -206,7 +217,7 @@ namespace ExcelToYamlAddin.Core
         {
             if (obj == null)
             {
-                sb.Append("null");
+                // null 값은 빈 값으로 출력
                 return;
             }
 
@@ -269,6 +280,7 @@ namespace ExcelToYamlAddin.Core
             bool needQuotes = preserveQuotes ||
                               containsKorean ||  // 한글 포함 시 따옴표 추가
                               value.Contains(':') ||
+                              value.Contains('%') ||
                               value.Contains('#') ||
                               value.Contains(',') ||
                               value.StartsWith(" ") ||
@@ -312,6 +324,45 @@ namespace ExcelToYamlAddin.Core
             }
         }
 
+        private static bool IsEffectivelyEmpty(object value)
+        {
+            if (value == null)
+                return true;
+
+            if (value is string str && string.IsNullOrEmpty(str))
+                return true;
+
+            if (value is YamlObject obj)
+            {
+                if (!obj.HasValues)
+                    return true;
+
+                // 모든 속성이 효과적으로 비어있는지 확인
+                foreach (var prop in obj.Properties)
+                {
+                    if (!IsEffectivelyEmpty(prop.Value))
+                        return false;
+                }
+                return true;
+            }
+
+            if (value is YamlArray arr)
+            {
+                if (!arr.HasValues)
+                    return true;
+
+                // 모든 배열 항목이 효과적으로 비어있는지 확인
+                foreach (var item in arr.Items)
+                {
+                    if (!IsEffectivelyEmpty(item))
+                        return false;
+                }
+                return true;
+            }
+
+            return false;
+        }
+
         private static void SerializeYamlObject(YamlObject obj, StringBuilder sb, int level, int indentSize, YamlStyle style, bool preserveQuotes)
         {
             // 빈 객체 처리
@@ -323,7 +374,34 @@ namespace ExcelToYamlAddin.Core
                 }
                 if (style == YamlStyle.Block)
                 {
-                    // 빈 객체는 Block 스타일에서 줄바꿈만 수행
+                    // 빈 객체를 Block 스타일에서 "빈 객체 표시"로 수정
+                    sb.Append("{}");
+                    sb.AppendLine();
+                }
+                return;
+            }
+
+            // 모든 속성이 효과적으로 비어있는지 확인
+            bool allPropertiesEffectivelyEmpty = true;
+            foreach (var prop in obj.Properties)
+            {
+                if (!IsEffectivelyEmpty(prop.Value))
+                {
+                    allPropertiesEffectivelyEmpty = false;
+                    break;
+                }
+            }
+
+            // 모든 속성이 효과적으로 비어있으면 빈 객체로 출력
+            if (allPropertiesEffectivelyEmpty)
+            {
+                if (style == YamlStyle.Flow)
+                {
+                    sb.Append("{}");
+                }
+                else
+                {
+                    sb.Append("{}");
                     sb.AppendLine();
                 }
                 return;
@@ -365,17 +443,30 @@ namespace ExcelToYamlAddin.Core
 
                     sb.Append(kvp.Key).Append(": ");
 
-                    // 빈 배열인 경우 바로 개행 처리
-                    if (kvp.Value is YamlArray yamlArray && !yamlArray.HasValues)
+                    // null 값 처리
+                    if (kvp.Value == null)
                     {
-                        // 빈 배열은 [] 표기로 출력 (CleanEmptyArrays에서 처리됨)
+                        // null 값은 빈 값으로 출력
+                        sb.AppendLine();
+                    }
+                    // 빈 배열인 경우 바로 개행 처리
+                    else if (kvp.Value is YamlArray yamlArray && !yamlArray.HasValues)
+                    {
+                        // 빈 배열은 [] 표기로 출력
                         sb.Append("[]");
                         sb.AppendLine();
                     }
                     // 빈 객체인 경우 바로 개행 처리
                     else if (kvp.Value is YamlObject yamlObj && !yamlObj.HasValues)
                     {
-                        // 이미 콜론(:)이 추가되었으므로 빈 객체 표시
+                        // 빈 객체는 {} 표기로 출력
+                        sb.Append("{}");
+                        sb.AppendLine();
+                    }
+                    // 빈 문자열 처리
+                    else if (kvp.Value is string str && string.IsNullOrEmpty(str))
+                    {
+                        sb.Append(preserveQuotes ? "\"\"" : "");
                         sb.AppendLine();
                     }
                     else if (kvp.Value is YamlObject || kvp.Value is YamlArray)
@@ -399,7 +490,26 @@ namespace ExcelToYamlAddin.Core
             // 빈 배열 처리
             if (!array.HasValues)
             {
-                // 빈 배열은 [] 표기로 출력 (CleanEmptyArrays에서 처리됨)
+                // 빈 배열은 [] 표기로 출력
+                sb.Append("[]");
+                sb.AppendLine();
+                return;
+            }
+
+            // 모든 항목이 효과적으로 비어있는지 확인
+            bool allItemsEffectivelyEmpty = true;
+            foreach (var item in array.Items)
+            {
+                if (!IsEffectivelyEmpty(item))
+                {
+                    allItemsEffectivelyEmpty = false;
+                    break;
+                }
+            }
+
+            // 모든 항목이 효과적으로 비어있으면 빈 배열로 출력
+            if (allItemsEffectivelyEmpty)
+            {
                 sb.Append("[]");
                 sb.AppendLine();
                 return;
@@ -435,7 +545,17 @@ namespace ExcelToYamlAddin.Core
                     Indent(sb, level, indentSize);
                     sb.Append("- ");
 
-                    if (item is YamlObject yamlObj)
+                    if (item == null)
+                    {
+                        // null 값은 빈 값으로 출력
+                        sb.AppendLine();
+                    }
+                    else if (item is string str && string.IsNullOrEmpty(str))
+                    {
+                        sb.Append(preserveQuotes ? "\"\"" : "");
+                        sb.AppendLine();
+                    }
+                    else if (item is YamlObject yamlObj)
                     {
                         // 객체 내 속성들 처리
                         if (!yamlObj.HasValues)
@@ -454,7 +574,17 @@ namespace ExcelToYamlAddin.Core
                                     // 첫 번째 속성은 같은 줄에 표시
                                     sb.Append(prop.Key).Append(": ");
 
-                                    if (prop.Value is YamlObject || prop.Value is YamlArray)
+                                    if (prop.Value == null)
+                                    {
+                                        // null 값은 빈 값으로 출력
+                                        sb.AppendLine();
+                                    }
+                                    else if (prop.Value is string propStr && string.IsNullOrEmpty(propStr))
+                                    {
+                                        sb.Append(preserveQuotes ? "\"\"" : "");
+                                        sb.AppendLine();
+                                    }
+                                    else if (prop.Value is YamlObject || prop.Value is YamlArray)
                                     {
                                         // MAP 노드의 자식들은 2 레벨 더 들여쓰기 (일관성 유지)
                                         SerializeObject(prop.Value, sb, level + 2, indentSize, style, preserveQuotes);
@@ -474,7 +604,17 @@ namespace ExcelToYamlAddin.Core
                                     Indent(sb, level + 1, indentSize);
                                     sb.Append(prop.Key).Append(": ");
 
-                                    if (prop.Value is YamlObject || prop.Value is YamlArray)
+                                    if (prop.Value == null)
+                                    {
+                                        // null 값은 빈 값으로 출력
+                                        sb.AppendLine();
+                                    }
+                                    else if (prop.Value is string propStr && string.IsNullOrEmpty(propStr))
+                                    {
+                                        sb.Append(preserveQuotes ? "\"\"" : "");
+                                        sb.AppendLine();
+                                    }
+                                    else if (prop.Value is YamlObject || prop.Value is YamlArray)
                                     {
                                         // MAP 노드의 자식들은 2 레벨 더 들여쓰기 (일관성 유지)
                                         SerializeObject(prop.Value, sb, level + 2, indentSize, style, preserveQuotes);
@@ -508,6 +648,66 @@ namespace ExcelToYamlAddin.Core
             {
                 sb.Append(' ');
             }
+        }
+
+        // 빈 값(스칼라, 배열, 객체 등)을 모두 보존하도록 처리하는 메서드
+        public static void PreserveEmptyValues(object token, bool isRoot = true)
+        {
+            if (token is YamlArray array)
+            {
+                // 루트 배열인 경우, 빈 항목 제거 처리 (체크박스 상태와 무관하게)
+                if (isRoot)
+                {
+                    Debug.WriteLine("[OrderedYamlFactory] 루트 배열 처리 중 (PreserveEmptyValues)");
+
+                    // 빈 항목 확인 및 제거
+                    bool hasEmptyItems = false;
+                    foreach (var item in array.Items)
+                    {
+                        if (IsEmptyItem(item))
+                        {
+                            hasEmptyItems = true;
+                            break;
+                        }
+                    }
+
+                    // 빈 항목이 있으면 제거
+                    if (hasEmptyItems)
+                    {
+                        Debug.WriteLine("[OrderedYamlFactory] 루트 배열에서 빈 항목 제거 (PreserveEmptyValues)");
+
+                        // 뒤에서부터 제거 (인덱스 변경 방지)
+                        for (int i = array.Count - 1; i >= 0; i--)
+                        {
+                            if (IsEmptyItem(array[i]))
+                            {
+                                array.RemoveAt(i);
+                            }
+                        }
+                    }
+                }
+
+                // 배열 내의 항목들을 재귀적으로 처리 (루트가 아닌 것으로 처리)
+                foreach (var item in array.Items)
+                {
+                    if (item != null)  // null이 아닌 항목만 처리
+                    {
+                        PreserveEmptyValues(item, false);
+                    }
+                }
+            }
+            else if (token is YamlObject obj)
+            {
+                // 객체 내의 모든 속성을 재귀적으로 처리
+                foreach (var prop in obj.Properties)
+                {
+                    if (prop.Value != null)  // null이 아닌 값만 처리
+                    {
+                        PreserveEmptyValues(prop.Value, false);
+                    }
+                }
+            }
+            // 스칼라 값은 그대로 유지 (처리할 필요 없음)
         }
 
         // 빈 객체만 포함하는 배열을 빈 배열로 변환 및 루트 배열의 빈 항목 제거
