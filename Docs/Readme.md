@@ -1,4 +1,5 @@
 # Excel2YAML 사용설명서
+![Example](https://github.com/user-attachments/assets/2fef96dc-63f2-4284-8be2-e6143d24c9fc)
 
 ## 목차
 - [1. 개요](#1-개요)
