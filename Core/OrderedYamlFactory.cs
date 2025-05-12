@@ -305,14 +305,14 @@ namespace ExcelToYamlAddin.Core
                     switch (c)
                     {
                         case '"':
-                            sb.Append("\\\"");
+                            sb.Append('"');
                             break;
                         case '\\':
-                            sb.Append("\\\\");
+                            sb.Append('\\');
                             break;
-                        case '\n': sb.Append("\\n"); break;  // 항상 개행을 \n으로 치환
-                        case '\r': sb.Append("\\r"); break;  // 항상 캐리지리턴을 \r로 치환
-                        case '\t': sb.Append("\\t"); break;
+                        case '\n': sb.Append("\n"); break;  // 항상 개행을 \n으로 치환
+                        case '\r': sb.Append("\r"); break;  // 항상 캐리지리턴을 \r로 치환
+                        case '\t': sb.Append("\t"); break;
                         default: sb.Append(c.ToString()); break;
                     }
                 }
