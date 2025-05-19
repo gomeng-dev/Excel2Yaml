@@ -501,6 +501,180 @@ namespace ExcelToYamlAddin
             }
         }
 
+        // XML로 변환 버튼 클릭 (새로 추가된 메소드)
+        public void OnConvertToXmlClick(object sender, RibbonControlEventArgs e)
+        {
+            try
+            {
+                List<Excel.Worksheet> convertibleSheets;
+                if (!PrepareAndValidateSheets(out convertibleSheets))
+                {
+                    return;
+                }
+
+                // XML 변환 설정
+                // 1단계: YAML로 먼저 변환하므로 OutputFormat.Yaml 설정
+                config.OutputFormat = OutputFormat.Yaml;
+
+                // 현재 활성 시트 또는 전역 설정에 따라 빈 필드 포함 여부 결정
+                bool sheetSpecificEmptyFieldSetting = false;
+                try
+                {
+                    if (Globals.ThisAddIn.Application.ActiveSheet != null)
+                    {
+                        string currentSheetName = Globals.ThisAddIn.Application.ActiveSheet.Name;
+                        sheetSpecificEmptyFieldSetting = ExcelConfigManager.Instance.GetConfigBool(currentSheetName, "YamlEmptyFields", false);
+                        Debug.WriteLine($"[OnConvertToXmlClick] 현재 시트 '{currentSheetName}'의 YamlEmptyFields 설정 (YAML 단계용): {sheetSpecificEmptyFieldSetting}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[OnConvertToXmlClick] 시트별 YamlEmptyFields 설정 확인 중 오류 (YAML 단계용): {ex.Message}");
+                }
+                config.IncludeEmptyFields = sheetSpecificEmptyFieldSetting || addEmptyYamlFields;
+                Debug.WriteLine($"[OnConvertToXmlClick] YAML 변환 시 빈 필드 포함 설정: {config.IncludeEmptyFields} (시트별: {sheetSpecificEmptyFieldSetting}, 전역: {addEmptyYamlFields})");
+
+                config.EnableHashGen = enableHashGen; // 해시 생성 옵션 (YAML 단계용)
+
+                SheetPathManager.Instance.Initialize();
+                Debug.WriteLine("[OnConvertToXmlClick] 변환 전 SheetPathManager 재초기화 완료");
+
+                // 프로그레스 바 표시 및 변환 작업 수행
+                using (var progressForm = new Forms.ProgressForm())
+                {
+                    List<string> finalXmlFiles = new List<string>();
+                    progressForm.RunOperation((progress, cancellationToken) =>
+                    {
+                        progress.Report(new Forms.ProgressForm.ProgressInfo
+                        {
+                            Percentage = 0,
+                            StatusMessage = "Excel → YAML 변환 준비 중..."
+                        });
+
+                        // 1단계: Excel을 YAML로 변환 (임시 파일에 저장)
+                        string tempDir = Path.Combine(Path.GetTempPath(), "ExcelToXmlTemp_" + Guid.NewGuid().ToString().Substring(0, 8));
+                        Directory.CreateDirectory(tempDir);
+
+                        ExcelToYamlConfig yamlConfig = new ExcelToYamlConfig
+                        {
+                            IncludeEmptyFields = config.IncludeEmptyFields,
+                            EnableHashGen = config.EnableHashGen, // YAML 단계에서 해시 생성은 선택사항
+                            OutputFormat = OutputFormat.Yaml,
+                            WorkingDirectory = tempDir // 임시 YAML 파일 저장 경로
+                        };
+
+                        List<string> tempYamlFiles = new List<string>();
+
+                        try
+                        {
+                            progress.Report(new Forms.ProgressForm.ProgressInfo
+                            {
+                                Percentage = 10,
+                                StatusMessage = "Excel → YAML 파일 생성 중..."
+                            });
+
+                            // Excel을 임시 YAML 파일로 변환
+                            tempYamlFiles = ConvertExcelFileToTemp(yamlConfig, tempDir, convertibleSheets);
+
+                            if (tempYamlFiles.Count == 0)
+                            {
+                                progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 100, StatusMessage = "변환할 YAML 파일이 없습니다.", IsCompleted = true });
+                                return;
+                            }
+
+                            // 2단계: YAML 후처리 (MergeKeyPaths, FlowStyle 등)
+                            progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 30, StatusMessage = "YAML 후처리 진행 중..." });
+                            ApplyYamlPostProcessing(tempYamlFiles, convertibleSheets, progress, cancellationToken, 30, 30, isForJsonConversion: false); // isForJsonConversion = false로 모든 후처리 적용
+
+                            // 3단계: 후처리된 YAML을 XML로 변환
+                            progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 60, StatusMessage = "YAML → XML 변환 중..." });
+
+                            var yamlParser = new YamlDotNet.Serialization.DeserializerBuilder().Build();
+                            int processedXmlCount = 0;
+
+                            foreach (var yamlFilePath in tempYamlFiles)
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                string sheetFileName = Path.GetFileNameWithoutExtension(yamlFilePath); // 예: "Sheet1"
+                                string originalSheetName = convertibleSheets.FirstOrDefault(s => 
+                                    (s.Name.StartsWith("!") ? s.Name.Substring(1) : s.Name).Equals(sheetFileName, StringComparison.OrdinalIgnoreCase))?.Name ?? sheetFileName;
+
+                                progress.Report(new Forms.ProgressForm.ProgressInfo
+                                {
+                                    Percentage = 60 + (int)((double)processedXmlCount / tempYamlFiles.Count * 35),
+                                    StatusMessage = $"'{sheetFileName}' YAML → XML 변환 중..."
+                                });
+
+                                string yamlContent = File.ReadAllText(yamlFilePath);
+                                var deserializedYaml = yamlParser.Deserialize<IDictionary<string, object>>(yamlContent);
+
+                                // YAML의 루트는 보통 시트 이름이므로, 그 내부 객체를 XML의 루트로 사용
+                                // 또는 deserializedYaml 자체가 XML 루트의 내용을 담고 있다면 그대로 사용
+                                IDictionary<string, object> dataForXml;
+                                string xmlRootElementName = sheetFileName; // 기본값
+
+                                if (deserializedYaml.Count == 1 && deserializedYaml.Values.First() is IDictionary<string, object> innerData)
+                                {
+                                    xmlRootElementName = deserializedYaml.Keys.First();
+                                    dataForXml = innerData;
+                                }
+                                else
+                                {
+                                    dataForXml = deserializedYaml; // YAML 자체가 루트 요소의 내용을 나타내는 경우
+                                }
+                                
+                                string xmlString = Core.YamlToXmlConverter.ConvertToXmlString(dataForXml, xmlRootElementName);
+
+                                string savePath = SheetPathManager.Instance.GetSheetPath(originalSheetName);
+                                if (string.IsNullOrEmpty(savePath)) savePath = Path.GetDirectoryName(Globals.ThisAddIn.Application.ActiveWorkbook.FullName); // 기본 경로
+
+                                string xmlFilePath = Path.Combine(savePath, $"{sheetFileName}.xml");
+                                Directory.CreateDirectory(Path.GetDirectoryName(xmlFilePath)); // 경로 생성
+                                File.WriteAllText(xmlFilePath, xmlString);
+                                finalXmlFiles.Add(xmlFilePath);
+                                processedXmlCount++;
+                            }
+
+                            progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 100, StatusMessage = $"{finalXmlFiles.Count}개 파일 XML 변환 완료", IsCompleted = true });
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 100, StatusMessage = "XML 변환 작업이 취소되었습니다.", IsCompleted = true });
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[OnConvertToXmlClick] XML 변환 중 오류 발생: {ex.Message}\n{ex.StackTrace}");
+                            progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 100, StatusMessage = $"오류 발생: {ex.Message}", IsCompleted = true, HasError = true, ErrorMessage = ex.Message });
+                        }
+                        finally
+                        {
+                            try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
+                            catch (Exception ex) { Debug.WriteLine($"[OnConvertToXmlClick] 임시 디렉토리 정리 중 오류: {ex.Message}"); }
+                        }
+                    }, "Excel → YAML → XML 변환 중...");
+
+                    progressForm.ShowDialog();
+
+                    if (progressForm.DialogResult != DialogResult.Cancel && finalXmlFiles.Count > 0)
+                    {
+                        MessageBox.Show($"{finalXmlFiles.Count}개의 시트가 성공적으로 XML로 변환되었습니다.", "XML 변환 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else if (progressForm.DialogResult != DialogResult.Cancel)
+                    {
+                        MessageBox.Show("변환된 XML 파일이 없습니다.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"XML 변환 중 오류가 발생했습니다: {ex.Message}",
+                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Debug.WriteLine($"[Ribbon] XML 변환 오류: {ex.Message}");
+                Debug.WriteLine($"[Ribbon] 스택 트레이스: {ex.StackTrace}");
+            }
+        }
+
+
         // YAML을 JSON으로 변환 버튼 클릭
         public void OnConvertYamlToJsonClick(object sender, RibbonControlEventArgs e)
         {

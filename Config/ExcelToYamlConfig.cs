@@ -3,7 +3,8 @@ namespace ExcelToYamlAddin.Config
     public enum OutputFormat
     {
         Json,
-        Yaml
+        Yaml,
+        Xml
     }
 
     public enum YamlStyle
