@@ -1,44 +1,84 @@
 using System;
-using System.Collections;
+using System.Collections; // Required for non-generic IDictionary and DictionaryEntry
 using System.Collections.Generic;
-using System.Diagnostics; // Debug.WriteLine을 위해 추가
-using System.IO;
+using System.Diagnostics;
+using System.IO; // Retained as it was present, though not strictly used by this logic
+using System.Linq; // Added for the new line
 using System.Xml.Linq;
 
-namespace ExcelToYamlAddin.Core.YamlPostProcessors // 네임스페이스를 Core로 변경 (Ribbon.cs의 호출 경로와 일치시키기 위해)
+namespace ExcelToYamlAddin.Core.YamlPostProcessors
 {
     public static class YamlToXmlConverter
     {
         /// <summary>
-        /// YAML에서 파싱된 IDictionary<string, object> 데이터를 XML 문자열로 변환합니다.
-        /// ExcelToXmlConversionRules.md의 규칙을 따릅니다 (키가 '_'로 시작하면 속성으로 처리).
+        /// Converts YAML data (parsed as IDictionary<string, object>) into an XML string.
+        /// Keys starting with '_' are treated as attributes.
         /// </summary>
-        /// <param name="yamlData">YAML에서 파싱된 데이터입니다.</param>
-        /// <param name="rootElementName">XML 문서의 루트 요소 이름입니다.</param>
-        /// <returns>생성된 XML 문자열입니다.</returns>
+        /// <param name="yamlData">The YAML data, typically the content for the root element.</param>
+        /// <param name="rootElementName">The name for the root XML element.</param>
+        /// <returns>An XML string representation of the YAML data.</returns>
         public static string ConvertToXmlString(IDictionary<string, object> yamlData, string rootElementName)
         {
-            if (string.IsNullOrEmpty(rootElementName))
+            XElement actualRootElement;
+            string chosenRootNameForDebug; // 디버깅 메시지에 사용할 최종 루트 이름
+
+            // 시나리오 1: YAML 데이터가 비어있거나 null인 경우
+            if (yamlData == null || !yamlData.Any()) // System.Linq.Any()
             {
-                // 루트 요소 이름이 없으면 기본값 또는 예외 처리
-                Debug.WriteLine("[YamlToXmlConverter.ConvertToXmlString] Error: rootElementName cannot be null or empty.");
-                throw new ArgumentException("Root element name cannot be null or empty.", nameof(rootElementName));
+                Debug.WriteLine("[YamlToXmlConverter.ConvertToXmlString] YAML data is null or empty.");
+                if (string.IsNullOrEmpty(rootElementName))
+                {
+                    // 데이터도 없고, 명시적 루트 이름도 없으면 XML 생성 불가
+                    Debug.WriteLine("[YamlToXmlConverter.ConvertToXmlString] Error: Both YAML data and rootElementName are null/empty. Cannot create XML.");
+                    throw new ArgumentException("Cannot create XML: YAML data is null/empty and no rootElementName is provided.", nameof(rootElementName));
+                }
+                // 데이터는 없지만 명시적 루트 이름이 있으면, 해당 이름으로 빈 루트 요소 생성
+                chosenRootNameForDebug = rootElementName;
+                Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] Creating empty XML with root '{chosenRootNameForDebug}'.");
+                actualRootElement = new XElement(chosenRootNameForDebug);
+            }
+            // 시나리오 2: YAML 데이터에 키가 하나만 있고, 그 값의 타입이 IDictionary (string 키 또는 object 키)인 경우
+            // 이 경우 YAML의 첫 번째 키를 실제 루트로 사용하고, rootElementName은 무시.
+            else if (yamlData.Count == 1 &&
+                     (yamlData.First().Value is IDictionary<string, object> || yamlData.First().Value is IDictionary))
+            {
+                var firstEntry = yamlData.First();
+                chosenRootNameForDebug = firstEntry.Key;
+                Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] YAML data has a single dictionary entry. Using its key '{chosenRootNameForDebug}' as XML root. Provided rootElementName '{rootElementName}' is ignored.");
+                actualRootElement = new XElement(chosenRootNameForDebug);
+
+                if (firstEntry.Value is IDictionary<string, object> dictStringKey)
+                {
+                    AddNodes(actualRootElement, dictStringKey);
+                }
+                else if (firstEntry.Value is IDictionary dictObjectKey) // 이것은 IDictionary<string, object>가 아닌 IDictionary를 처리
+                {
+                    ConvertAndAddNonGenericDictionary(actualRootElement, dictObjectKey);
+                }
+            }
+            // 시나리오 3: YAML 데이터가 다른 구조를 가지는 경우 (여러 키, 또는 단일 키지만 값이 딕셔너리가 아님)
+            // 이 경우 rootElementName을 사용해야 함. 만약 rootElementName이 없다면 에러.
+            else
+            {
+                if (string.IsNullOrEmpty(rootElementName))
+                {
+                    Debug.WriteLine("[YamlToXmlConverter.ConvertToXmlString] Error: YAML data structure requires a rootElementName, but it's null or empty.");
+                    throw new ArgumentException("rootElementName must be provided when YAML data is multi-keyed or has a single non-dictionary entry.", nameof(rootElementName));
+                }
+                chosenRootNameForDebug = rootElementName;
+                Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] YAML data is multi-keyed or single non-dictionary. Using provided rootElementName '{chosenRootNameForDebug}' as XML root.");
+                actualRootElement = new XElement(chosenRootNameForDebug);
+                AddNodes(actualRootElement, yamlData); // 전체 yamlData를 이 루트의 자식으로 추가
             }
 
-            if (yamlData == null)
-            {
-                Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] Input yamlData is null for root '{rootElementName}'. Returning empty root.");
-                // 빈 루트 요소만 반환
-                return new XDocument(new XDeclaration("1.0", "utf-8", "yes"), new XElement(rootElementName)).ToString();
-            }
-
-            XElement rootElement = new XElement(rootElementName);
-            AddNodes(rootElement, yamlData);
-
-            XDocument xmlDoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), rootElement);
+            Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] Final XML document will be based on root '{chosenRootNameForDebug}'.");
+            XDocument xmlDoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), actualRootElement);
             return xmlDoc.ToString();
         }
 
+        /// <summary>
+        /// Recursively populates an XElement based on the provided dictionary data.
+        /// </summary>
         private static void AddNodes(XElement parentElement, IDictionary<string, object> data)
         {
             if (data == null) return;
@@ -57,7 +97,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors // 네임스페이스를 Core
                     continue;
                 }
 
-                if (key.StartsWith("_")) // 규칙: '_'로 시작하는 키는 XML 속성으로 처리
+                if (key.StartsWith("_")) // Rule: Keys starting with '_' become XML attributes.
                 {
                     string attributeName = key.Substring(1);
                     if (string.IsNullOrEmpty(attributeName))
@@ -72,7 +112,6 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors // 네임스페이스를 Core
                     }
                     else
                     {
-                        // null 값 속성은 추가하지 않거나, 빈 문자열로 추가할 수 있습니다. 여기서는 추가하지 않음.
                         Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Attribute '{attributeName}' has null value. Skipping attribute for element '{parentElement.Name}'.");
                     }
                 }
@@ -81,13 +120,14 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors // 네임스페이스를 Core
                     Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Key '{key}' is IList with {listValue.Count} items.");
                     foreach (var item in listValue)
                     {
+                        // For list items, the element name is the key of the list itself (e.g., <WinReward> for items in WinReward list)
                         XElement listElement = new XElement(key);
                         if (item is IDictionary<string, object> itemDictStringKey)
                         {
                             Debug.WriteLine($"[YamlToXmlConverter.AddNodes] List item for key '{key}' is IDictionary<string, object>. Recursively calling AddNodes.");
                             AddNodes(listElement, itemDictStringKey);
                         }
-                        else if (item is IDictionary itemDictObjectKey) // YamlDotNet이 Dictionary<object, object> 반환 시
+                        else if (item is IDictionary itemDictObjectKey) // Handles cases where YamlDotNet returns Dictionary<object, object>
                         {
                             Debug.WriteLine($"[YamlToXmlConverter.AddNodes] List item for key '{key}' is IDictionary (object key, type: {item.GetType()}). Attempting conversion for list item.");
                             ConvertAndAddNonGenericDictionary(listElement, itemDictObjectKey);
@@ -100,7 +140,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors // 네임스페이스를 Core
                         else
                         {
                             Debug.WriteLine($"[YamlToXmlConverter.AddNodes] List item for key '{key}' is null. Adding empty element.");
-                            // listElement.Value는 기본적으로 비어있음
+                            // listElement.Value is already empty by default
                         }
                         parentElement.Add(listElement);
                     }
@@ -112,61 +152,54 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors // 네임스페이스를 Core
                     AddNodes(childElement, dictValueStringKey);
                     parentElement.Add(childElement);
                 }
-                else if (value is IDictionary dictValueObjectKey) // YamlDotNet이 Dictionary<object, object> 반환 시
+                else if (value is IDictionary dictValueObjectKey) // Handles cases where YamlDotNet returns Dictionary<object, object>
                 {
                     XElement childElement = new XElement(key);
                     Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Key '{key}' is IDictionary (object key, type: {dictValueObjectKey.GetType()}). Attempting conversion.");
                     ConvertAndAddNonGenericDictionary(childElement, dictValueObjectKey);
                     parentElement.Add(childElement);
                 }
-                else if (value != null) // 단순 값 (스칼라)
+                else if (value != null) // Scalar value
                 {
                     Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Key '{key}' has a non-null scalar value (type: {value.GetType()}). Adding as element value: '{value}'.");
                     parentElement.Add(new XElement(key, value.ToString()));
                 }
                 else
                 {
-                    // value가 null이고, 속성도 아니고, 리스트나 딕셔너리도 아닌 경우 (단순 null 값)
-                    // XML에서는 null 값을 표현하는 표준 방식이 없으므로, 빈 요소를 추가하거나 아무것도 하지 않을 수 있습니다.
-                    // 여기서는 빈 요소를 추가합니다.
-                    Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Key '{key}' has null value. Adding empty element.");
+                    // Value is null, and it's not an attribute, list, or dictionary.
+                    // Depending on desired XML for nulls, either add an empty element or skip.
+                    // Current behavior: Add empty element if key is present but value is null.
+                    Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Key '{key}' has a null scalar value. Adding empty element <{key}/>.");
                     parentElement.Add(new XElement(key));
                 }
             }
         }
 
-        // Helper method to convert and add nodes from a non-specifically-typed IDictionary
-        private static void ConvertAndAddNonGenericDictionary(XElement targetElement, IDictionary dictionary)
+        /// <summary>
+        /// Helper method to convert a non-generic IDictionary (potentially with object keys)
+        /// to an IDictionary<string, object> and then process it using AddNodes.
+        /// </summary>
+        private static void ConvertAndAddNonGenericDictionary(XElement parentElement, IDictionary data)
         {
-            var convertedDict = new Dictionary<string, object>();
-            if (dictionary == null)
-            {
-                Debug.WriteLine($"[YamlToXmlConverter.ConvertAndAddNonGenericDictionary] Input dictionary is null for target element '{targetElement.Name}'.");
-                // 빈 딕셔너리에 대해 AddNodes를 호출하면 아무것도 추가되지 않음
-                AddNodes(targetElement, convertedDict);
-                return;
-            }
+            if (data == null) return;
 
-            foreach (DictionaryEntry entry in dictionary)
+            var stringKeyData = new Dictionary<string, object>();
+            foreach (DictionaryEntry entry in data)
             {
                 if (entry.Key == null)
                 {
-                    Debug.WriteLine($"[YamlToXmlConverter.ConvertAndAddNonGenericDictionary] Null key found in dictionary for element '{targetElement.Name}'. Skipping entry.");
+                    Debug.WriteLine($"[YamlToXmlConverter.ConvertAndAddNonGenericDictionary] Warning: Null key found in non-generic IDictionary for parent '{parentElement.Name}'. Skipping entry.");
                     continue;
                 }
-
-                string stringKey = entry.Key.ToString(); // 키를 문자열로 변환
-                if (!string.IsNullOrEmpty(stringKey))
+                string keyString = entry.Key.ToString();
+                if (string.IsNullOrEmpty(keyString))
                 {
-                    Debug.WriteLine($"[YamlToXmlConverter.ConvertAndAddNonGenericDictionary] Converting key '{entry.Key}' (type: {entry.Key.GetType()}) to string key '{stringKey}'. Value type: {entry.Value?.GetType().ToString() ?? "null"}");
-                    convertedDict[stringKey] = entry.Value;
+                    Debug.WriteLine($"[YamlToXmlConverter.ConvertAndAddNonGenericDictionary] Warning: Key '{entry.Key}' converted to empty string. Skipping entry for parent '{parentElement.Name}'.");
+                    continue;
                 }
-                else
-                {
-                    Debug.WriteLine($"[YamlToXmlConverter.ConvertAndAddNonGenericDictionary] Warning: Dictionary Key for element '{targetElement.Name}' could not be converted to a non-empty string. Original Key: '{entry.Key}', Type: {entry.Key.GetType()}");
-                }
+                stringKeyData[keyString] = entry.Value;
             }
-            AddNodes(targetElement, convertedDict); // Recurse with the strongly-typed dictionary
+            AddNodes(parentElement, stringKeyData); // Call the main AddNodes with the converted dictionary
         }
     }
 }
