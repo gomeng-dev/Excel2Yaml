@@ -263,64 +263,65 @@ namespace ExcelToYamlAddin.Core
                 return;
             }
 
-            // 숫자로만 이루어진 문자열인지 확인
-            bool isNumericString = !string.IsNullOrEmpty(value) && value.All(char.IsDigit);
+            // 라인 엔딩 정규화 (\r\n 또는 \r -> \n)
+            string normalizedValue = value.Replace("\r\n", "\n").Replace("\r", "\n");
 
-            // 한글 문자 포함 여부 확인
+            // 기존 needQuotes 결정 로직은 normalizedValue를 기준으로 수행되어야 일관성 있음
+            bool isNumericString = !string.IsNullOrEmpty(normalizedValue) && normalizedValue.All(char.IsDigit);
             bool containsKorean = false;
-            foreach (char c in value)
+            foreach (char c_iterator in normalizedValue) 
             {
-                if (c >= '\uAC00' && c <= '\uD7A3')  // 한글 유니코드 범위 (가-힣)
+                if (c_iterator >= '\uAC00' && c_iterator <= '\uD7A3')
                 {
                     containsKorean = true;
                     break;
                 }
             }
 
-            bool needQuotes = preserveQuotes ||
-                              containsKorean ||  // 한글 포함 시 따옴표 추가
-                              value.Contains(':') ||
-                              value.Contains('%') ||
-                              value.Contains('#') ||
-                              value.Contains(',') ||
-                              value.StartsWith(" ") ||
-                              value.EndsWith(" ") ||
-                              value == "true" ||
-                              value == "false" ||
-                              value == "null" ||
-                              (value.Length > 0 && char.IsDigit(value[0]) && !isNumericString);
+            bool containsNewline = normalizedValue.Contains('\n'); // 정규화된 값에서 개행 확인
 
-            // 개행 문자 포함 여부 확인
-            bool containsNewline = value.Contains('\n') || value.Contains('\r');
-            if (containsNewline)
+            bool needQuotes = preserveQuotes ||
+                              containsKorean ||
+                              normalizedValue.Contains(':') ||
+                              normalizedValue.Contains('%') ||
+                              normalizedValue.Contains('#') ||
+                              normalizedValue.Contains(',') ||
+                              normalizedValue.StartsWith(" ") ||
+                              normalizedValue.EndsWith(" ") ||
+                              normalizedValue == "true" ||
+                              normalizedValue == "false" ||
+                              normalizedValue == "null" ||
+                              (normalizedValue.Length > 0 && char.IsDigit(normalizedValue[0]) && !isNumericString);
+
+            if (containsNewline) // 정규화된 값에 개행이 있으면 무조건 따옴표 필요
             {
-                needQuotes = true;  // 개행 포함 시 무조건 따옴표 필요
+                needQuotes = true;
             }
 
             if (needQuotes)
             {
                 sb.Append('"');
-                foreach (char c in value)
+                // 이스케이프 및 문자열 구성은 normalizedValue 사용
+                foreach (char c in normalizedValue)
                 {
                     switch (c)
                     {
-                        case '"':
-                            sb.Append('"');
+                        case '"':  sb.Append("\\\""); break; // 큰따옴표 이스케이프
+                        case '\\': sb.Append("\\\\"); break; // 백슬래시 이스케이프
+                        case '\n': sb.Append("\\n");  break; // 개행은 \\n으로 이스케이프
+                        // \r은 normalizedValue에 없을 것이므로 case '\r' 불필요
+                        case '\t': sb.Append("\\t");  break; // 탭도 이스케이프 (표준 YAML/JSON 문자열 규칙)
+                        default:
+                            sb.Append(c); // 현재는 다른 문자는 그대로 추가
                             break;
-                        case '\\':
-                            sb.Append('\\');
-                            break;
-                        case '\n': sb.Append("\n"); break;  // 항상 개행을 \n으로 치환
-                        case '\r': sb.Append("\r"); break;  // 항상 캐리지리턴을 \r로 치환
-                        case '\t': sb.Append("\t"); break;
-                        default: sb.Append(c.ToString()); break;
                     }
                 }
                 sb.Append('"');
             }
             else
             {
-                sb.Append(value);
+                // 따옴표가 필요 없는 경우. 이 경우 normalizedValue는 개행이나 YAML 특수문자를 포함하지 않아야 함.
+                sb.Append(normalizedValue);
             }
         }
 

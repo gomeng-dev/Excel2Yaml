@@ -386,6 +386,7 @@ namespace ExcelToYamlAddin
                                         {
                                             // 파일 이름 정보 추출
                                             string fileName = Path.GetFileNameWithoutExtension(filePath);
+                                            bool mergeKeyPathsProcessingAttempted = false;
 
                                             progress.Report(new Forms.ProgressForm.ProgressInfo
                                             {
@@ -472,6 +473,7 @@ namespace ExcelToYamlAddin
                                                     // YAML 병합 키 경로 처리 실행 (YamlMergeKeyPathsProcessor 사용)
                                                     if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
                                                     {
+                                                        mergeKeyPathsProcessingAttempted = true;
                                                         Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실행: {filePath}, 설정: {sheetMergeKeyPaths}");
 
                                                         // 개선된 YamlMergeKeyPathsProcessor를 사용하여 병합 처리
@@ -562,9 +564,44 @@ namespace ExcelToYamlAddin
                                                 }
                                             }
 
+                                            // 4단계: 최종 Raw 문자열 변환 (\\n -> \n) - 조건부 실행
+                                            if (!mergeKeyPathsProcessingAttempted)
+                                            {
+                                                Debug.WriteLine($"[Ribbon] MergeKeyPaths 및 FlowStyle 처리되지 않아 최종 Raw 문자열 변환 후처리 실행: {filePath}");
+                                                progress.Report(new Forms.ProgressForm.ProgressInfo
+                                                {
+                                                    Percentage = (int)((double)processedFiles / totalFiles * 100),
+                                                    StatusMessage = $"'{fileName}' - 최종 문자열 정리 중..."
+                                                });
+                                                Debug.WriteLine($"[Ribbon] 최종 Raw 문자열 변환 후처리 시작: {filePath}");
+                                                try
+                                                {
+                                                    Core.YamlPostProcessors.FinalRawStringConverter converter = new Core.YamlPostProcessors.FinalRawStringConverter();
+                                                    bool conversionPerformed = converter.ProcessYamlFile(filePath);
+                                                    if (conversionPerformed)
+                                                    {
+                                                        Debug.WriteLine($"[Ribbon] 최종 Raw 문자열 변환 후처리 완료 (변경됨): {filePath}");
+                                                    }
+                                                    else
+                                                    {
+                                                        Debug.WriteLine($"[Ribbon] 최종 Raw 문자열 변환 후처리 완료 (변경 없음 또는 해당 없음): {filePath}");
+                                                    }
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    Debug.WriteLine($"[Ribbon] 최종 Raw 문자열 변환 후처리 중 오류 발생: {filePath} - {ex.Message}");
+                                                }
+                                                CheckCancellation(); // 이 단계 후에도 취소 확인
+                                            }
+                                            else
+                                            {
+                                                Debug.WriteLine($"[Ribbon] MergeKeyPaths ({mergeKeyPathsProcessingAttempted}) 처리되어 최종 Raw 문자열 변환 건너뜀: {filePath}");
+                                            }
+
                                             processedFiles++;
                                         }
                                     }
+                                    
 
                                     // 모든 작업 완료
                                     progress.Report(new Forms.ProgressForm.ProgressInfo
