@@ -32,6 +32,38 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
         /// </summary>
         /// <param name="flowStyleConfig">설정 문자열</param>
         /// <returns>YamlFlowStyleProcessor 인스턴스</returns>
+        public static bool IsConfigEffectivelyEmpty(string flowStyleConfig)
+        {
+            if (string.IsNullOrWhiteSpace(flowStyleConfig))
+                return true;
+
+            string parsedFlowFields = "";
+            string parsedItemsFields = "";
+            string[] parts = flowStyleConfig.Split('|');
+
+            if (parts.Length >= 1)
+                parsedFlowFields = parts[0];
+            if (parts.Length >= 2)
+                parsedItemsFields = parts[1];
+
+            // Check if both components, after splitting by '|', are also effectively empty
+            // A non-empty component would lead to ParseFields attempting to find field names.
+            if (string.IsNullOrWhiteSpace(parsedFlowFields) && string.IsNullOrWhiteSpace(parsedItemsFields))
+            {
+                return true;
+            }
+
+            // Further check: if ParseFields would result in empty dictionaries for both non-whitespace parts.
+            // This requires instantiating temporary dictionaries or duplicating ParseFields logic, which is more complex.
+            // For now, assume that if a part is not IsNullOrWhiteSpace, it *might* contain valid field names.
+            // The initial FromConfigString -> ParseFields logic handles empty field lists correctly causing no processing.
+            // This IsConfigEffectivelyEmpty is for Ribbon to decide if an *attempt* should be logged and flag set.
+            // If flowStyleConfig is "field1|" or "|item1", these are not effectively empty.
+            // Only if both sides of '|' (or the whole string if no '|') are whitespace, is it effectively empty.
+
+            return false; // If either part has non-whitespace content, it's not considered effectively empty here.
+        }
+
         public static YamlFlowStyleProcessor FromConfigString(string flowStyleConfig)
         {
             string flowStyleFields = "";

@@ -387,6 +387,7 @@ namespace ExcelToYamlAddin
                                             // 파일 이름 정보 추출
                                             string fileName = Path.GetFileNameWithoutExtension(filePath);
                                             bool mergeKeyPathsProcessingAttempted = false;
+                                            bool flowStyleProcessingAttempted = false;
 
                                             progress.Report(new Forms.ProgressForm.ProgressInfo
                                             {
@@ -514,21 +515,23 @@ namespace ExcelToYamlAddin
                                                 Debug.WriteLine($"[Ribbon] ExcelConfigManager Flow Style 설정 값: '{sheetFlowStyle}'");
 
                                                 // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                                if (string.IsNullOrEmpty(sheetFlowStyle))
+                                                if (string.IsNullOrWhiteSpace(sheetFlowStyle))
                                                 {
                                                     sheetFlowStyle = SheetPathManager.Instance.GetFlowStyleConfig(matchedSheetName ?? fileName);
                                                     Debug.WriteLine($"[Ribbon] SheetPathManager Flow Style 설정 값: '{sheetFlowStyle}'");
                                                 }
 
                                                 // YAML 흐름 스타일 처리 실행
-                                                if (!string.IsNullOrEmpty(sheetFlowStyle))
+                                                if (!Core.YamlPostProcessors.YamlFlowStyleProcessor.IsConfigEffectivelyEmpty(sheetFlowStyle))
                                                 {
+
                                                     Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 실행: {filePath}, 설정: {sheetFlowStyle}");
                                                     bool success = YamlFlowStyleProcessor.ProcessYamlFileFromConfig(filePath, sheetFlowStyle);
                                                     if (success)
                                                     {
                                                         Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 완료: {filePath}");
                                                         flowStyleSuccessCount++;
+                                                        flowStyleProcessingAttempted = true;
                                                     }
                                                 }
                                                 else
@@ -565,7 +568,7 @@ namespace ExcelToYamlAddin
                                             }
 
                                             // 4단계: 최종 Raw 문자열 변환 (\\n -> \n) - 조건부 실행
-                                            if (!mergeKeyPathsProcessingAttempted)
+                                            if (!mergeKeyPathsProcessingAttempted && !flowStyleProcessingAttempted)
                                             {
                                                 Debug.WriteLine($"[Ribbon] MergeKeyPaths 및 FlowStyle 처리되지 않아 최종 Raw 문자열 변환 후처리 실행: {filePath}");
                                                 progress.Report(new Forms.ProgressForm.ProgressInfo
@@ -595,7 +598,7 @@ namespace ExcelToYamlAddin
                                             }
                                             else
                                             {
-                                                Debug.WriteLine($"[Ribbon] MergeKeyPaths ({mergeKeyPathsProcessingAttempted}) 처리되어 최종 Raw 문자열 변환 건너뜀: {filePath}");
+                                                Debug.WriteLine($"[Ribbon] MergeKeyPaths ({mergeKeyPathsProcessingAttempted}) 또는 FlowStyle ({flowStyleProcessingAttempted}) 처리되어 최종 Raw 문자열 변환 건너뜀: {filePath}");
                                             }
 
                                             processedFiles++;
