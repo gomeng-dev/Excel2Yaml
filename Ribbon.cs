@@ -623,7 +623,7 @@ namespace ExcelToYamlAddin
                                     dataForXml = deserializedYaml; // YAML 자체가 루트 요소의 내용을 나타내는 경우
                                 }
                                 
-                                string xmlString = Core.YamlToXmlConverter.ConvertToXmlString(dataForXml, xmlRootElementName);
+                                string xmlString = Core.YamlPostProcessors.YamlToXmlConverter.ConvertToXmlString(dataForXml, xmlRootElementName);
 
                                 string savePath = SheetPathManager.Instance.GetSheetPath(originalSheetName);
                                 if (string.IsNullOrEmpty(savePath)) savePath = Path.GetDirectoryName(Globals.ThisAddIn.Application.ActiveWorkbook.FullName); // 기본 경로
