@@ -83,6 +83,20 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
         {
             if (data == null) return;
 
+            // 1. __text 키가 현재 data 딕셔너리에 있으면 parentElement의 값으로 설정
+            if (data.TryGetValue("__text", out object textContentValue))
+            {
+                if (textContentValue != null)
+                {
+                    parentElement.Value = textContentValue.ToString();
+                    Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Element '{parentElement.Name}' set text from '__text' key: '{textContentValue}'.");
+                }
+                else
+                {
+                    Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Element '{parentElement.Name}' found '__text' key, but its value is null. Text not set.");
+                }
+            }
+
             foreach (var kvp in data)
             {
                 string key = kvp.Key;
@@ -97,12 +111,19 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                     continue;
                 }
 
-                if (key.StartsWith("_")) // Rule: Keys starting with '_' become XML attributes.
+                // 2. __text 키는 이미 위에서 parentElement의 값으로 처리했으므로 건너뜀
+                if (key == "__text")
+                {
+                    Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Key '__text' for parent '{parentElement.Name}' skipped as it has been handled for the element's direct value.");
+                    continue;
+                }
+
+                if (key.StartsWith("_")) // 규칙: '_'로 시작하는 키는 XML 속성으로 처리 (parentElement에 대한 속성)
                 {
                     string attributeName = key.Substring(1);
                     if (string.IsNullOrEmpty(attributeName))
                     {
-                        Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Warning: Attribute name derived from key '{key}' is empty. Skipping attribute.");
+                        Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Warning: Attribute name derived from key '{key}' for parent '{parentElement.Name}' is empty. Skipping attribute.");
                         continue;
                     }
                     if (value != null)
@@ -112,7 +133,7 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                     }
                     else
                     {
-                        Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Attribute '{attributeName}' has null value. Skipping attribute for element '{parentElement.Name}'.");
+                        Debug.WriteLine($"[YamlToXmlConverter.AddNodes] Attribute '{attributeName}' for '{parentElement.Name}' has null value. Skipping attribute.");
                     }
                 }
                 else if (value is IList listValue)
