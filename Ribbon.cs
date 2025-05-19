@@ -14,6 +14,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
+using System.Threading; // CancellationToken을 위해 추가
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace ExcelToYamlAddin
@@ -234,6 +235,113 @@ namespace ExcelToYamlAddin
             return true;
         }
 
+        /// <summary>
+        /// 지정된 YAML 파일 목록에 대해 공통 후처리 작업을 적용합니다.
+        /// </summary>
+        /// <param name="yamlFilePaths">후처리를 적용할 YAML 파일 경로 목록입니다.</param>
+        /// <param name="convertibleSheets">변환 가능한 원본 Excel 시트 목록입니다. 파일 이름과 시트 설정을 매칭하는 데 사용됩니다.</param>
+        /// <param name="progress">진행 상태를 보고할 IProgress 객체입니다.</param>
+        /// <param name="cancellationToken">작업 취소를 위한 CancellationToken입니다.</param>
+        /// <param name="initialProgressPercentage">이 후처리 단계가 시작될 때의 전체 진행률입니다.</param>
+        /// <param name="progressRange">이 후처리 단계가 전체 진행률에서 차지하는 범위입니다.</param>
+        /// <param name="isForJsonConversion">JSON으로 변환하기 위한 중간 단계의 YAML 파일에 대한 후처리인 경우 true로 설정합니다. 이 경우 일부 후처리 단계가 생략될 수 있습니다.</param>
+        /// <returns>키 경로 병합 및 Flow 스타일 처리 성공 횟수를 포함하는 튜플을 반환합니다.</returns>
+        private (int mergeKeyPathsSuccessCount, int flowStyleSuccessCount) ApplyYamlPostProcessing(
+            List<string> yamlFilePaths,
+            List<Excel.Worksheet> convertibleSheets,
+            IProgress<Forms.ProgressForm.ProgressInfo> progress,
+            CancellationToken cancellationToken,
+            int initialProgressPercentage,
+            int progressRange,
+            bool isForJsonConversion = false)
+        {
+            int mergeKeyPathsSuccessCount = 0;
+            int flowStyleSuccessCount = 0;
+            int filesProcessedInThisStep = 0;
+            int totalFilesToProcessInThisStep = yamlFilePaths.Count;
+
+            foreach (var yamlFilePath in yamlFilePaths)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string fileName = Path.GetFileNameWithoutExtension(yamlFilePath);
+                bool mergeKeyPathsProcessingAttemptedThisFile = false;
+                bool flowStyleProcessingAttemptedThisFile = false;
+
+                progress.Report(new Forms.ProgressForm.ProgressInfo
+                {
+                    Percentage = initialProgressPercentage + (int)((double)filesProcessedInThisStep / totalFilesToProcessInThisStep * progressRange),
+                    StatusMessage = $"'{fileName}' YAML 후처리 중..."
+                });
+
+                string matchedSheetName = null;
+                foreach (var sheet in convertibleSheets)
+                {
+                    string currentSheetNameForMatch = sheet.Name;
+                    if (currentSheetNameForMatch.StartsWith("!"))
+                        currentSheetNameForMatch = currentSheetNameForMatch.Substring(1);
+
+                    if (string.Compare(currentSheetNameForMatch, fileName, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        matchedSheetName = sheet.Name;
+                        break;
+                    }
+                }
+
+                if (matchedSheetName != null)
+                {
+                    bool yamlEmptyFieldsOption = ExcelConfigManager.Instance.GetConfigBool(matchedSheetName, "YamlEmptyFields", false);
+                    if (!yamlEmptyFieldsOption) yamlEmptyFieldsOption = SheetPathManager.Instance.GetYamlEmptyFieldsOption(matchedSheetName);
+                    if (!yamlEmptyFieldsOption && addEmptyYamlFields) yamlEmptyFieldsOption = addEmptyYamlFields;
+
+                    progress.Report(new Forms.ProgressForm.ProgressInfo { StatusMessage = $"'{fileName}' - 키 경로 병합 처리 중..." });
+                    string sheetMergeKeyPaths = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "MergeKeyPaths", "");
+                    if (string.IsNullOrEmpty(sheetMergeKeyPaths)) sheetMergeKeyPaths = SheetPathManager.Instance.GetMergeKeyPaths(matchedSheetName);
+
+                    if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
+                    {
+                        mergeKeyPathsProcessingAttemptedThisFile = true;
+                        Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 병합 후처리 실행: {yamlFilePath}, 설정: {sheetMergeKeyPaths}");
+                        bool success = YamlMergeKeyPathsProcessor.ProcessYamlFileFromConfig(yamlFilePath, sheetMergeKeyPaths, yamlEmptyFieldsOption);
+                        if (success) { Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 병합 후처리 완료: {yamlFilePath}"); mergeKeyPathsSuccessCount++; }
+                        else { Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 병합 후처리 실패: {yamlFilePath}"); }
+                    }
+
+                    if (!isForJsonConversion)
+                    {
+                        progress.Report(new Forms.ProgressForm.ProgressInfo { StatusMessage = $"'{fileName}' - Flow Style 처리 중..." });
+                        string sheetFlowStyle = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "FlowStyle", "");
+                        if (string.IsNullOrWhiteSpace(sheetFlowStyle)) sheetFlowStyle = SheetPathManager.Instance.GetFlowStyleConfig(matchedSheetName ?? fileName);
+
+                        if (!YamlFlowStyleProcessor.IsConfigEffectivelyEmpty(sheetFlowStyle))
+                        {
+                            flowStyleProcessingAttemptedThisFile = true;
+                            Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 흐름 스타일 후처리 실행: {yamlFilePath}, 설정: {sheetFlowStyle}");
+                            bool success = YamlFlowStyleProcessor.ProcessYamlFileFromConfig(yamlFilePath, sheetFlowStyle);
+                            if (success) { Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 흐름 스타일 후처리 완료: {yamlFilePath}"); flowStyleSuccessCount++; }
+                            else { Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 흐름 스타일 후처리 실패: {yamlFilePath}"); }
+                        }
+                        else { Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 흐름 스타일 후처리 건너뜀: {yamlFilePath}, 설정: '{sheetFlowStyle}'"); }
+
+                        progress.Report(new Forms.ProgressForm.ProgressInfo { StatusMessage = $"'{fileName}' - 빈 배열 처리 중..." });
+                        bool processEmptyArrays = yamlEmptyFieldsOption || addEmptyYamlFields;
+                        if (processEmptyArrays) { Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 빈 배열 처리: OrderedYamlFactory에서 처리 (파일: {yamlFilePath}), 시트별: {yamlEmptyFieldsOption}, 전역: {addEmptyYamlFields}"); }
+                        else { Debug.WriteLine($"[ApplyYamlPostProcessing] YAML 빈 배열 처리 건너뜀: 관련 옵션 비활성화. 시트별: {yamlEmptyFieldsOption}, 전역: {addEmptyYamlFields}");}
+
+                        if (!mergeKeyPathsProcessingAttemptedThisFile && !flowStyleProcessingAttemptedThisFile)
+                        {
+                            progress.Report(new Forms.ProgressForm.ProgressInfo { StatusMessage = $"'{fileName}' - 최종 문자열 정리 중..." });
+                            Debug.WriteLine($"[ApplyYamlPostProcessing] 최종 Raw 문자열 변환 후처리 실행: {yamlFilePath}");
+                            new Core.YamlPostProcessors.FinalRawStringConverter().ProcessYamlFile(yamlFilePath);
+                        }
+                        else { Debug.WriteLine($"[ApplyYamlPostProcessing] 최종 Raw 문자열 변환 건너뜀 (Merge: {mergeKeyPathsProcessingAttemptedThisFile}, Flow: {flowStyleProcessingAttemptedThisFile}): {yamlFilePath}"); }
+                    }
+                }
+                filesProcessedInThisStep++;
+            }
+            return (mergeKeyPathsSuccessCount, flowStyleSuccessCount);
+        }
+
         // YAML으로 변환 버튼 클릭
         public void OnConvertToYamlClick(object sender, RibbonControlEventArgs e)
         {
@@ -296,8 +404,8 @@ namespace ExcelToYamlAddin
 
                 // 변환 결과 추적
                 int successCount = 0;
-                int mergeKeyPathsSuccessCount = 0;
-                int flowStyleSuccessCount = 0;
+                int currentPostProcessMergeSuccessCount = 0; // 스코프 문제 해결을 위해 이름 변경 및 외부 선언
+                int currentPostProcessFlowSuccessCount = 0;  // 스코프 문제 해결을 위해 이름 변경 및 외부 선언
 
                 // YAML 후처리 기능 적용
                 if (convertedFiles != null && convertedFiles.Count > 0)
@@ -307,261 +415,17 @@ namespace ExcelToYamlAddin
                         Debug.WriteLine($"[Ribbon] YAML 후처리 확인: {convertedFiles.Count}개 파일");
                         successCount = convertedFiles.Count;
 
+
                         // 후처리를 위한 프로그레스 바 표시
                         using (var progressForm = new Forms.ProgressForm())
                         {
                             progressForm.RunOperation((progress, cancellationToken) =>
                             {
-                                int totalFiles = convertedFiles.Count;
-                                int processedFiles = 0;
-
-                                // 초기 프로그레스 업데이트
-                                progress.Report(new Forms.ProgressForm.ProgressInfo
-                                {
-                                    Percentage = 0,
-                                    StatusMessage = "YAML 후처리 준비 중..."
-                                });
-
-                                // 취소 여부 확인을 위한 헬퍼 메서드
-                                void CheckCancellation()
-                                {
-                                    // 취소 토큰 확인
-                                    cancellationToken.ThrowIfCancellationRequested();
-
-                                    // 더 이상 이전 방식의 취소 확인은 사용하지 않음
-                                    // cancellationToken으로 충분함
-                                }
-
                                 try
                                 {
-                                    foreach (var filePath in convertedFiles)
-                                    {
-                                        // 각 파일 처리 전 취소 여부 확인
-                                        CheckCancellation();
-
-                                        if (File.Exists(filePath) && Path.GetExtension(filePath).ToLower() == ".yaml")
-                                        {
-                                            // 파일 이름 정보 추출
-                                            string fileName = Path.GetFileNameWithoutExtension(filePath);
-                                            bool mergeKeyPathsProcessingAttempted = false;
-                                            bool flowStyleProcessingAttempted = false;
-
-                                            progress.Report(new Forms.ProgressForm.ProgressInfo
-                                            {
-                                                Percentage = (int)((double)processedFiles / totalFiles * 100),
-                                                StatusMessage = $"'{fileName}' 파일 처리 중..."
-                                            });
-
-                                            // 작업 중간에도 취소 여부 확인
-                                            CheckCancellation();
-
-                                            // 파일 경로에서 시트 이름 추출
-                                            string workbookName = Path.GetFileName(Globals.ThisAddIn.Application.ActiveWorkbook.FullName);
-
-                                            // 가능한 시트 이름 형식
-                                            List<string> possibleSheetNames = new List<string>
-                                            {
-                                                fileName,                  // 파일명 그대로
-                                                "!" + fileName,            // !접두사 추가
-                                                fileName.StartsWith("!") ? fileName.Substring(1) : fileName   // !접두사 제거
-                                            };
-
-                                            Debug.WriteLine($"[Ribbon] YAML 파일 처리: {filePath}");
-
-                                            // 찾은 실제 시트 이름
-                                            string matchedSheetName = null;
-
-                                            // YAML 선택적 필드 후처리
-                                            // 워크북 내 시트 이름 매칭
-                                            foreach (var sheet in convertibleSheets)
-                                            {
-                                                string currentSheetName = sheet.Name;
-                                                if (currentSheetName.StartsWith("!"))
-                                                    currentSheetName = currentSheetName.Substring(1);
-
-                                                if (string.Compare(currentSheetName, fileName, true) == 0)
-                                                {
-                                                    matchedSheetName = sheet.Name;
-                                                    break;
-                                                }
-                                            }
-
-                                            // 1단계: YAML 선택적 필드 처리
-                                            progress.Report(new Forms.ProgressForm.ProgressInfo
-                                            {
-                                                StatusMessage = $"'{fileName}' - 선택적 필드 처리 중..."
-                                            });
-
-                                            // YAML 선택적 필드 처리
-                                            if (matchedSheetName != null)
-                                            {
-                                                // Excel excel2yamlconfig 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
-                                                bool option = ExcelConfigManager.Instance.GetConfigBool(matchedSheetName, "YamlEmptyFields", false);
-
-                                                // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                                if (!option)
-                                                {
-                                                    option = SheetPathManager.Instance.GetYamlEmptyFieldsOption(matchedSheetName);
-                                                }
-
-                                                // 둘 다 없으면 기본 설정 사용
-                                                if (!option && addEmptyYamlFields)
-                                                {
-                                                    option = addEmptyYamlFields;
-                                                }
-
-                                                // 2단계: 키 경로 병합 처리
-                                                progress.Report(new Forms.ProgressForm.ProgressInfo
-                                                {
-                                                    StatusMessage = $"'{fileName}' - 키 경로 병합 처리 중..."
-                                                });
-
-                                                // 키 경로 병합 후처리
-                                                if (matchedSheetName != null)
-                                                {
-                                                    // Excel excel2yamlconfig 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
-                                                    string sheetMergeKeyPaths = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "MergeKeyPaths", "");
-
-                                                    // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                                    if (string.IsNullOrEmpty(sheetMergeKeyPaths))
-                                                    {
-                                                        sheetMergeKeyPaths = SheetPathManager.Instance.GetMergeKeyPaths(matchedSheetName);
-                                                    }
-
-                                                    // YAML 병합 키 경로 처리 실행 (YamlMergeKeyPathsProcessor 사용)
-                                                    if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
-                                                    {
-                                                        mergeKeyPathsProcessingAttempted = true;
-                                                        Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실행: {filePath}, 설정: {sheetMergeKeyPaths}");
-
-                                                        // 개선된 YamlMergeKeyPathsProcessor를 사용하여 병합 처리
-                                                        // YamlEmptyFields 옵션이 true이면 빈 필드를 유지하도록 includeEmptyFields 매개변수를 전달
-                                                        bool success = YamlMergeKeyPathsProcessor.ProcessYamlFileFromConfig(
-                                                            filePath,
-                                                            sheetMergeKeyPaths,
-                                                            option // YamlEmptyFields 옵션 전달
-                                                        );
-
-                                                        if (success)
-                                                        {
-                                                            Debug.WriteLine($"[Ribbon] YAML 병합 후처리 완료: {filePath}");
-                                                            mergeKeyPathsSuccessCount++;
-                                                        }
-                                                        else
-                                                        {
-                                                            Debug.WriteLine($"[Ribbon] YAML 병합 후처리 실패: {filePath}");
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            // 3단계: Flow Style 처리
-                                            progress.Report(new Forms.ProgressForm.ProgressInfo
-                                            {
-                                                StatusMessage = $"'{fileName}' - Flow Style 처리 중..."
-                                            });
-
-                                            // Flow Style 처리
-                                            if (matchedSheetName != null)
-                                            {
-                                                // 시트 이름을 로깅하여 디버깅을 돕습니다
-                                                Debug.WriteLine($"[Ribbon] Flow Style 처리 검사 중: 파일 경로={filePath}, 파일 이름={fileName}, 매칭된 시트 이름={matchedSheetName}");
-
-                                                // Excel excel2yamlconfig 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
-                                                string sheetFlowStyle = ExcelConfigManager.Instance.GetConfigValue(matchedSheetName, "FlowStyle", "");
-                                                Debug.WriteLine($"[Ribbon] ExcelConfigManager Flow Style 설정 값: '{sheetFlowStyle}'");
-
-                                                // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                                if (string.IsNullOrWhiteSpace(sheetFlowStyle))
-                                                {
-                                                    sheetFlowStyle = SheetPathManager.Instance.GetFlowStyleConfig(matchedSheetName ?? fileName);
-                                                    Debug.WriteLine($"[Ribbon] SheetPathManager Flow Style 설정 값: '{sheetFlowStyle}'");
-                                                }
-
-                                                // YAML 흐름 스타일 처리 실행
-                                                if (!Core.YamlPostProcessors.YamlFlowStyleProcessor.IsConfigEffectivelyEmpty(sheetFlowStyle))
-                                                {
-
-                                                    Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 실행: {filePath}, 설정: {sheetFlowStyle}");
-                                                    bool success = YamlFlowStyleProcessor.ProcessYamlFileFromConfig(filePath, sheetFlowStyle);
-                                                    if (success)
-                                                    {
-                                                        Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 완료: {filePath}");
-                                                        flowStyleSuccessCount++;
-                                                        flowStyleProcessingAttempted = true;
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    Debug.WriteLine($"[Ribbon] YAML 흐름 스타일 후처리 건너뜀: {filePath}");
-                                                    Debug.WriteLine($"[Ribbon] 설정 값: '{sheetFlowStyle}'");
-                                                }
-                                            }
-
-                                            // 빈 배열 필드 처리
-                                            progress.Report(new Forms.ProgressForm.ProgressInfo
-                                            {
-                                                StatusMessage = $"'{fileName}' - 빈 배열 처리 중..."
-                                            });
-
-                                            if (matchedSheetName != null)
-                                            {
-                                                // YamlEmptyFields 옵션 확인
-                                                bool yamlEmptyFieldsOption = ExcelConfigManager.Instance.GetConfigBool(matchedSheetName, "YamlEmptyFields", false);
-
-                                                // 전역 설정이나 시트별 설정이 활성화된 경우에만 처리
-                                                bool processEmptyArrays = yamlEmptyFieldsOption || addEmptyYamlFields;
-
-                                                if (processEmptyArrays)
-                                                {
-                                                    Debug.WriteLine($"[Ribbon] YAML 빈 배열 처리: OrderedYamlFactory에서 처리 (파일: {filePath})");
-                                                    Debug.WriteLine($"[Ribbon] - 시트별 설정: {yamlEmptyFieldsOption}, 전역 설정: {addEmptyYamlFields}");
-                                                }
-                                                else
-                                                {
-                                                    Debug.WriteLine($"[Ribbon] YAML 빈 배열 처리 건너뜀: 관련 옵션이 비활성화되어 있습니다.");
-                                                    Debug.WriteLine($"[Ribbon] - 시트별 설정: {yamlEmptyFieldsOption}, 전역 설정: {addEmptyYamlFields}");
-                                                }
-                                            }
-
-                                            // 4단계: 최종 Raw 문자열 변환 (\\n -> \n) - 조건부 실행
-                                            if (!mergeKeyPathsProcessingAttempted && !flowStyleProcessingAttempted)
-                                            {
-                                                Debug.WriteLine($"[Ribbon] MergeKeyPaths 및 FlowStyle 처리되지 않아 최종 Raw 문자열 변환 후처리 실행: {filePath}");
-                                                progress.Report(new Forms.ProgressForm.ProgressInfo
-                                                {
-                                                    Percentage = (int)((double)processedFiles / totalFiles * 100),
-                                                    StatusMessage = $"'{fileName}' - 최종 문자열 정리 중..."
-                                                });
-                                                Debug.WriteLine($"[Ribbon] 최종 Raw 문자열 변환 후처리 시작: {filePath}");
-                                                try
-                                                {
-                                                    Core.YamlPostProcessors.FinalRawStringConverter converter = new Core.YamlPostProcessors.FinalRawStringConverter();
-                                                    bool conversionPerformed = converter.ProcessYamlFile(filePath);
-                                                    if (conversionPerformed)
-                                                    {
-                                                        Debug.WriteLine($"[Ribbon] 최종 Raw 문자열 변환 후처리 완료 (변경됨): {filePath}");
-                                                    }
-                                                    else
-                                                    {
-                                                        Debug.WriteLine($"[Ribbon] 최종 Raw 문자열 변환 후처리 완료 (변경 없음 또는 해당 없음): {filePath}");
-                                                    }
-                                                }
-                                                catch (Exception ex)
-                                                {
-                                                    Debug.WriteLine($"[Ribbon] 최종 Raw 문자열 변환 후처리 중 오류 발생: {filePath} - {ex.Message}");
-                                                }
-                                                CheckCancellation(); // 이 단계 후에도 취소 확인
-                                            }
-                                            else
-                                            {
-                                                Debug.WriteLine($"[Ribbon] MergeKeyPaths ({mergeKeyPathsProcessingAttempted}) 또는 FlowStyle ({flowStyleProcessingAttempted}) 처리되어 최종 Raw 문자열 변환 건너뜀: {filePath}");
-                                            }
-
-                                            processedFiles++;
-                                        }
-                                    }
-                                    
+                                    (currentPostProcessMergeSuccessCount, currentPostProcessFlowSuccessCount) = ApplyYamlPostProcessing(
+                                        convertedFiles, convertibleSheets, progress, cancellationToken,
+                                        initialProgressPercentage: 0, progressRange: 100, isForJsonConversion: false);
 
                                     // 모든 작업 완료
                                     progress.Report(new Forms.ProgressForm.ProgressInfo
@@ -600,11 +464,11 @@ namespace ExcelToYamlAddin
                     // 모든 후처리 작업이 완료된 후 메시지 표시
                     string message = $"{successCount}개의 시트가 성공적으로 변환되었습니다.";
 
-                    if (mergeKeyPathsSuccessCount > 0)
-                        message += $"\n키 경로 병합 처리: {mergeKeyPathsSuccessCount}개 파일";
+                    if (currentPostProcessMergeSuccessCount > 0)
+                        message += $"\n키 경로 병합 처리: {currentPostProcessMergeSuccessCount}개 파일";
 
-                    if (flowStyleSuccessCount > 0)
-                        message += $"\nFlow 스타일 처리: {flowStyleSuccessCount}개 파일";
+                    if (currentPostProcessFlowSuccessCount > 0)
+                        message += $"\nFlow 스타일 처리: {currentPostProcessFlowSuccessCount}개 파일";
 
                     if (convertedFiles.Count > 0)
                     {
@@ -729,116 +593,12 @@ namespace ExcelToYamlAddin
                                 return;
                             }
 
-                            // 2단계: YAML 후처리 (MergeKeyPaths, FlowStyle 등)
                             progress.Report(new Forms.ProgressForm.ProgressInfo
                             {
                                 Percentage = 30,
                                 StatusMessage = "YAML 후처리 진행 중..."
                             });
-
-                            int processedFiles = 0;
-                            int totalFiles = yamlFiles.Count;
-
-                            // 후처리를 위한 헬퍼 메서드
-                            void CheckCancellation()
-                            {
-                                cancellationToken.ThrowIfCancellationRequested();
-                            }
-
-                            // 각 YAML 파일에 대해 후처리 적용
-                            foreach (var yamlFilePath in yamlFiles)
-                            {
-                                CheckCancellation();
-
-                                if (File.Exists(yamlFilePath))
-                                {
-                                    // 파일 이름 정보 추출
-                                    string fileName = Path.GetFileNameWithoutExtension(yamlFilePath);
-
-                                    progress.Report(new ProgressForm.ProgressInfo
-                                    {
-                                        Percentage = 30 + (int)((double)processedFiles / totalFiles * 20),
-                                        StatusMessage = $"'{fileName}' YAML 후처리 중..."
-                                    });
-
-                                    // 가능한 시트 이름 형식
-                                    string sheetName = null;
-
-                                    // 워크북 내 시트 이름 매칭
-                                    foreach (var sheet in convertibleSheets)
-                                    {
-                                        string currentSheetName = sheet.Name;
-                                        if (currentSheetName.StartsWith("!"))
-                                            currentSheetName = currentSheetName.Substring(1);
-
-                                        if (string.Compare(currentSheetName, fileName, true) == 0)
-                                        {
-                                            sheetName = sheet.Name;
-                                            break;
-                                        }
-                                    }
-
-                                    if (sheetName != null)
-                                    {
-                                        // 1. YAML 선택적 필드 처리
-                                        bool yamlEmptyFieldsOption = ExcelConfigManager.Instance.GetConfigBool(sheetName, "YamlEmptyFields", false);
-
-                                        // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                        if (!yamlEmptyFieldsOption)
-                                        {
-                                            yamlEmptyFieldsOption = SheetPathManager.Instance.GetYamlEmptyFieldsOption(sheetName);
-                                        }
-
-                                        // 둘 다 없으면 기본 설정 사용
-                                        if (!yamlEmptyFieldsOption && addEmptyYamlFields)
-                                        {
-                                            yamlEmptyFieldsOption = addEmptyYamlFields;
-                                        }
-
-                                        // 2. 키 경로 병합 처리
-                                        progress.Report(new ProgressForm.ProgressInfo
-                                        {
-                                            StatusMessage = $"'{fileName}' - 키 경로 병합 처리 중..."
-                                        });
-
-                                        // 키 경로 병합 후처리
-                                        if (sheetName != null)
-                                        {
-                                            // Excel excel2yamlconfig 시트에서 먼저 확인 (우선순위 변경: Excel이 더 높은 우선순위)
-                                            string sheetMergeKeyPaths = ExcelConfigManager.Instance.GetConfigValue(sheetName, "MergeKeyPaths", "");
-
-                                            // Excel에 설정이 없으면 SheetPathManager에서 확인
-                                            if (string.IsNullOrEmpty(sheetMergeKeyPaths))
-                                            {
-                                                sheetMergeKeyPaths = SheetPathManager.Instance.GetMergeKeyPaths(sheetName);
-                                            }
-
-                                            // YAML 병합 키 경로 처리 실행
-                                            if (!string.IsNullOrEmpty(sheetMergeKeyPaths))
-                                            {
-                                                Debug.WriteLine($"[OnConvertYamlToJsonClick] YAML 병합 후처리 실행: {yamlFilePath}, 설정: {sheetMergeKeyPaths}");
-
-                                                bool success = YamlMergeKeyPathsProcessor.ProcessYamlFileFromConfig(
-                                                    yamlFilePath,
-                                                    sheetMergeKeyPaths,
-                                                    yamlEmptyFieldsOption
-                                                );
-
-                                                if (success)
-                                                {
-                                                    Debug.WriteLine($"[OnConvertYamlToJsonClick] YAML 병합 후처리 완료: {yamlFilePath}");
-                                                }
-                                                else
-                                                {
-                                                    Debug.WriteLine($"[OnConvertYamlToJsonClick] YAML 병합 후처리 실패: {yamlFilePath}");
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    processedFiles++;
-                                }
-                            }
+                            ApplyYamlPostProcessing(yamlFiles, convertibleSheets, progress, cancellationToken, 30, 20, isForJsonConversion: true);
 
                             // 3단계: JSON 변환 준비
                             progress.Report(new ProgressForm.ProgressInfo
@@ -850,10 +610,7 @@ namespace ExcelToYamlAddin
                             // YAML 파일을 JSON으로 변환할 쌍 생성
                             foreach (var yamlFile in yamlFiles)
                             {
-                                if (cancellationToken.IsCancellationRequested)
-                                {
-                                    break;
-                                }
+                                cancellationToken.ThrowIfCancellationRequested();
 
                                 string fileName = Path.GetFileNameWithoutExtension(yamlFile);
                                 string sheetName = fileName.StartsWith("!") ? fileName : "!" + fileName;
