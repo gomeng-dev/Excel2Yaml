@@ -106,6 +106,13 @@ namespace ExcelToYamlAddin.Forms
         // 작업 실행 및 진행 상태 업데이트를 처리하는 메서드
         public void RunOperation(Action<IProgress<ProgressInfo>, CancellationToken> work, string title = null)
         {
+            if (work == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[ProgressForm.RunOperation] CRITICAL: Received null 'work' action argument!");
+                // work 매개변수가 null이면 즉시 예외를 발생시켜 호출자에게 알립니다.
+                throw new ArgumentNullException(nameof(work), "The background work action cannot be null.");
+            }
+
             if (!string.IsNullOrEmpty(title))
                 this.Text = title;
 
@@ -249,8 +256,39 @@ namespace ExcelToYamlAddin.Forms
         {
             try
             {
+                // workAction, progressReporter, cancellationTokenSource가 null인지 확인합니다.
+                // 하나라도 null이면 작업을 진행할 수 없으므로 오류를 기록하고 종료합니다.
+                if (workAction == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[Worker_DoWork] CRITICAL: workAction is null!");
+                    e.Result = new InvalidOperationException("workAction was not initialized by RunOperation.");
+                    // progressReporter가 사용 가능하다면 오류를 보고하려고 시도합니다.
+                    if (progressReporter != null)
+                    {
+                        progressReporter.Report(new ProgressInfo { IsCompleted = true, HasError = true, ErrorMessage = "Internal error: Background task not set." });
+                    }
+                    return; // 추가 실행 중지
+                }
+                if (progressReporter == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[Worker_DoWork] CRITICAL: progressReporter is null!");
+                    // 이것은 심각한 내부 오류이며 진행 상황을 보고할 수 없습니다.
+                    e.Result = new InvalidOperationException("progressReporter was not initialized.");
+                    return; // 추가 실행 중지
+                }
+                if (cancellationTokenSource == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[Worker_DoWork] CRITICAL: cancellationTokenSource is null!");
+                    e.Result = new InvalidOperationException("cancellationTokenSource was not initialized.");
+                    if (progressReporter != null)
+                    {
+                        progressReporter.Report(new ProgressInfo { IsCompleted = true, HasError = true, ErrorMessage = "Internal error: CancellationTokenSource not set." });
+                    }
+                    return; // 추가 실행 중지
+                }
+
                 // 작업 실행 (CancellationToken 전달)
-                workAction(progressReporter, cancellationTokenSource.Token);
+                workAction(progressReporter, cancellationTokenSource.Token); // 스택 트레이스에서 언급된 라인 (수정 후 라인 번호는 변경될 수 있음)
 
                 // 작업이 완료된 후 상태 정보 기록
                 System.Diagnostics.Debug.WriteLine($"[Worker_DoWork] 작업 완료 - CancellationPending={worker.CancellationPending}, cancelRequested={cancelRequested}, Token.IsCancellationRequested={cancellationTokenSource.Token.IsCancellationRequested}");
