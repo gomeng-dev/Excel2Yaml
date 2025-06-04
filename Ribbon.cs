@@ -1399,6 +1399,137 @@ namespace ExcelToYamlAddin
             return convertedFiles;
         }
 
+        // HTML 내보내기 버튼 클릭
+        public void OnExportToHtmlClick(object sender, RibbonControlEventArgs e)
+        {
+            ExportCurrentSheetToHtml();
+        }
+
+        // 디버깅: 현재 시트를 HTML로 내보내기
+        public void ExportCurrentSheetToHtml()
+        {
+            try
+            {
+                var app = Globals.ThisAddIn.Application;
+                var activeSheet = app.ActiveSheet as Excel.Worksheet;
+                
+                if (activeSheet == null)
+                {
+                    MessageBox.Show("활성 시트가 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // 저장 경로 선택
+                var saveDialog = new SaveFileDialog
+                {
+                    Title = "HTML 파일 저장",
+                    Filter = "HTML 파일 (*.html)|*.html",
+                    FileName = $"{activeSheet.Name}_debug.html",
+                    RestoreDirectory = true
+                };
+
+                if (saveDialog.ShowDialog() == DialogResult.OK)
+                {
+                    Core.ExcelToHtmlExporter.ExportToHtml(activeSheet, saveDialog.FileName);
+                    
+                    // 브라우저에서 열기
+                    var result = MessageBox.Show($"HTML 파일이 생성되었습니다.\n\n{saveDialog.FileName}\n\n브라우저에서 열어보시겠습니까?",
+                        "내보내기 완료", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                    
+                    if (result == DialogResult.Yes)
+                    {
+                        System.Diagnostics.Process.Start(saveDialog.FileName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"HTML 내보내기 중 오류가 발생했습니다:\n\n{ex.Message}",
+                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // XML 가져오기 버튼 클릭
+        public void OnImportXmlClick(object sender, RibbonControlEventArgs e)
+        {
+            try
+            {
+                // 파일 선택 대화상자
+                var openFileDialog = new OpenFileDialog
+                {
+                    Title = "XML 파일 선택",
+                    Filter = "XML 파일 (*.xml)|*.xml|모든 파일 (*.*)|*.*",
+                    FilterIndex = 1,
+                    RestoreDirectory = true
+                };
+
+                if (openFileDialog.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                string xmlFilePath = openFileDialog.FileName;
+                string xmlContent = File.ReadAllText(xmlFilePath);
+                string fileName = Path.GetFileNameWithoutExtension(xmlFilePath);
+
+                // XML을 Excel로 변환
+                var converter = new Core.XmlToExcelConverter();
+                var workbook = converter.ConvertToExcel(xmlContent, fileName);
+
+                // 현재 워크북 가져오기
+                var app = Globals.ThisAddIn.Application;
+                var currentWorkbook = app.ActiveWorkbook;
+                
+                if (currentWorkbook == null)
+                {
+                    MessageBox.Show("활성 워크북이 없습니다. Excel 파일을 먼저 열어주세요.",
+                        "오류", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // 변환된 시트 복사
+                var convertedSheet = workbook.Worksheets.First();
+                
+                // ClosedXML 워크북을 임시 파일로 저장
+                string tempFile = Path.Combine(Path.GetTempPath(), $"temp_{Guid.NewGuid()}.xlsx");
+                workbook.SaveAs(tempFile);
+                
+                // 임시 파일을 Excel에서 열기
+                var tempWorkbook = app.Workbooks.Open(tempFile);
+                var sourceSheet = tempWorkbook.Worksheets[1];
+                
+                // 현재 워크북의 마지막에 시트 복사
+                sourceSheet.Copy(After: currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count]);
+                
+                // 새로 추가된 시트 선택
+                var newSheet = currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count];
+                newSheet.Activate();
+                
+                // 임시 워크북 닫기
+                tempWorkbook.Close(false);
+                
+                // 임시 파일 삭제
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch { }
+
+                MessageBox.Show($"XML 파일이 성공적으로 Excel로 변환되었습니다.\n\n파일: {fileName}.xml",
+                    "변환 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                
+                // 디버깅용: 변환 결과를 HTML로 자동 내보내기
+                string debugPath = Path.Combine(Path.GetDirectoryName(xmlFilePath), $"{fileName}_debug.html");
+                Core.ExcelToHtmlExporter.ExportToHtml(newSheet, debugPath);
+                System.Diagnostics.Process.Start(debugPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"XML 변환 중 오류가 발생했습니다:\n\n{ex.Message}",
+                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
 
 
         // 엑셀 파일을 임시 디렉토리에 YAML로 변환하는 메서드

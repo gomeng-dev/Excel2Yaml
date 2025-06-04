@@ -196,7 +196,17 @@
         <ul>
             <li><a href="#overview">1. 개요</a></li>
             <li><a href="#purpose">2. 이 프로그램의 용도</a></li>
-            <li><a href="#features">3. 사용 가능한 기능들</a></li>
+            <li><a href="#features">3. 사용 가능한 기능들</a>
+                <ul>
+                    <li><a href="#feature-excel-to-yaml">3.1 엑셀 시트 YAML 변환</a></li>
+                    <li><a href="#feature-auto-sheet">3.2 자동 변환 시트 지정</a></li>
+                    <li><a href="#feature-sheet-path">3.3 시트별 출력 경로 설정</a></li>
+                    <li><a href="#feature-conversion-options">3.4 변환 옵션 설정</a></li>
+                    <li><a href="#feature-yaml-merge">3.5 YAML 항목 병합 기능</a></li>
+                    <li><a href="#feature-yaml-flow-style">3.6 YAML 표시 형식 설정</a></li>
+                    <li><a href="#feature-yaml-to-xml">3.7 YAML 데이터를 XML로 변환 (내부 변환 규칙)</a></li>
+                </ul>
+            </li>
             <li><a href="#excel-guide">4. 엑셀 작성 방법</a></li>
         </ul>
     </div>
@@ -275,7 +285,7 @@
     <p>Excel2YAML은 다양한 기능을 제공하여 엑셀 데이터를 YAML로 변환하는 과정을 유연하고 효율적으로 만들어 줍니다. 여기서는 사용자가 실제로 활용할 수 있는 주요 기능들을 소개합니다.</p>
 
     <div class="feature-box">
-        <h3>3.1 엑셀 시트 YAML 변환</h3>
+        <h3 id="feature-excel-to-yaml">3.1 엑셀 시트 YAML 변환</h3>
         <p>엑셀 시트의 데이터를 YAML 파일로 변환하는 기본 기능입니다.</p>
         
         <div class="steps">
@@ -293,7 +303,7 @@
     </div>
 
     <div class="feature-box">
-        <h3>3.2 자동 변환 시트 지정</h3>
+        <h3 id="feature-auto-sheet">3.2 자동 변환 시트 지정</h3>
         <p>Excel2YAML은 <code>!</code> 기호가 접두사로 붙은 시트만 변환할 수 있습니다. 이 기호는 어떤 시트를 YAML로 변환할지 지정하는 필수 표시입니다.</p>
         
         <div class="steps">
@@ -316,7 +326,7 @@
     </div>
 
     <div class="feature-box">
-        <h3>3.3 시트별 출력 경로 설정</h3>
+        <h3 id="feature-sheet-path">3.3 시트별 출력 경로 설정</h3>
         <p>각 시트별로 다른 저장 경로를 지정할 수 있어, 변환된 YAML 파일을 체계적으로 관리할 수 있습니다.</p>
         
         <div class="steps">
@@ -333,7 +343,7 @@
     </div>
 
     <div class="feature-box">
-        <h3>3.4 변환 옵션 설정</h3>
+        <h3 id="feature-conversion-options">3.4 변환 옵션 설정</h3>
         <p>YAML 변환 과정에서 적용할 수 있는 옵션을 제공합니다.</p>
         
         <h4>제공 옵션:</h4>
@@ -355,7 +365,7 @@
     </div>
 
     <div class="feature-box">
-        <h3>3.5 YAML 항목 병합 기능</h3>
+        <h3 id="feature-yaml-merge">3.5 YAML 항목 병합 기능</h3>
         <p>동일한 식별자(ID)를 가진 항목들을 자동으로 하나로 합치는 기능입니다. 이는 여러 행의 데이터를 하나의 구조로 통합할 때 유용합니다.</p>
         
         <div class="steps">
@@ -469,7 +479,7 @@
     </div>
 
     <div class="feature-box">
-        <h3>3.6 YAML 표시 형식 설정</h3>
+        <h3 id="feature-yaml-flow-style">3.6 YAML 표시 형식 설정</h3>
         <p>YAML 출력의 표시 형식을 사용자가 설정할 수 있습니다. 특히 특정 항목을 한 줄로 간결하게 표시하는 옵션이 유용합니다.</p>
         
         <div class="steps">
@@ -563,6 +573,201 @@ character:
         
         <div class="note">
             <p><strong>참고:</strong> 표시 형식 설정에 대한 자세한 설명과 예시는 <a href="YAML_후처리_가이드.html#yaml-flow">YAML 항목 표시 형식 설정</a> 섹션을 참조하세요.</p>
+        </div>
+    </div>
+
+    <div class="feature-box">
+        <h3 id="feature-yaml-to-xml">3.7 YAML 데이터를 XML로 변환 (내부 변환 규칙)</h3>
+        <p>Excel2YAML은 내부적으로 처리된 YAML 데이터 구조(<code>IDictionary&lt;string, object&gt;</code> 형태)를 XML 문자열로 변환하는 기능을 포함하고 있습니다. 이 기능은 예를 들어, 엑셀 데이터를 YAML뿐만 아니라 XML 형식으로도 출력해야 하는 고급 사용 사례나 시스템 통합에 사용될 수 있습니다. 이 섹션에서는 해당 XML 변환이 어떤 규칙에 따라 이루어지는지 설명합니다.</p>
+        <p>핵심 변환 로직은 <code>YamlToXmlConverter.ConvertToXmlString(IDictionary&lt;string, object&gt; yamlData, string rootElementName)</code> 메소드를 통해 수행됩니다.</p>
+
+        <h4>XML 루트 요소 결정 방식</h4>
+        <p>XML 문서의 최상위 루트 요소는 다음 규칙에 따라 결정됩니다:</p>
+        <ol>
+            <li><strong>YAML 데이터가 비어있거나 null인 경우</strong>:
+                <ul>
+                    <li><code>rootElementName</code> 매개변수로 제공된 이름이 루트 요소가 됩니다.</li>
+                    <li><code>rootElementName</code>도 제공되지 않으면 XML을 생성할 수 없어 오류가 발생합니다.</li>
+                </ul>
+            </li>
+            <li><strong>YAML 데이터에 단일 최상위 키가 있고 그 값이 딕셔너리(객체)인 경우</strong>:
+                <ul>
+                    <li>YAML 데이터의 첫 번째 키가 XML 루트 요소의 이름으로 사용됩니다.</li>
+                    <li>이 경우 <code>rootElementName</code> 매개변수는 무시됩니다.</li>
+                    <li>예: YAML <code>myRoot: { key: value }</code>는 <code>&lt;myRoot&gt;&lt;key&gt;value&lt;/key&gt;&lt;/myRoot&gt;</code>로 변환됩니다.</li>
+                </ul>
+            </li>
+            <li><strong>기타 YAML 데이터 구조 (최상위 키가 여러 개이거나, 단일 키의 값이 딕셔너리가 아닌 경우)</strong>:
+                <ul>
+                    <li><code>rootElementName</code> 매개변수로 제공된 이름이 루트 요소가 됩니다.</li>
+                    <li><code>rootElementName</code>이 제공되지 않으면 오류가 발생합니다.</li>
+                    <li>예: YAML <code>key1: "val1", key2: "val2"</code>이고 <code>rootElementName</code>이 "data"이면 <code>&lt;data&gt;&lt;key1&gt;val1&lt;/key1&gt;&lt;key2&gt;val2&lt;/key2&gt;&lt;/data&gt;</code>로 변환됩니다.</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h4>주요 변환 규칙</h4>
+        <ul>
+            <li><strong>일반 키 (Key)</strong>: YAML의 일반적인 키는 XML 요소(Element)로 변환됩니다.
+                <p>YAML 예시:</p>
+                <pre>item: Simple Value</pre>
+                <p>XML 결과:</p>
+                <pre>&lt;item&gt;Simple Value&lt;/item&gt;</pre>
+            </li>
+            <li><strong><code>_</code> (밑줄) 접두사 키</strong>: YAML 키가 밑줄(<code>_</code>)로 시작하면, 밑줄을 제외한 나머지 문자열이 부모 XML 요소의 속성(Attribute) 이름이 됩니다.
+                <p>YAML 예시:</p>
+                <pre>
+user:
+  _id: "123"
+  name: "John Doe"
+                </pre>
+                <p>XML 결과:</p>
+                <pre>&lt;user id="123"&gt;
+  &lt;name&gt;John Doe&lt;/name&gt;
+&lt;/user&gt;</pre>
+            </li>
+            <li><strong><code>__text</code> 키</strong>: YAML 키가 정확히 <code>__text</code>이면, 해당 키의 값은 부모 XML 요소의 텍스트 내용(Text Content)이 됩니다.
+                <p>YAML 예시:</p>
+                <pre>
+message:
+  _lang: "ko"
+  __text: "안녕하세요"
+                </pre>
+                <p>XML 결과:</p>
+                <pre>&lt;message lang="ko"&gt;안녕하세요&lt;/message&gt;</pre>
+                <div class="note"><code>__text</code> 키는 요소의 직접적인 텍스트 내용을 설정하며, 다른 자식 요소나 속성과 함께 사용될 수 있습니다.</div>
+            </li>
+            <li><strong>리스트 (배열, <code>IList</code>)</strong>: YAML의 리스트는 각 항목마다 XML 요소로 변환됩니다. 이때 각 생성되는 XML 요소의 이름은 리스트를 나타내는 YAML 키의 이름이 됩니다.
+                <p>YAML 예시:</p>
+                <pre>
+items:
+  - product:
+      name: "Laptop"
+      price: 1200
+  - product:
+      name: "Mouse"
+      price: 25
+                </pre>
+                <p>XML 결과 (<code>items</code>가 루트 요소라고 가정):</p>
+                <pre>&lt;items&gt;
+  &lt;product&gt;
+    &lt;name&gt;Laptop&lt;/name&gt;
+    &lt;price&gt;1200&lt;/price&gt;
+  &lt;/product&gt;
+  &lt;product&gt;
+    &lt;name&gt;Mouse&lt;/name&gt;
+    &lt;price&gt;25&lt;/price&gt;
+  &lt;/product&gt;
+                </pre>
+                 <p>만약 YAML 구조가 다음과 같다면:</p>
+                <pre>
+data:
+  rewards:
+    - item: "Gold"
+      amount: 100
+    - item: "Potion"
+      amount: 5
+                </pre>
+                <p>XML 결과 (<code>data</code>가 루트 요소라고 가정):</p>
+                <pre>&lt;data&gt;
+  &lt;rewards&gt; &lt;!-- 첫 번째 항목 --&gt;
+    &lt;item&gt;Gold&lt;/item&gt;
+    &lt;amount&gt;100&lt;/amount&gt;
+  &lt;/rewards&gt;
+  &lt;rewards&gt; &lt;!-- 두 번째 항목 --&gt;
+    &lt;item&gt;Potion&lt;/item&gt;
+    &lt;amount&gt;5&lt;/amount&gt;
+  &lt;/rewards&gt;
+&lt;/data&gt;</pre>
+            </li>
+            <li><strong>중첩된 딕셔너리 (객체)</strong>: YAML의 중첩된 딕셔너리는 중첩된 XML 요소로 변환됩니다.
+                <p>YAML 예시:</p>
+                <pre>
+config:
+  settings:
+    mode: "dark"
+    fontSize: 14
+                </pre>
+                <p>XML 결과:</p>
+                <pre>&lt;config&gt;
+  &lt;settings&gt;
+    &lt;mode&gt;dark&lt;/mode&gt;
+    &lt;fontSize&gt;14&lt;/fontSize&gt;
+  &lt;/settings&gt;
+&lt;/config&gt;</pre>
+            </li>
+            <li><strong>Null 값 처리</strong>:
+                <ul>
+                    <li><strong>속성(Attribute) 값</strong>이 null이면 해당 속성은 XML에 추가되지 않습니다.</li>
+                    <li><strong>요소(Element)의 스칼라 값</strong>이 null이면 빈 XML 요소가 생성됩니다 (예: <code>&lt;key&gt;&lt;/key&gt;</code> 또는 <code>&lt;key/&gt;</code>).</li>
+                </ul>
+                <p>YAML 예시:</p>
+                <pre>
+data:
+  _optionalAttribute: null
+  mandatoryElement: null
+  presentElement: "value"
+                </pre>
+                <p>XML 결과 (<code>data</code>가 루트 요소라고 가정):</p>
+                <pre>&lt;data&gt;
+  &lt;mandatoryElement/&gt;
+  &lt;presentElement&gt;value&lt;/presentElement&gt;
+&lt;/data&gt;</pre>
+            </li>
+        </ul>
+
+        <h4>종합 변환 예시</h4>
+        <p>다음은 여러 규칙이 복합적으로 적용된 YAML 데이터와 그 변환 결과 XML입니다.</p>
+        <p>YAML 입력 (<code>rootNode</code> 라는 루트 이름으로 변환한다고 가정):</p>
+        <pre>
+document:
+  _version: "1.1"
+  __text: "Main document text."
+  header:
+    title: "Report"
+    author: "AI"
+  sections:
+    - section:
+        _id: "s1"
+        heading: "Introduction"
+        content: "This is the first section."
+    - section:
+        _id: "s2"
+        heading: "Details"
+        paragraphs:
+          - p: "Paragraph 1"
+          - p: "Paragraph 2 with an _inlineAttr: 'test'" # Note: This complex inline string won't be parsed as attribute by current simple converter
+        emptyElement: null
+  footer:
+    text: "End of report."
+        </pre>
+        <p>XML 결과 (<code>document</code>가 루트 요소로 사용됨, YAML 최상위 키가 단일 딕셔너리이므로):</p>
+        <pre>&lt;?xml version="1.0" encoding="utf-8" standalone="yes"?&gt;
+&lt;document version="1.1"&gt;Main document text.
+  &lt;header&gt;
+    &lt;title&gt;Report&lt;/title&gt;
+    &lt;author&gt;AI&lt;/author&gt;
+  &lt;/header&gt;
+  &lt;sections id="s1"&gt; &lt;!-- 첫 번째 section 항목 --&gt;
+    &lt;heading&gt;Introduction&lt;/heading&gt;
+    &lt;content&gt;This is the first section.&lt;/content&gt;
+  &lt;/sections&gt;
+  &lt;sections id="s2"&gt; &lt;!-- 두 번째 section 항목 --&gt;
+    &lt;heading&gt;Details&lt;/heading&gt;
+    &lt;paragraphs&gt; &lt;!-- 첫 번째 p 항목 --&gt;
+      &lt;p&gt;Paragraph 1&lt;/p&gt;
+    &lt;/paragraphs&gt;
+    &lt;paragraphs&gt; &lt;!-- 두 번째 p 항목 --&gt;
+      &lt;p&gt;Paragraph 2 with an _inlineAttr: 'test'&lt;/p&gt;
+    &lt;/paragraphs&gt;
+    &lt;emptyElement /&gt;
+  &lt;/sections&gt;
+  &lt;footer&gt;
+    &lt;text&gt;End of report.&lt;/text&gt;
+  &lt;/footer&gt;
+&lt;/document&gt;</pre>
+        <div class="note">
+            <p><strong>참고:</strong> 위에 제시된 YAML 내 <code>_inlineAttr</code> 예시는 현재 변환기의 단순한 문자열 처리 방식에 따라 속성으로 변환되지 않고 문자열 그대로 남습니다. YAML 파서가 문자열 내의 복잡한 구조를 해석하여 <code>IDictionary</code>로 만들지 않는 한, 문자열 값은 그대로 XML 요소의 텍스트가 됩니다.</p>
         </div>
     </div>
 

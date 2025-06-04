@@ -38,6 +38,14 @@
                     screentip="YAML 선택적 필드 처리 여부" 
                     supertip="체크하면 빈 필드가 있는 경우에도 YAML 파일에 필드를 포함합니다." />
           <separator id="separator2" />
+          <button id="btnImportXml" 
+                  label="XML 가져오기" 
+                  size="large" 
+                  onAction="OnImportXmlClick" 
+                  imageMso="ImportXmlData" 
+                  screentip="XML을 Excel로 가져오기" 
+                  supertip="XML 파일을 읽어서 Excel 시트로 변환합니다." />
+          <separator id="separator3" />
           <button id="btnSettings" 
                   label="고급 설정" 
                   size="normal" 

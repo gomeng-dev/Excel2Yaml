@@ -40,6 +40,8 @@ namespace ExcelToYamlAddin
             this.btnConvertToYaml = this.Factory.CreateRibbonButton();
             this.btnConvertYamlToJson = this.Factory.CreateRibbonButton();
             this.btnConvertToXml = this.Factory.CreateRibbonButton(); // XML 버튼 추가
+            this.btnImportXml = this.Factory.CreateRibbonButton(); // XML 가져오기 버튼 추가
+            this.btnExportToHtml = this.Factory.CreateRibbonButton(); // HTML 내보내기 버튼 추가
             this.groupSettings = this.Factory.CreateRibbonGroup();
             this.btnSheetPathSettings = this.Factory.CreateRibbonButton();
             this.groupHelp = this.Factory.CreateRibbonGroup();
@@ -64,6 +66,8 @@ namespace ExcelToYamlAddin
             this.groupConvert.Items.Add(this.btnConvertToYaml);
             this.groupConvert.Items.Add(this.btnConvertYamlToJson);
             this.groupConvert.Items.Add(this.btnConvertToXml); // XML 버튼 그룹에 추가
+            this.groupConvert.Items.Add(this.btnImportXml); // XML 가져오기 버튼 그룹에 추가
+            this.groupConvert.Items.Add(this.btnExportToHtml); // HTML 내보내기 버튼 그룹에 추가
             this.groupConvert.Label = "변환";
             this.groupConvert.Name = "groupConvert";
             // 
@@ -99,6 +103,28 @@ namespace ExcelToYamlAddin
             this.btnConvertToXml.ShowImage = true;
             this.btnConvertToXml.SuperTip = "현재 워크시트의 데이터를 YAML로 변환 후, 그 결과를 XML 형식으로 변환합니다.";
             this.btnConvertToXml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnConvertToXmlClick);
+            // 
+            // btnImportXml
+            // 
+            this.btnImportXml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnImportXml.Image = ((System.Drawing.Image)(resources.GetObject("btnHelp.Image"))); // 임시로 Help 아이콘 사용
+            this.btnImportXml.Label = "XML 가져오기";
+            this.btnImportXml.Name = "btnImportXml";
+            this.btnImportXml.ScreenTip = "XML을 Excel로 가져오기";
+            this.btnImportXml.ShowImage = true;
+            this.btnImportXml.SuperTip = "XML 파일을 읽어서 Excel 시트로 변환합니다.";
+            this.btnImportXml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnImportXmlClick);
+            // 
+            // btnExportToHtml
+            // 
+            this.btnExportToHtml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnExportToHtml.Image = ((System.Drawing.Image)(resources.GetObject("btnHelp.Image"))); // 임시로 Help 아이콘 사용
+            this.btnExportToHtml.Label = "HTML 내보내기";
+            this.btnExportToHtml.Name = "btnExportToHtml";
+            this.btnExportToHtml.ScreenTip = "현재 시트를 HTML로 내보내기";
+            this.btnExportToHtml.ShowImage = true;
+            this.btnExportToHtml.SuperTip = "현재 시트를 HTML 파일로 내보내서 브라우저에서 확인할 수 있습니다.";
+            this.btnExportToHtml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnExportToHtmlClick);
             // 
             // groupSettings
             // 
@@ -159,6 +185,8 @@ namespace ExcelToYamlAddin
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertToYaml;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertYamlToJson;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnConvertToXml; // XML 버튼 멤버 추가
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton btnImportXml; // XML 가져오기 버튼 멤버 추가
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton btnExportToHtml; // HTML 내보내기 버튼 멤버 추가
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnSheetPathSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupHelp;
