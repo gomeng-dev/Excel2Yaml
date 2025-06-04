@@ -184,7 +184,8 @@ namespace ExcelToYamlAddin.Core
             {
                 Attributes = new List<string>(),
                 ChildElements = new Dictionary<string, ElementStructure>(),
-                HasTextContent = false
+                HasTextContent = false,
+                DuplicateElementCounts = new Dictionary<string, int>()
             };
             
             // 모든 단순 자식 요소 이름을 수집하여 순서 보장
@@ -193,7 +194,7 @@ namespace ExcelToYamlAddin.Core
             
             Logger.Information($"전체 {elements.Count}개 요소 구조 분석 시작");
             
-            // 모든 요소에서 속성과 자식 요소 수집
+            // 각 요소에서 자식 요소의 최대 개수 추적
             foreach (var element in elements)
             {
                 Logger.Debug($"요소 분석: {element.Name.LocalName}");
@@ -209,7 +210,18 @@ namespace ExcelToYamlAddin.Core
                     }
                 }
                 
-                // 자식 요소 수집 (순서 보장)
+                // 현재 요소에서 자식 요소별 개수 세기
+                var currentElementChildCounts = element.Elements()
+                    .GroupBy(e => e.Name.LocalName)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                
+                // 디버깅: 현재 요소의 자식 개수 출력
+                foreach (var kvp in currentElementChildCounts)
+                {
+                    Logger.Debug($"현재 요소에서 '{kvp.Key}' 개수: {kvp.Value}");
+                }
+                
+                // 자식 요소 수집 (순서 보장) 및 최대 개수 추적
                 foreach (var child in element.Elements())
                 {
                     string childName = child.Name.LocalName;
@@ -238,6 +250,26 @@ namespace ExcelToYamlAddin.Core
                     }
                 }
                 
+                // 현재 요소에서 각 자식 요소의 최대 개수 업데이트
+                foreach (var kvp in currentElementChildCounts)
+                {
+                    string childName = kvp.Key;
+                    int currentCount = kvp.Value;
+                    int previousCount = structure.DuplicateElementCounts.ContainsKey(childName) 
+                        ? structure.DuplicateElementCounts[childName] : 0;
+                    
+                    if (!structure.DuplicateElementCounts.ContainsKey(childName) || 
+                        structure.DuplicateElementCounts[childName] < currentCount)
+                    {
+                        structure.DuplicateElementCounts[childName] = currentCount;
+                        Logger.Debug($"중복 요소 개수 업데이트: {childName} = {previousCount} → {currentCount}");
+                    }
+                    else
+                    {
+                        Logger.Debug($"중복 요소 개수 유지: {childName} = {previousCount} (현재: {currentCount})");
+                    }
+                }
+                
                 // 텍스트 내용 확인
                 if (!string.IsNullOrWhiteSpace(element.Value) && !element.HasElements)
                 {
@@ -246,6 +278,13 @@ namespace ExcelToYamlAddin.Core
             }
             
             Logger.Information($"구조 분석 완료 - 속성: {structure.Attributes.Count}, 자식: {structure.ChildElements.Count}, 복잡한 요소: {complexChildNames.Count}");
+            
+            // 최종 중복 요소 개수 출력
+            Logger.Information($"최종 중복 요소 개수:");
+            foreach (var kvp in structure.DuplicateElementCounts)
+            {
+                Logger.Information($"  {kvp.Key}: {kvp.Value}개");
+            }
             
             return structure;
         }
@@ -447,21 +486,21 @@ namespace ExcelToYamlAddin.Core
             // 텍스트 내용
             if (structure.HasTextContent) count++;
             
-            // 자식 요소들
-            foreach (var child in structure.ChildElements.Values)
+            // 자식 요소들 - 중복 요소 개수 고려
+            foreach (var child in structure.ChildElements)
             {
-                if (child.IsArray)
-                {
-                    // 배열의 경우 최대 항목 수를 고려해야 함
-                    count += CalculateElementColumns(child) * 3; // 예시로 3개 항목 가정
-                }
-                else
-                {
-                    // 모든 중첩 요소는 GetNestedColumnCount와 동일하게 계산
-                    count += GetNestedColumnCount(child);
-                }
+                // 중복 요소의 개수 확인
+                int duplicateCount = structure.DuplicateElementCounts.ContainsKey(child.Key) 
+                    ? structure.DuplicateElementCounts[child.Key] : 1;
+                
+                // 각 중복 요소의 컬럼 수 * 중복 개수
+                int childColumns = GetNestedColumnCount(child.Value);
+                count += childColumns * duplicateCount;
+                
+                Logger.Debug($"자식 요소 '{child.Key}': 개별컬럼수={childColumns}, 중복개수={duplicateCount}, 총컬럼수={childColumns * duplicateCount}");
             }
             
+            Logger.Debug($"전체 컬럼 수 계산: 속성={structure.Attributes.Count}, 텍스트={structure.HasTextContent}, 자식총합={count - structure.Attributes.Count - (structure.HasTextContent ? 1 : 0)}, 총계={count}");
             return Math.Max(count, 1);
         }
 
@@ -572,25 +611,34 @@ namespace ExcelToYamlAddin.Core
             {
                 if (child.Value.IsArray) continue; // 배열은 나중에 처리
                 
-                // 단순 요소 (속성도 자식 요소도 없음)
-                if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
+                // 중복 요소의 개수 확인 (기본값 1)
+                int duplicateCount = structure.DuplicateElementCounts.ContainsKey(child.Key) 
+                    ? structure.DuplicateElementCounts[child.Key] : 1;
+                
+                Logger.Debug($"요소 '{child.Key}' 처리: 중복 개수={duplicateCount}");
+                
+                // 중복 개수만큼 반복해서 컬럼 생성
+                for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
                 {
-                    worksheet.Cell(currentRow, col).Value = child.Key;
-                    col++;
-                }
-                // 복잡한 요소 (속성이나 자식 요소가 있음)
-                else
-                {
-                    // 중첩 객체 헤더
-                    int nestedStartCol = col;
-                        var nestedColumns = GetNestedColumnCount(child.Value);
-                    
-                    worksheet.Cell(currentRow, col).Value = child.Key + ObjectMarker;
-                    if (nestedColumns > 1)
+                    // 단순 요소 (속성도 자식 요소도 없음)
+                    if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
                     {
-                        worksheet.Range(currentRow, col, currentRow, col + nestedColumns - 1).Merge();
+                        worksheet.Cell(currentRow, col).Value = child.Key;
+                        col++;
                     }
-                    worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                    // 복잡한 요소 (속성이나 자식 요소가 있음)
+                    else
+                    {
+                        // 중첩 객체 헤더
+                        int nestedStartCol = col;
+                        var nestedColumns = GetNestedColumnCount(child.Value);
+                        
+                        worksheet.Cell(currentRow, col).Value = child.Key + ObjectMarker;
+                        if (nestedColumns > 1)
+                        {
+                            worksheet.Range(currentRow, col, currentRow, col + nestedColumns - 1).Merge();
+                        }
+                        worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
                     
                     // 속성만 있는 경우와 자식 요소가 있는 경우를 구분해서 처리
                     if (child.Value.Attributes.Any() && !child.Value.ChildElements.Any() && !child.Value.HasTextContent)
@@ -661,7 +709,8 @@ namespace ExcelToYamlAddin.Core
                         }
                     }
                     
-                    col += nestedColumns;
+                        col += nestedColumns;
+                    }
                 }
             }
             
@@ -854,21 +903,32 @@ namespace ExcelToYamlAddin.Core
             {
                 if (child.Value.IsArray) continue; // 배열은 나중에 처리
                 
-                var childElement = element.Element(child.Key);
+                // 중복 요소의 개수 확인
+                int duplicateCount = structure.DuplicateElementCounts.ContainsKey(child.Key) 
+                    ? structure.DuplicateElementCounts[child.Key] : 1;
                 
-                // 단순 요소 (속성도 자식 요소도 없음)
-                if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
+                // 실제 XML에서 해당 이름의 요소들 가져오기
+                var childElements = element.Elements(child.Key).ToList();
+                
+                // 중복 개수만큼 반복해서 데이터 작성
+                for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
                 {
-                    if (childElement != null)
+                    XElement currentChildElement = dupIndex < childElements.Count ? childElements[dupIndex] : null;
+                    
+                    // 단순 요소 (속성도 자식 요소도 없음)
+                    if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
                     {
-                        worksheet.Cell(row, col).Value = childElement.Value;
+                        if (currentChildElement != null)
+                        {
+                            worksheet.Cell(row, col).Value = currentChildElement.Value;
+                        }
+                        col++;
                     }
-                    col++;
-                }
-                // 복잡한 요소 (속성이나 자식 요소가 있음)
-                else
-                {
-                    col = WriteNestedElementData(worksheet, childElement, child.Value, row, col);
+                    // 복잡한 요소 (속성이나 자식 요소가 있음)
+                    else
+                    {
+                        col = WriteNestedElementData(worksheet, currentChildElement, child.Value, row, col);
+                    }
                 }
             }
             
@@ -1010,6 +1070,7 @@ namespace ExcelToYamlAddin.Core
             public Dictionary<string, ElementStructure> ChildElements { get; set; } = new Dictionary<string, ElementStructure>();
             public bool HasTextContent { get; set; }
             public bool IsArray { get; set; }
+            public Dictionary<string, int> DuplicateElementCounts { get; set; } = new Dictionary<string, int>();
         }
 
         /// <summary>
