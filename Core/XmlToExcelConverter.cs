@@ -53,16 +53,23 @@ namespace ExcelToYamlAddin.Core
                 var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add($"!{root.Name.LocalName}"); // 루트 요소 이름을 시트명으로 사용
                 
+                // 1행은 주석 행으로 비워둠 (SchemeParser 규칙)
+                worksheet.Cell(1, 1).Value = ""; // COMMENT_ROW_NUM = 0 (1행)
+                
                 // XML 구조 분석
                 var structure = AnalyzeXmlStructure(root);
                 
-                // 스키마 생성 (2행부터 시작)
+                // 스키마 생성 (2행부터 시작 - SchemeParser 규칙 준수)
                 int currentRow = 2;
                 currentRow = WriteSchema(worksheet, structure, currentRow);
                 
-                // 스키마 종료 마커 추가
+                // 스키마 종료 마커 추가 (최대 컬럼까지 병합)
                 worksheet.Cell(currentRow, 1).Value = SchemeEndMarker;
-                worksheet.Range(currentRow, 1, currentRow, structure.MaxColumns).Merge();
+                if (structure.MaxColumns > 1)
+                {
+                    worksheet.Range(currentRow, 1, currentRow, structure.MaxColumns).Merge();
+                }
+                Logger.Information($"스키마 종료 마커 작성: 행={currentRow}, MaxColumns={structure.MaxColumns}");
                 worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.Red;
                 worksheet.Row(currentRow).Style.Font.FontColor = XLColor.White;
                 worksheet.Row(currentRow).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -132,7 +139,9 @@ namespace ExcelToYamlAddin.Core
         {
             var structure = new ElementStructure
             {
-                Attributes = element.Attributes().Select(a => a.Name.LocalName).ToList(),
+                Attributes = element.Attributes()
+                    .Where(a => !a.IsNamespaceDeclaration)
+                    .Select(a => a.Name.LocalName).ToList(),
                 ChildElements = new Dictionary<string, ElementStructure>(),
                 HasTextContent = !string.IsNullOrWhiteSpace(element.Value) && !element.HasElements
             };
@@ -169,35 +178,53 @@ namespace ExcelToYamlAddin.Core
             };
             
             // 모든 단순 자식 요소 이름을 수집하여 순서 보장
-            var allChildNames = new HashSet<string>();
+            var allChildNames = new List<string>();
             var complexChildNames = new HashSet<string>();
+            
+            Logger.Information($"전체 {elements.Count}개 요소 구조 분석 시작");
             
             // 모든 요소에서 속성과 자식 요소 수집
             foreach (var element in elements)
             {
-                // 속성 수집
+                Logger.Debug($"요소 분석: {element.Name.LocalName}");
+                
+                // 속성 수집 (xmlns 같은 네임스페이스 속성 제외)
                 foreach (var attr in element.Attributes())
                 {
-                    if (!structure.Attributes.Contains(attr.Name.LocalName))
+                    var attrName = attr.Name.LocalName;
+                    if (!attr.IsNamespaceDeclaration && !structure.Attributes.Contains(attrName))
                     {
-                        structure.Attributes.Add(attr.Name.LocalName);
+                        structure.Attributes.Add(attrName);
+                        Logger.Debug($"속성 추가: {attrName}");
                     }
                 }
                 
-                // 자식 요소 수집
+                // 자식 요소 수집 (순서 보장)
                 foreach (var child in element.Elements())
                 {
                     string childName = child.Name.LocalName;
-                    allChildNames.Add(childName);
+                    if (!allChildNames.Contains(childName))
+                    {
+                        allChildNames.Add(childName);
+                        Logger.Debug($"자식 요소 추가: {childName}");
+                    }
                     
-                    if (child.HasElements)
+                    if (child.HasElements || child.HasAttributes)
                     {
                         complexChildNames.Add(childName);
+                        Logger.Debug($"복잡한 요소로 분류: {childName} (속성: {child.Attributes().Count()}, 자식: {child.Elements().Count()})");
                     }
                     
                     if (!structure.ChildElements.ContainsKey(childName))
                     {
                         structure.ChildElements[childName] = AnalyzeElementStructure(child);
+                        Logger.Debug($"새 구조 생성: {childName}");
+                    }
+                    else
+                    {
+                        // 기존 구조와 병합 (같은 이름이지만 다른 구조일 수 있음)
+                        Logger.Debug($"구조 병합: {childName}");
+                        MergeElementStructures(structure.ChildElements[childName], child);
                     }
                 }
                 
@@ -208,7 +235,103 @@ namespace ExcelToYamlAddin.Core
                 }
             }
             
+            Logger.Information($"구조 분석 완료 - 속성: {structure.Attributes.Count}, 자식: {structure.ChildElements.Count}, 복잡한 요소: {complexChildNames.Count}");
+            
             return structure;
+        }
+
+        /// <summary>
+        /// 두 ElementStructure를 병합합니다.
+        /// </summary>
+        private void MergeElementStructures(ElementStructure existing, XElement newElement)
+        {
+            Logger.Debug($"구조 병합 시작: {newElement.Name.LocalName}");
+            
+            // 새로운 요소의 구조 분석
+            var newStructure = AnalyzeElementStructure(newElement);
+            
+            // 속성 병합
+            int initialAttrCount = existing.Attributes.Count;
+            foreach (var attr in newStructure.Attributes)
+            {
+                if (!existing.Attributes.Contains(attr))
+                {
+                    existing.Attributes.Add(attr);
+                    Logger.Debug($"병합: 새 속성 추가 {attr}");
+                }
+            }
+            Logger.Debug($"속성 병합 완료: {initialAttrCount} → {existing.Attributes.Count}");
+            
+            // 자식 요소 병합
+            int initialChildCount = existing.ChildElements.Count;
+            foreach (var kvp in newStructure.ChildElements)
+            {
+                if (!existing.ChildElements.ContainsKey(kvp.Key))
+                {
+                    existing.ChildElements[kvp.Key] = kvp.Value;
+                    Logger.Debug($"병합: 새 자식 요소 추가 {kvp.Key}");
+                }
+                else
+                {
+                    // 재귀적으로 병합
+                    Logger.Debug($"병합: 기존 자식 요소 병합 {kvp.Key}");
+                    MergeElementStructuresRecursive(existing.ChildElements[kvp.Key], kvp.Value);
+                }
+            }
+            Logger.Debug($"자식 요소 병합 완료: {initialChildCount} → {existing.ChildElements.Count}");
+            
+            // 텍스트 내용 병합
+            if (newStructure.HasTextContent)
+            {
+                existing.HasTextContent = true;
+            }
+            
+            // 배열 여부 병합
+            if (newStructure.IsArray)
+            {
+                existing.IsArray = true;
+            }
+        }
+        
+        /// <summary>
+        /// 두 ElementStructure를 재귀적으로 병합합니다.
+        /// </summary>
+        private void MergeElementStructuresRecursive(ElementStructure existing, ElementStructure newStructure)
+        {
+            // 속성 병합
+            foreach (var attr in newStructure.Attributes)
+            {
+                if (!existing.Attributes.Contains(attr))
+                {
+                    existing.Attributes.Add(attr);
+                }
+            }
+            
+            // 자식 요소 병합
+            foreach (var kvp in newStructure.ChildElements)
+            {
+                if (!existing.ChildElements.ContainsKey(kvp.Key))
+                {
+                    existing.ChildElements[kvp.Key] = kvp.Value;
+                }
+                else
+                {
+                    // 재귀적으로 병합
+                    MergeElementStructuresRecursive(existing.ChildElements[kvp.Key], kvp.Value);
+                }
+            }
+            
+            // 텍스트 내용 병합
+            if (newStructure.HasTextContent)
+            {
+                existing.HasTextContent = true;
+            }
+            
+            // 배열 여부 병합
+            if (newStructure.IsArray)
+            {
+                existing.IsArray = true;
+            }
         }
 
         /// <summary>
@@ -291,8 +414,11 @@ namespace ExcelToYamlAddin.Core
         {
             if (info.IsArray && info.ItemStructure != null)
             {
-                return CalculateElementColumns(info.ItemStructure) + 2; // +2 for A, B ignore columns
+                int totalColumns = CalculateElementColumns(info.ItemStructure) + 2; // +2 for A, B ignore columns
+                Logger.Information($"최대 컬럼 수 계산: 배열 구조, 총 {totalColumns}개 컬럼");
+                return totalColumns;
             }
+            Logger.Information($"최대 컬럼 수 계산: 단일 객체, 총 {info.Columns.Count}개 컬럼");
             return info.Columns.Count;
         }
 
@@ -343,14 +469,20 @@ namespace ExcelToYamlAddin.Core
             {
                 // 루트 객체 마커 (시트명이 루트이므로 ${} 마커만)
                 worksheet.Cell(currentRow, 1).Value = ObjectMarker;
-                worksheet.Range(currentRow, 1, currentRow, structure.MaxColumns).Merge();
+                if (structure.MaxColumns > 1)
+                {
+                    worksheet.Range(currentRow, 1, currentRow, structure.MaxColumns).Merge();
+                }
                 worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
                 currentRow++;
                 
                 // 배열 항목 마커 (예: Item$[])
                 worksheet.Cell(currentRow, 1).Value = IgnoreMarker;
                 worksheet.Cell(currentRow, 2).Value = structure.ArrayItemName + ArrayMarker;
-                worksheet.Range(currentRow, 2, currentRow, structure.MaxColumns).Merge();
+                if (structure.MaxColumns > 2)
+                {
+                    worksheet.Range(currentRow, 2, currentRow, structure.MaxColumns).Merge();
+                }
                 worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.Green;
                 currentRow++;
                 
@@ -358,12 +490,17 @@ namespace ExcelToYamlAddin.Core
                 worksheet.Cell(currentRow, 1).Value = IgnoreMarker;
                 worksheet.Cell(currentRow, 2).Value = IgnoreMarker;
                 worksheet.Cell(currentRow, 3).Value = ObjectMarker;
-                worksheet.Range(currentRow, 3, currentRow, structure.MaxColumns).Merge();
+                if (structure.MaxColumns > 3)
+                {
+                    worksheet.Range(currentRow, 3, currentRow, structure.MaxColumns).Merge();
+                }
                 worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
                 currentRow++;
                 
                 // 컬럼 헤더 작성
+                Logger.Information($"컬럼 헤더 작성 전: currentRow={currentRow}");
                 currentRow = WriteColumnHeaders(worksheet, structure.ItemStructure, currentRow, 3);
+                Logger.Information($"컬럼 헤더 작성 후: currentRow={currentRow}");
             }
             else
             {
@@ -381,66 +518,97 @@ namespace ExcelToYamlAddin.Core
         }
 
         /// <summary>
-        /// 컬럼 헤더를 작성합니다.
+        /// 컬럼 헤더를 작성합니다. (무한 행 확장 지원)
         /// </summary>
         private int WriteColumnHeaders(IXLWorksheet worksheet, ElementStructure structure, int row, int startCol)
         {
+            int currentRow = row;
             int col = startCol;
             
             // 무시 컬럼들 (A, B열)
-            worksheet.Cell(row, 1).Value = IgnoreMarker;
-            worksheet.Cell(row, 2).Value = IgnoreMarker;
+            worksheet.Cell(currentRow, 1).Value = IgnoreMarker;
+            worksheet.Cell(currentRow, 2).Value = IgnoreMarker;
             
             // 속성 컬럼
             foreach (var attr in structure.Attributes)
             {
-                worksheet.Cell(row, col).Value = AttributePrefix + attr;
+                worksheet.Cell(currentRow, col).Value = AttributePrefix + attr;
                 col++;
             }
             
-            // 단순 요소들 먼저 처리
-            foreach (var child in structure.ChildElements.Where(c => !c.Value.IsArray && !c.Value.ChildElements.Any()))
+            // XML 태그 순서를 보장하기 위해 자식 요소들을 원래 순서대로 처리
+            int maxNestedRows = currentRow;
+            bool hasAttributeOnlyObjects = structure.ChildElements.Any(c => !c.Value.IsArray && c.Value.Attributes.Any() && !c.Value.ChildElements.Any());
+            bool attributeRowInitialized = false;
+            
+            foreach (var child in structure.ChildElements)
             {
-                worksheet.Cell(row, col).Value = child.Key;
-                col++;
+                if (child.Value.IsArray) continue; // 배열은 나중에 처리
+                
+                // 단순 요소 (속성도 자식 요소도 없음)
+                if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
+                {
+                    worksheet.Cell(currentRow, col).Value = child.Key;
+                    col++;
+                }
+                // 복잡한 요소 (속성이나 자식 요소가 있음)
+                else
+                {
+                    // 중첩 객체 헤더
+                    int nestedStartCol = col;
+                        var nestedColumns = GetNestedColumnCount(child.Value);
+                    
+                    worksheet.Cell(currentRow, col).Value = child.Key + ObjectMarker;
+                    if (nestedColumns > 1)
+                    {
+                        worksheet.Range(currentRow, col, currentRow, col + nestedColumns - 1).Merge();
+                    }
+                    worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                    
+                    // 속성만 있는 경우와 자식 요소가 있는 경우를 구분해서 처리
+                    if (child.Value.Attributes.Any() && !child.Value.ChildElements.Any())
+                    {
+                        // 속성만 있는 경우: 바로 다음 행에 속성 헤더 작성
+                        int attrRow = currentRow + 1;
+                        Logger.Debug($"속성만 있는 객체 처리: {child.Key}, 속성 수={child.Value.Attributes.Count}");
+                        
+                        // 속성 행 초기화 (한 번만)
+                        if (!attributeRowInitialized)
+                        {
+                            // A, B열에 무시 마커 작성
+                            worksheet.Cell(attrRow, 1).Value = IgnoreMarker;
+                            worksheet.Cell(attrRow, 2).Value = IgnoreMarker;
+                            attributeRowInitialized = true;
+                            Logger.Debug($"속성 행 초기화: 행={attrRow}");
+                        }
+                        
+                        // 속성들 작성 (무시 마커 덮어쓰지 않음)
+                        int attrCol = nestedStartCol;
+                        foreach (var attr in child.Value.Attributes)
+                        {
+                            worksheet.Cell(attrRow, attrCol).Value = AttributePrefix + attr;
+                            Logger.Debug($"속성 헤더 작성: 행={attrRow}, 열={attrCol}, 속성={AttributePrefix + attr}");
+                            attrCol++;
+                        }
+                        
+                        maxNestedRows = Math.Max(maxNestedRows, attrRow);
+                    }
+                    else
+                    {
+                        // 자식 요소가 있는 경우: 재귀적으로 처리
+                        int nestedRowEnd = WriteNestedObjectHeaders(worksheet, child.Value, currentRow + 1, nestedStartCol, maxNestedRows);
+                        maxNestedRows = Math.Max(maxNestedRows, nestedRowEnd);
+                    }
+                    
+                    col += nestedColumns;
+                }
             }
             
             // 텍스트 내용
             if (structure.HasTextContent)
             {
-                worksheet.Cell(row, col).Value = TextContentKey;
+                worksheet.Cell(currentRow, col).Value = TextContentKey;
                 col++;
-            }
-            
-            // 복잡한 자식 요소 (중첩 객체)
-            foreach (var child in structure.ChildElements.Where(c => !c.Value.IsArray && c.Value.ChildElements.Any()))
-            {
-                // 중첩 객체 헤더
-                int nestedStartCol = col;
-                var nestedColumns = GetNestedColumnCount(child.Value);
-                
-                worksheet.Cell(row, col).Value = child.Key + ObjectMarker;
-                if (nestedColumns > 1)
-                {
-                    worksheet.Range(row, col, row, col + nestedColumns - 1).Merge();
-                }
-                
-                // 중첩 객체의 하위 구조
-                int subRow = row + 1;
-                // A, B열까지 무시 컬럼으로 채우기
-                for (int i = 1; i < nestedStartCol; i++)
-                {
-                    worksheet.Cell(subRow, i).Value = IgnoreMarker;
-                }
-                
-                int subCol = nestedStartCol;
-                foreach (var nestedChild in child.Value.ChildElements)
-                {
-                    worksheet.Cell(subRow, subCol).Value = nestedChild.Key;
-                    subCol++;
-                }
-                
-                col += nestedColumns;
             }
             
             // 배열 요소
@@ -450,27 +618,115 @@ namespace ExcelToYamlAddin.Core
                 int arrayStartCol = col;
                 int arrayColumns = CalculateElementColumns(child.Value);
                 
-                worksheet.Cell(row, col).Value = child.Key + ArrayMarker;
+                worksheet.Cell(currentRow, col).Value = child.Key + ArrayMarker;
                 if (arrayColumns > 1)
                 {
-                    worksheet.Range(row, col, row, col + arrayColumns - 1).Merge();
+                    worksheet.Range(currentRow, col, currentRow, col + arrayColumns - 1).Merge();
                 }
                 
                 // 배열 항목 구조
-                WriteArrayItemSchema(worksheet, child.Value, row + 1, col, arrayColumns);
+                WriteArrayItemSchema(worksheet, child.Value, currentRow + 1, col, arrayColumns);
                 
                 col += arrayColumns;
             }
             
-            return row + 2; // 중첩 구조를 위해 추가 행 필요
+            // 텍스트 내용 처리 후 최종 행 계산
+            int finalRow = Math.Max(maxNestedRows, currentRow);
+            
+            Logger.Information($"스키마 헤더 작성 완료: 시작행={row}, 현재행={currentRow}, 최종행={finalRow}, 중첩최대행={maxNestedRows}, 반환값={finalRow + 1}");
+            
+            return finalRow + 1; // 다음 스키마 요소를 위한 행
         }
         
+        /// <summary>
+        /// 중첩 객체의 헤더를 재귀적으로 작성합니다. (무한 확장 지원)
+        /// </summary>
+        private int WriteNestedObjectHeaders(IXLWorksheet worksheet, ElementStructure structure, int row, int startCol, int currentMaxRow)
+        {
+            Logger.Debug($"중첩 헤더 작성: 행={row}, 시작열={startCol}, 속성수={structure.Attributes.Count}, 자식수={structure.ChildElements.Count}");
+            
+            int maxRow = Math.Max(row, currentMaxRow);
+            
+            // A, B열부터 시작 컬럼 전까지 무시 마커(^)로 채우기
+            for (int i = 1; i < startCol; i++)
+            {
+                worksheet.Cell(row, i).Value = IgnoreMarker;
+            }
+            
+            int col = startCol;
+            
+            // 속성들 먼저 처리 (_속성명 형태)
+            foreach (var attr in structure.Attributes)
+            {
+                worksheet.Cell(row, col).Value = AttributePrefix + attr;
+                Logger.Debug($"속성 헤더 작성: 행={row}, 열={col}, 속성={AttributePrefix + attr}");
+                col++;
+            }
+            
+            // 단순 자식 요소들 처리
+            foreach (var child in structure.ChildElements.Where(c => !c.Value.IsArray && !c.Value.ChildElements.Any() && !c.Value.Attributes.Any()))
+            {
+                worksheet.Cell(row, col).Value = child.Key;
+                Logger.Debug($"단순 요소 헤더 작성: 행={row}, 열={col}, 요소={child.Key}");
+                col++;
+            }
+            
+            // 텍스트 내용이 있는 경우
+            if (structure.HasTextContent)
+            {
+                worksheet.Cell(row, col).Value = TextContentKey;
+                Logger.Debug($"텍스트 헤더 작성: 행={row}, 열={col}");
+                col++;
+            }
+            
+            // 더 깊은 중첩 객체들 재귀 처리
+            foreach (var child in structure.ChildElements.Where(c => !c.Value.IsArray && (c.Value.ChildElements.Any() || c.Value.Attributes.Any())))
+            {
+                int nestedColumns = GetNestedColumnCount(child.Value);
+                
+                Logger.Debug($"더 깊은 중첩 처리: {child.Key}, 컬럼수={nestedColumns}");
+                
+                // 재귀적으로 더 깊은 레벨 처리 (현재 행의 속성들 건너뛰고)
+                int nestedRowEnd = WriteNestedObjectHeaders(worksheet, child.Value, row, col, maxRow);
+                maxRow = Math.Max(maxRow, nestedRowEnd);
+                
+                col += nestedColumns;
+            }
+            
+            // 현재 행에 내용이 있으면 사용된 행으로 카운트
+            bool hasContent = structure.Attributes.Any() || 
+                             structure.ChildElements.Any(c => !c.Value.IsArray && !c.Value.ChildElements.Any() && !c.Value.Attributes.Any()) ||
+                             structure.HasTextContent;
+            
+            if (hasContent)
+            {
+                maxRow = Math.Max(maxRow, row);
+                Logger.Debug($"내용 있는 행 확인: 행={row}, 최대행={maxRow}");
+            }
+            
+            return maxRow;
+        }
+
         /// <summary>
         /// 중첩된 객체의 컬럼 수를 계산합니다.
         /// </summary>
         private int GetNestedColumnCount(ElementStructure structure)
         {
-            return structure.ChildElements.Count; // Requirements의 경우 Level, Class = 2개
+            int count = 0;
+            
+            // 속성 수
+            count += structure.Attributes.Count;
+            
+            // 자식 요소 수
+            count += structure.ChildElements.Count;
+            
+            // 텍스트 내용이 있으면 +1
+            if (structure.HasTextContent)
+            {
+                count++;
+            }
+            
+            return Math.Max(count, 1); // 최소 1개 컬럼
         }
 
         /// <summary>
@@ -532,15 +788,27 @@ namespace ExcelToYamlAddin.Core
                 col++;
             }
             
-            // 단순 요소들 먼저 처리
-            foreach (var child in structure.ChildElements.Where(c => !c.Value.IsArray && !c.Value.ChildElements.Any()))
+            // XML 태그 순서를 보장하기 위해 자식 요소들을 원래 순서대로 처리
+            foreach (var child in structure.ChildElements)
             {
+                if (child.Value.IsArray) continue; // 배열은 나중에 처리
+                
                 var childElement = element.Element(child.Key);
-                if (childElement != null)
+                
+                // 단순 요소 (속성도 자식 요소도 없음)
+                if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
                 {
-                    worksheet.Cell(row, col).Value = childElement.Value;
+                    if (childElement != null)
+                    {
+                        worksheet.Cell(row, col).Value = childElement.Value;
+                    }
+                    col++;
                 }
-                col++;
+                // 복잡한 요소 (속성이나 자식 요소가 있음)
+                else
+                {
+                    col = WriteNestedElementData(worksheet, childElement, child.Value, row, col);
+                }
             }
             
             // 텍스트 내용
@@ -548,29 +816,6 @@ namespace ExcelToYamlAddin.Core
             {
                 worksheet.Cell(row, col).Value = element.Value;
                 col++;
-            }
-            
-            // 복잡한 자식 요소 (중첩 객체)
-            foreach (var child in structure.ChildElements.Where(c => !c.Value.IsArray && c.Value.ChildElements.Any()))
-            {
-                var childElement = element.Element(child.Key);
-                if (childElement != null)
-                {
-                    // 중첩 객체의 자식 요소들
-                    foreach (var nestedChild in child.Value.ChildElements)
-                    {
-                        var nestedElement = childElement.Element(nestedChild.Key);
-                        if (nestedElement != null)
-                        {
-                            worksheet.Cell(row, col).Value = nestedElement.Value;
-                        }
-                        col++;
-                    }
-                }
-                else
-                {
-                    col += GetNestedColumnCount(child.Value) - 1; // -1 because we don't skip ignore column here
-                }
             }
             
             // 배열 요소
@@ -585,6 +830,63 @@ namespace ExcelToYamlAddin.Core
                     col += CalculateElementColumns(child.Value);
                 }
             }
+        }
+
+        /// <summary>
+        /// 중첩 요소 데이터를 재귀적으로 작성합니다.
+        /// </summary>
+        private int WriteNestedElementData(IXLWorksheet worksheet, XElement element, ElementStructure structure, int row, int startCol)
+        {
+            int col = startCol;
+            
+            if (element != null)
+            {
+                // 속성들 먼저 처리
+                foreach (var attr in structure.Attributes)
+                {
+                    var attribute = element.Attribute(attr);
+                    if (attribute != null)
+                    {
+                        worksheet.Cell(row, col).Value = attribute.Value;
+                    }
+                    col++;
+                }
+                
+                // 단순 자식 요소들
+                foreach (var nestedChild in structure.ChildElements.Where(c => !c.Value.IsArray && !c.Value.ChildElements.Any() && !c.Value.Attributes.Any()))
+                {
+                    var nestedElement = element.Element(nestedChild.Key);
+                    if (nestedElement != null)
+                    {
+                        worksheet.Cell(row, col).Value = nestedElement.Value;
+                    }
+                    col++;
+                }
+                
+                // 텍스트 내용이 있는 경우
+                if (structure.HasTextContent)
+                {
+                    if (!string.IsNullOrWhiteSpace(element.Value) && !element.HasElements)
+                    {
+                        worksheet.Cell(row, col).Value = element.Value;
+                    }
+                    col++;
+                }
+                
+                // 더 깊은 중첩 객체들 재귀 처리
+                foreach (var nestedChild in structure.ChildElements.Where(c => !c.Value.IsArray && (c.Value.ChildElements.Any() || c.Value.Attributes.Any())))
+                {
+                    var nestedElement = element.Element(nestedChild.Key);
+                    col = WriteNestedElementData(worksheet, nestedElement, nestedChild.Value, row, col);
+                }
+            }
+            else
+            {
+                // 요소가 없는 경우 빈 컬럼들 건너뛰기
+                col += GetNestedColumnCount(structure);
+            }
+            
+            return col;
         }
 
         /// <summary>
