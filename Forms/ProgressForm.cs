@@ -294,7 +294,7 @@ namespace ExcelToYamlAddin.Forms
                 System.Diagnostics.Debug.WriteLine($"[Worker_DoWork] 작업 완료 - CancellationPending={worker.CancellationPending}, cancelRequested={cancelRequested}, Token.IsCancellationRequested={cancellationTokenSource.Token.IsCancellationRequested}");
 
                 // 작업 중 취소 요청이 있었는지 확인
-                if (worker.CancellationPending || cancelRequested)
+             if (worker.CancellationPending || cancelRequested)
                 {
                     System.Diagnostics.Debug.WriteLine($"[Worker_DoWork] 취소 요청으로 e.Cancel=true 설정 - CancellationPending={worker.CancellationPending}, cancelRequested={cancelRequested}");
                     e.Cancel = true;
