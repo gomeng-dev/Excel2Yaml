@@ -1517,11 +1517,6 @@ namespace ExcelToYamlAddin
 
                 MessageBox.Show($"XML 파일이 성공적으로 Excel로 변환되었습니다.\n\n파일: {fileName}.xml",
                     "변환 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                
-                // 디버깅용: 변환 결과를 HTML로 자동 내보내기
-                string debugPath = Path.Combine(Path.GetDirectoryName(xmlFilePath), $"{fileName}_debug.html");
-                Core.ExcelToHtmlExporter.ExportToHtml(newSheet, debugPath);
-                System.Diagnostics.Process.Start(debugPath);
             }
             catch (Exception ex)
             {
