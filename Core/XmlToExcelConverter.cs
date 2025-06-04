@@ -545,7 +545,7 @@ namespace ExcelToYamlAddin.Core
                 
                 // 컬럼 헤더 작성
                 Logger.Information($"컬럼 헤더 작성 전: currentRow={currentRow}");
-                currentRow = WriteColumnHeaders(worksheet, structure.ItemStructure, currentRow, 3);
+                currentRow = WriteColumnHeaders(worksheet, structure.ItemStructure, currentRow, 3, structure.MaxColumns);
                 Logger.Information($"컬럼 헤더 작성 후: currentRow={currentRow}");
             }
             else
@@ -566,7 +566,7 @@ namespace ExcelToYamlAddin.Core
         /// <summary>
         /// 컬럼 헤더를 작성합니다. (무한 행 확장 지원)
         /// </summary>
-        private int WriteColumnHeaders(IXLWorksheet worksheet, ElementStructure structure, int row, int startCol)
+        private int WriteColumnHeaders(IXLWorksheet worksheet, ElementStructure structure, int row, int startCol, int maxColumns)
         {
             int currentRow = row;
             int col = startCol;
@@ -617,99 +617,180 @@ namespace ExcelToYamlAddin.Core
                 
                 Logger.Debug($"요소 '{child.Key}' 처리: 중복 개수={duplicateCount}");
                 
-                // 중복 개수만큼 반복해서 컬럼 생성
-                for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
+                // 중복 요소가 있는 경우 배열로 처리
+                if (duplicateCount > 1)
                 {
-                    // 단순 요소 (속성도 자식 요소도 없음)
-                    if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
-                    {
-                        worksheet.Cell(currentRow, col).Value = child.Key;
-                        col++;
-                    }
-                    // 복잡한 요소 (속성이나 자식 요소가 있음)
-                    else
-                    {
-                        // 중첩 객체 헤더
-                        int nestedStartCol = col;
-                        var nestedColumns = GetNestedColumnCount(child.Value);
-                        
-                        worksheet.Cell(currentRow, col).Value = child.Key + ObjectMarker;
-                        if (nestedColumns > 1)
-                        {
-                            worksheet.Range(currentRow, col, currentRow, col + nestedColumns - 1).Merge();
-                        }
-                        worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                    // 배열 헤더 생성
+                    int arrayStartCol = col;
+                    int arrayColumns = duplicateCount * GetNestedColumnCount(child.Value);
                     
-                    // 속성만 있는 경우와 자식 요소가 있는 경우를 구분해서 처리
-                    if (child.Value.Attributes.Any() && !child.Value.ChildElements.Any() && !child.Value.HasTextContent)
+                    worksheet.Cell(currentRow, col).Value = child.Key + ArrayMarker;
+                    if (arrayColumns > 1)
                     {
-                        // 속성만 있는 경우(텍스트 내용 없음): 바로 다음 행에 속성 헤더 작성
-                        int attrRow = currentRow + 1;
-                        Logger.Debug($"속성만 있는 객체 처리: {child.Key}, 속성 수={child.Value.Attributes.Count}");
-                        
-                        // 속성 행 초기화 (한 번만)
-                        if (!attributeRowInitialized)
-                        {
-                            // A, B열에 무시 마커 작성
-                            worksheet.Cell(attrRow, 1).Value = IgnoreMarker;
-                            worksheet.Cell(attrRow, 2).Value = IgnoreMarker;
-                            attributeRowInitialized = true;
-                            Logger.Debug($"속성 행 초기화: 행={attrRow}");
-                        }
-                        
-                        // 속성들 작성 (무시 마커 덮어쓰지 않음)
-                        int attrCol = nestedStartCol;
-                        foreach (var attr in child.Value.Attributes)
-                        {
-                            worksheet.Cell(attrRow, attrCol).Value = AttributePrefix + attr;
-                            Logger.Debug($"속성 헤더 작성: 행={attrRow}, 열={attrCol}, 속성={AttributePrefix + attr}");
-                            attrCol++;
-                        }
-                        
-                        maxNestedRows = Math.Max(maxNestedRows, attrRow);
+                        worksheet.Range(currentRow, col, currentRow, col + arrayColumns - 1).Merge();
                     }
-                    else
+                    worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.Green;
+                    
+                    // 배열 아이템들을 위한 객체 마커들 생성 (다음 행에)
+                    int nextRow = currentRow + 1;
+                    if (!attributeRowInitialized)
                     {
-                        // 자식 요소가 있는 경우나 속성+텍스트가 모두 있는 경우: 속성 행에 속성과 텍스트 내용 쓰기
-                        int attrRow = currentRow + 1;
+                        worksheet.Cell(nextRow, 1).Value = IgnoreMarker;
+                        worksheet.Cell(nextRow, 2).Value = IgnoreMarker;
+                        attributeRowInitialized = true;
+                    }
+                    
+                    for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
+                    {
+                        int itemStartCol = arrayStartCol + (dupIndex * GetNestedColumnCount(child.Value));
+                        int itemColumns = GetNestedColumnCount(child.Value);
                         
-                        // 속성 행 초기화 (한 번만)
-                        if (!attributeRowInitialized)
+                        worksheet.Cell(nextRow, itemStartCol).Value = ObjectMarker;
+                        if (itemColumns > 1)
                         {
-                            worksheet.Cell(attrRow, 1).Value = IgnoreMarker;
-                            worksheet.Cell(attrRow, 2).Value = IgnoreMarker;
-                            attributeRowInitialized = true;
-                            Logger.Debug($"속성 행 초기화: 행={attrRow}");
+                            worksheet.Range(nextRow, itemStartCol, nextRow, itemStartCol + itemColumns - 1).Merge();
                         }
+                        worksheet.Row(nextRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                    }
+                    
+                    maxNestedRows = Math.Max(maxNestedRows, nextRow);
+                    
+                    // 배열 아이템들의 속성 컬럼 헤더 생성 (그 다음 행에)
+                    int propertyRow = nextRow + 1;
+                    
+                    // 전체 행을 무시 마커로 먼저 채움 (최대 컬럼까지)
+                    for (int i = 1; i <= maxColumns; i++)
+                    {
+                        worksheet.Cell(propertyRow, i).Value = IgnoreMarker;
+                    }
+                    
+                    // 배열 아이템들의 실제 속성 헤더로 덮어쓰기
+                    for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
+                    {
+                        int itemStartCol = arrayStartCol + (dupIndex * GetNestedColumnCount(child.Value));
+                        int propertyCol = itemStartCol;
                         
-                        // 속성들과 텍스트 내용을 속성 행에 작성
-                        int attrCol = nestedStartCol;
+                        // 속성 헤더들 작성
                         foreach (var attr in child.Value.Attributes)
                         {
-                            worksheet.Cell(attrRow, attrCol).Value = AttributePrefix + attr;
-                            Logger.Debug($"복잡 객체 속성 헤더 작성: 행={attrRow}, 열={attrCol}, 속성={AttributePrefix + attr}");
-                            attrCol++;
+                            worksheet.Cell(propertyRow, propertyCol).Value = AttributePrefix + attr;
+                            propertyCol++;
+                        }
+                        
+                        // 단순 자식 요소들 작성
+                        foreach (var nestedChild in child.Value.ChildElements.Where(c => !c.Value.IsArray && !c.Value.ChildElements.Any() && !c.Value.Attributes.Any()))
+                        {
+                            worksheet.Cell(propertyRow, propertyCol).Value = nestedChild.Key;
+                            propertyCol++;
                         }
                         
                         // 텍스트 내용이 있는 경우
                         if (child.Value.HasTextContent)
                         {
-                            worksheet.Cell(attrRow, attrCol).Value = TextContentKey;
-                            Logger.Debug($"복잡 객체 텍스트 헤더 작성: 행={attrRow}, 열={attrCol}");
-                            attrCol++;
-                        }
-                        
-                        maxNestedRows = Math.Max(maxNestedRows, attrRow);
-                        
-                        // 더 깊은 중첩이 있는 경우 재귀 처리
-                        if (child.Value.ChildElements.Any())
-                        {
-                            int nestedRowEnd = WriteNestedObjectHeaders(worksheet, child.Value, attrRow + 1, nestedStartCol, maxNestedRows);
-                            maxNestedRows = Math.Max(maxNestedRows, nestedRowEnd);
+                            worksheet.Cell(propertyRow, propertyCol).Value = TextContentKey;
+                            propertyCol++;
                         }
                     }
                     
-                        col += nestedColumns;
+                    maxNestedRows = Math.Max(maxNestedRows, propertyRow);
+                    col += arrayColumns;
+                }
+                else
+                {
+                    // 단일 요소 처리 (기존 로직)
+                    for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
+                    {
+                        // 단순 요소 (속성도 자식 요소도 없음)
+                        if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
+                        {
+                            worksheet.Cell(currentRow, col).Value = child.Key;
+                            col++;
+                        }
+                        // 복잡한 요소 (속성이나 자식 요소가 있음)
+                        else
+                        {
+                            // 중첩 객체 헤더
+                            int nestedStartCol = col;
+                            var nestedColumns = GetNestedColumnCount(child.Value);
+                            
+                            worksheet.Cell(currentRow, col).Value = child.Key + ObjectMarker;
+                            if (nestedColumns > 1)
+                            {
+                                worksheet.Range(currentRow, col, currentRow, col + nestedColumns - 1).Merge();
+                            }
+                            worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                        
+                        // 속성만 있는 경우와 자식 요소가 있는 경우를 구분해서 처리
+                        if (child.Value.Attributes.Any() && !child.Value.ChildElements.Any() && !child.Value.HasTextContent)
+                        {
+                            // 속성만 있는 경우(텍스트 내용 없음): 바로 다음 행에 속성 헤더 작성
+                            int attrRow = currentRow + 1;
+                            Logger.Debug($"속성만 있는 객체 처리: {child.Key}, 속성 수={child.Value.Attributes.Count}");
+                            
+                            // 속성 행 초기화 (한 번만)
+                            if (!attributeRowInitialized)
+                            {
+                                // A, B열에 무시 마커 작성
+                                worksheet.Cell(attrRow, 1).Value = IgnoreMarker;
+                                worksheet.Cell(attrRow, 2).Value = IgnoreMarker;
+                                attributeRowInitialized = true;
+                                Logger.Debug($"속성 행 초기화: 행={attrRow}");
+                            }
+                            
+                            // 속성들 작성 (무시 마커 덮어쓰지 않음)
+                            int attrCol = nestedStartCol;
+                            foreach (var attr in child.Value.Attributes)
+                            {
+                                worksheet.Cell(attrRow, attrCol).Value = AttributePrefix + attr;
+                                Logger.Debug($"속성 헤더 작성: 행={attrRow}, 열={attrCol}, 속성={AttributePrefix + attr}");
+                                attrCol++;
+                            }
+                            
+                            maxNestedRows = Math.Max(maxNestedRows, attrRow);
+                        }
+                        else
+                        {
+                            // 자식 요소가 있는 경우나 속성+텍스트가 모두 있는 경우: 속성 행에 속성과 텍스트 내용 쓰기
+                            int attrRow = currentRow + 1;
+                            
+                            // 속성 행 초기화 (한 번만)
+                            if (!attributeRowInitialized)
+                            {
+                                worksheet.Cell(attrRow, 1).Value = IgnoreMarker;
+                                worksheet.Cell(attrRow, 2).Value = IgnoreMarker;
+                                attributeRowInitialized = true;
+                                Logger.Debug($"속성 행 초기화: 행={attrRow}");
+                            }
+                            
+                            // 속성들과 텍스트 내용을 속성 행에 작성
+                            int attrCol = nestedStartCol;
+                            foreach (var attr in child.Value.Attributes)
+                            {
+                                worksheet.Cell(attrRow, attrCol).Value = AttributePrefix + attr;
+                                Logger.Debug($"복잡 객체 속성 헤더 작성: 행={attrRow}, 열={attrCol}, 속성={AttributePrefix + attr}");
+                                attrCol++;
+                            }
+                            
+                            // 텍스트 내용이 있는 경우
+                            if (child.Value.HasTextContent)
+                            {
+                                worksheet.Cell(attrRow, attrCol).Value = TextContentKey;
+                                Logger.Debug($"복잡 객체 텍스트 헤더 작성: 행={attrRow}, 열={attrCol}");
+                                attrCol++;
+                            }
+                            
+                            maxNestedRows = Math.Max(maxNestedRows, attrRow);
+                            
+                            // 더 깊은 중첩이 있는 경우 재귀 처리
+                            if (child.Value.ChildElements.Any())
+                            {
+                                int nestedRowEnd = WriteNestedObjectHeaders(worksheet, child.Value, attrRow + 1, nestedStartCol, maxNestedRows);
+                                maxNestedRows = Math.Max(maxNestedRows, nestedRowEnd);
+                            }
+                        }
+                        
+                            col += nestedColumns;
+                        }
                     }
                 }
             }
@@ -910,24 +991,46 @@ namespace ExcelToYamlAddin.Core
                 // 실제 XML에서 해당 이름의 요소들 가져오기
                 var childElements = element.Elements(child.Key).ToList();
                 
-                // 중복 개수만큼 반복해서 데이터 작성
-                for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
+                // 중복 요소가 있는 경우 배열로 처리
+                if (duplicateCount > 1)
                 {
-                    XElement currentChildElement = dupIndex < childElements.Count ? childElements[dupIndex] : null;
-                    
-                    // 단순 요소 (속성도 자식 요소도 없음)
-                    if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
+                    // 배열 데이터 작성
+                    for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
                     {
+                        XElement currentChildElement = dupIndex < childElements.Count ? childElements[dupIndex] : null;
+                        
                         if (currentChildElement != null)
                         {
-                            worksheet.Cell(row, col).Value = currentChildElement.Value;
+                            col = WriteNestedElementData(worksheet, currentChildElement, child.Value, row, col);
                         }
-                        col++;
+                        else
+                        {
+                            // 빈 항목인 경우 컬럼만 건너뛰기
+                            col += GetNestedColumnCount(child.Value);
+                        }
                     }
-                    // 복잡한 요소 (속성이나 자식 요소가 있음)
-                    else
+                }
+                else
+                {
+                    // 단일 요소 처리 (기존 로직)
+                    for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
                     {
-                        col = WriteNestedElementData(worksheet, currentChildElement, child.Value, row, col);
+                        XElement currentChildElement = dupIndex < childElements.Count ? childElements[dupIndex] : null;
+                        
+                        // 단순 요소 (속성도 자식 요소도 없음)
+                        if (!child.Value.ChildElements.Any() && !child.Value.Attributes.Any())
+                        {
+                            if (currentChildElement != null)
+                            {
+                                worksheet.Cell(row, col).Value = currentChildElement.Value;
+                            }
+                            col++;
+                        }
+                        // 복잡한 요소 (속성이나 자식 요소가 있음)
+                        else
+                        {
+                            col = WriteNestedElementData(worksheet, currentChildElement, child.Value, row, col);
+                        }
                     }
                 }
             }
