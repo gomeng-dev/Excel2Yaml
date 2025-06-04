@@ -63,13 +63,20 @@ namespace ExcelToYamlAddin.Core
                 int currentRow = 2;
                 currentRow = WriteSchema(worksheet, structure, currentRow);
                 
-                // 스키마 종료 마커 추가 (최대 컬럼까지 병합)
+                // 실제 사용된 컬럼 수 확인
+                int actualMaxColumns = GetActualUsedColumns(worksheet, currentRow - 1);
+                Logger.Information($"실제 사용된 컬럼 수: {actualMaxColumns}, 계산된 MaxColumns: {structure.MaxColumns}");
+                
+                // 스키마 종료 마커 추가 (실제 사용된 컬럼까지 병합)
                 worksheet.Cell(currentRow, 1).Value = SchemeEndMarker;
-                if (structure.MaxColumns > 1)
+                if (actualMaxColumns > 1)
                 {
-                    worksheet.Range(currentRow, 1, currentRow, structure.MaxColumns).Merge();
+                    worksheet.Range(currentRow, 1, currentRow, actualMaxColumns).Merge();
                 }
-                Logger.Information($"스키마 종료 마커 작성: 행={currentRow}, MaxColumns={structure.MaxColumns}");
+                Logger.Information($"스키마 종료 마커 작성: 행={currentRow}, 실제MaxColumns={actualMaxColumns}");
+                
+                // 이전 행들의 병합도 실제 컬럼 수로 수정
+                UpdateSchemaMerging(worksheet, structure, actualMaxColumns, currentRow - 1);
                 worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.Red;
                 worksheet.Row(currentRow).Style.Font.FontColor = XLColor.White;
                 worksheet.Row(currentRow).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -137,13 +144,16 @@ namespace ExcelToYamlAddin.Core
         /// </summary>
         private ElementStructure AnalyzeElementStructure(XElement element)
         {
+            bool hasTextContent = !string.IsNullOrWhiteSpace(element.Value) && !element.HasElements;
+            Logger.Debug($"요소 '{element.Name.LocalName}' 텍스트 내용 분석: Value='{element.Value}', HasElements={element.HasElements}, HasTextContent={hasTextContent}");
+            
             var structure = new ElementStructure
             {
                 Attributes = element.Attributes()
                     .Where(a => !a.IsNamespaceDeclaration)
                     .Select(a => a.Name.LocalName).ToList(),
                 ChildElements = new Dictionary<string, ElementStructure>(),
-                HasTextContent = !string.IsNullOrWhiteSpace(element.Value) && !element.HasElements
+                HasTextContent = hasTextContent
             };
             
             // 자식 요소 분석
@@ -284,6 +294,7 @@ namespace ExcelToYamlAddin.Core
             if (newStructure.HasTextContent)
             {
                 existing.HasTextContent = true;
+                Logger.Debug($"병합: 텍스트 내용 추가");
             }
             
             // 배열 여부 병합
@@ -325,6 +336,7 @@ namespace ExcelToYamlAddin.Core
             if (newStructure.HasTextContent)
             {
                 existing.HasTextContent = true;
+                Logger.Debug($"병합: 텍스트 내용 추가");
             }
             
             // 배열 여부 병합
@@ -443,15 +455,10 @@ namespace ExcelToYamlAddin.Core
                     // 배열의 경우 최대 항목 수를 고려해야 함
                     count += CalculateElementColumns(child) * 3; // 예시로 3개 항목 가정
                 }
-                else if (child.ChildElements.Any())
-                {
-                    // 중첩 객체인 경우 하위 요소 수
-                    count += child.ChildElements.Count;
-                }
                 else
                 {
-                    // 단순 요소
-                    count += 1;
+                    // 모든 중첩 요소는 GetNestedColumnCount와 동일하게 계산
+                    count += GetNestedColumnCount(child);
                 }
             }
             
@@ -541,6 +548,26 @@ namespace ExcelToYamlAddin.Core
             bool hasAttributeOnlyObjects = structure.ChildElements.Any(c => !c.Value.IsArray && c.Value.Attributes.Any() && !c.Value.ChildElements.Any());
             bool attributeRowInitialized = false;
             
+            // 복잡한 객체가 있으면 6행을 ^ 마커로 미리 초기화
+            bool hasComplexObjects = structure.ChildElements.Any(c => !c.Value.IsArray && (c.Value.Attributes.Any() || c.Value.HasTextContent));
+            if (hasComplexObjects)
+            {
+                int attrRow = currentRow + 1;
+                worksheet.Cell(attrRow, 1).Value = IgnoreMarker;
+                worksheet.Cell(attrRow, 2).Value = IgnoreMarker;
+                
+                // 모든 컬럼을 ^ 마커로 초기화 (나중에 복잡한 객체들이 덮어씀)
+                int totalCols = col + structure.ChildElements.Sum(c => GetNestedColumnCount(c.Value));
+                for (int i = startCol; i <= totalCols; i++)
+                {
+                    worksheet.Cell(attrRow, i).Value = IgnoreMarker;
+                }
+                
+                attributeRowInitialized = true;
+                maxNestedRows = Math.Max(maxNestedRows, attrRow);
+                Logger.Debug($"6행 ^ 마커로 미리 초기화: 행={attrRow}, 컬럼={startCol}~{totalCols}");
+            }
+            
             foreach (var child in structure.ChildElements)
             {
                 if (child.Value.IsArray) continue; // 배열은 나중에 처리
@@ -566,9 +593,9 @@ namespace ExcelToYamlAddin.Core
                     worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
                     
                     // 속성만 있는 경우와 자식 요소가 있는 경우를 구분해서 처리
-                    if (child.Value.Attributes.Any() && !child.Value.ChildElements.Any())
+                    if (child.Value.Attributes.Any() && !child.Value.ChildElements.Any() && !child.Value.HasTextContent)
                     {
-                        // 속성만 있는 경우: 바로 다음 행에 속성 헤더 작성
+                        // 속성만 있는 경우(텍스트 내용 없음): 바로 다음 행에 속성 헤더 작성
                         int attrRow = currentRow + 1;
                         Logger.Debug($"속성만 있는 객체 처리: {child.Key}, 속성 수={child.Value.Attributes.Count}");
                         
@@ -595,9 +622,43 @@ namespace ExcelToYamlAddin.Core
                     }
                     else
                     {
-                        // 자식 요소가 있는 경우: 재귀적으로 처리
-                        int nestedRowEnd = WriteNestedObjectHeaders(worksheet, child.Value, currentRow + 1, nestedStartCol, maxNestedRows);
-                        maxNestedRows = Math.Max(maxNestedRows, nestedRowEnd);
+                        // 자식 요소가 있는 경우나 속성+텍스트가 모두 있는 경우: 속성 행에 속성과 텍스트 내용 쓰기
+                        int attrRow = currentRow + 1;
+                        
+                        // 속성 행 초기화 (한 번만)
+                        if (!attributeRowInitialized)
+                        {
+                            worksheet.Cell(attrRow, 1).Value = IgnoreMarker;
+                            worksheet.Cell(attrRow, 2).Value = IgnoreMarker;
+                            attributeRowInitialized = true;
+                            Logger.Debug($"속성 행 초기화: 행={attrRow}");
+                        }
+                        
+                        // 속성들과 텍스트 내용을 속성 행에 작성
+                        int attrCol = nestedStartCol;
+                        foreach (var attr in child.Value.Attributes)
+                        {
+                            worksheet.Cell(attrRow, attrCol).Value = AttributePrefix + attr;
+                            Logger.Debug($"복잡 객체 속성 헤더 작성: 행={attrRow}, 열={attrCol}, 속성={AttributePrefix + attr}");
+                            attrCol++;
+                        }
+                        
+                        // 텍스트 내용이 있는 경우
+                        if (child.Value.HasTextContent)
+                        {
+                            worksheet.Cell(attrRow, attrCol).Value = TextContentKey;
+                            Logger.Debug($"복잡 객체 텍스트 헤더 작성: 행={attrRow}, 열={attrCol}");
+                            attrCol++;
+                        }
+                        
+                        maxNestedRows = Math.Max(maxNestedRows, attrRow);
+                        
+                        // 더 깊은 중첩이 있는 경우 재귀 처리
+                        if (child.Value.ChildElements.Any())
+                        {
+                            int nestedRowEnd = WriteNestedObjectHeaders(worksheet, child.Value, attrRow + 1, nestedStartCol, maxNestedRows);
+                            maxNestedRows = Math.Max(maxNestedRows, nestedRowEnd);
+                        }
                     }
                     
                     col += nestedColumns;
@@ -949,6 +1010,84 @@ namespace ExcelToYamlAddin.Core
             public Dictionary<string, ElementStructure> ChildElements { get; set; } = new Dictionary<string, ElementStructure>();
             public bool HasTextContent { get; set; }
             public bool IsArray { get; set; }
+        }
+
+        /// <summary>
+        /// 워크시트에서 실제 사용된 컬럼 수를 확인합니다.
+        /// </summary>
+        private int GetActualUsedColumns(IXLWorksheet worksheet, int lastSchemaRow)
+        {
+            int maxCol = 1;
+            
+            // 스키마 행들(2행부터 lastSchemaRow까지)을 검사
+            for (int row = 2; row <= lastSchemaRow; row++)
+            {
+                var usedRange = worksheet.Row(row).LastCellUsed();
+                if (usedRange != null)
+                {
+                    maxCol = Math.Max(maxCol, usedRange.Address.ColumnNumber);
+                }
+            }
+            
+            Logger.Debug($"실제 사용된 최대 컬럼: {maxCol}");
+            return maxCol;
+        }
+
+        /// <summary>
+        /// 스키마 행들의 병합을 실제 컬럼 수로 업데이트합니다.
+        /// </summary>
+        private void UpdateSchemaMerging(IXLWorksheet worksheet, XmlStructureInfo structure, int actualMaxColumns, int lastSchemaRow)
+        {
+            if (!structure.IsArray) return;
+
+            try
+            {
+                // 기존 병합 제거 및 새로운 병합 적용
+                // 2행: ${} 마커
+                ClearAndRemerge(worksheet, 2, 1, actualMaxColumns);
+                
+                // 3행: Mission$[] 마커
+                ClearAndRemerge(worksheet, 3, 2, actualMaxColumns);
+                
+                // 4행: ${} 마커
+                ClearAndRemerge(worksheet, 4, 3, actualMaxColumns);
+                
+                Logger.Information($"스키마 병합 업데이트 완료: 실제 컬럼 수={actualMaxColumns}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "스키마 병합 업데이트 중 오류 발생");
+            }
+        }
+
+        /// <summary>
+        /// 기존 병합을 제거하고 새로운 범위로 병합합니다.
+        /// </summary>
+        private void ClearAndRemerge(IXLWorksheet worksheet, int row, int startCol, int endCol)
+        {
+            try
+            {
+                // 해당 행의 기존 병합 찾아서 제거
+                var rangeToUnmerge = worksheet.MergedRanges
+                    .FirstOrDefault(r => r.FirstRow().RowNumber() == row && r.FirstColumn().ColumnNumber() == startCol);
+                
+                if (rangeToUnmerge != null)
+                {
+                    rangeToUnmerge.Unmerge();
+                    Logger.Debug($"기존 병합 제거: 행={row}, 시작열={startCol}");
+                }
+                
+                // 새로운 병합 적용
+                if (endCol > startCol)
+                {
+                    worksheet.Range(row, startCol, row, endCol).Merge();
+                    Logger.Debug($"새 병합 적용: 행={row}, 시작열={startCol}, 끝열={endCol}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, $"병합 업데이트 실패: 행={row}, 시작열={startCol}, 끝열={endCol}");
+            }
         }
     }
 }
