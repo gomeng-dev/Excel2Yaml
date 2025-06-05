@@ -655,44 +655,17 @@ namespace ExcelToYamlAddin.Core
                     
                     maxNestedRows = Math.Max(maxNestedRows, nextRow);
                     
-                    // 배열 아이템들의 속성 컬럼 헤더 생성 (그 다음 행에)
-                    int propertyRow = nextRow + 1;
+                    // 배열 아이템들의 속성 및 중첩 구조 헤더 생성
+                    int currentRowForHeaders = nextRow + 1;
                     
-                    // 전체 행을 무시 마커로 먼저 채움 (최대 컬럼까지)
-                    for (int i = 1; i <= maxColumns; i++)
-                    {
-                        worksheet.Cell(propertyRow, i).Value = IgnoreMarker;
-                    }
-                    
-                    // 배열 아이템들의 실제 속성 헤더로 덮어쓰기
                     for (int dupIndex = 0; dupIndex < duplicateCount; dupIndex++)
                     {
                         int itemStartCol = arrayStartCol + (dupIndex * GetNestedColumnCount(child.Value));
-                        int propertyCol = itemStartCol;
                         
-                        // 속성 헤더들 작성
-                        foreach (var attr in child.Value.Attributes)
-                        {
-                            worksheet.Cell(propertyRow, propertyCol).Value = AttributePrefix + attr;
-                            propertyCol++;
-                        }
-                        
-                        // 단순 자식 요소들 작성
-                        foreach (var nestedChild in child.Value.ChildElements.Where(c => !c.Value.IsArray && !c.Value.ChildElements.Any() && !c.Value.Attributes.Any()))
-                        {
-                            worksheet.Cell(propertyRow, propertyCol).Value = nestedChild.Key;
-                            propertyCol++;
-                        }
-                        
-                        // 텍스트 내용이 있는 경우
-                        if (child.Value.HasTextContent)
-                        {
-                            worksheet.Cell(propertyRow, propertyCol).Value = TextContentKey;
-                            propertyCol++;
-                        }
+                        // 각 배열 아이템에 대해 내부 구조 헤더 생성
+                        int nestedHeadersEndRow = WriteNestedStructureHeaders(worksheet, child.Value, currentRowForHeaders, itemStartCol, maxColumns);
+                        maxNestedRows = Math.Max(maxNestedRows, nestedHeadersEndRow);
                     }
-                    
-                    maxNestedRows = Math.Max(maxNestedRows, propertyRow);
                     col += arrayColumns;
                 }
                 else
@@ -816,7 +789,8 @@ namespace ExcelToYamlAddin.Core
                 }
                 
                 // 배열 항목 구조
-                WriteArrayItemSchema(worksheet, child.Value, currentRow + 1, col, arrayColumns);
+                int nestedRowEnd = WriteNestedStructureHeaders(worksheet, child.Value, currentRow + 1, col, maxColumns);
+                maxNestedRows = Math.Max(maxNestedRows, nestedRowEnd);
                 
                 col += arrayColumns;
             }
@@ -908,34 +882,125 @@ namespace ExcelToYamlAddin.Core
             // 속성 수
             count += structure.Attributes.Count;
             
-            // 자식 요소 수
-            count += structure.ChildElements.Count;
-            
             // 텍스트 내용이 있으면 +1
             if (structure.HasTextContent)
             {
                 count++;
             }
             
+            // 자식 요소들을 재귀적으로 계산
+            foreach (var child in structure.ChildElements)
+            {
+                if (child.Value.IsArray)
+                {
+                    // 배열인 경우: 배열 내 요소 구조 크기 계산
+                    int arrayItemSize = GetNestedColumnCount(child.Value);
+                    // 기본적으로 최소 1개 항목은 있다고 가정
+                    count += arrayItemSize;
+                }
+                else if (child.Value.Attributes.Any() || child.Value.ChildElements.Any() || child.Value.HasTextContent)
+                {
+                    // 복잡한 객체인 경우: 재귀적으로 크기 계산
+                    count += GetNestedColumnCount(child.Value);
+                }
+                else
+                {
+                    // 단순 요소인 경우: 1개 컬럼
+                    count += 1;
+                }
+            }
+            
             return Math.Max(count, 1); // 최소 1개 컬럼
         }
 
         /// <summary>
-        /// 배열 항목의 스키마를 작성합니다.
+        /// 중첩 구조의 헤더를 작성합니다.
         /// </summary>
-        private void WriteArrayItemSchema(IXLWorksheet worksheet, ElementStructure structure, int row, int startCol, int totalColumns)
+        private int WriteNestedStructureHeaders(IXLWorksheet worksheet, ElementStructure structure, int startRow, int startCol, int maxColumns)
         {
-            // 예시로 3개 항목을 위한 스키마 작성
-            int itemColumns = totalColumns / 3;
-            for (int i = 0; i < 3; i++)
+            int currentRow = startRow;
+            int col = startCol;
+            
+            // A, B열 처리
+            if (startCol > 2)
             {
-                int col = startCol + (i * itemColumns);
-                worksheet.Cell(row, col).Value = ObjectMarker;
-                if (itemColumns > 1)
+                worksheet.Cell(currentRow, 1).Value = IgnoreMarker;
+                worksheet.Cell(currentRow, 2).Value = IgnoreMarker;
+            }
+            
+            // 전체 행을 무시 마커로 초기화
+            for (int i = Math.Max(startCol, 3); i <= maxColumns; i++)
+            {
+                if (worksheet.Cell(currentRow, i).Value.ToString() == "")
                 {
-                    worksheet.Range(row, col, row, col + itemColumns - 1).Merge();
+                    worksheet.Cell(currentRow, i).Value = IgnoreMarker;
                 }
             }
+            
+            // 속성들 작성
+            foreach (var attr in structure.Attributes)
+            {
+                worksheet.Cell(currentRow, col).Value = AttributePrefix + attr;
+                col++;
+            }
+            
+            // 단순 자식 요소들 작성
+            foreach (var child in structure.ChildElements.Where(c => !c.Value.IsArray && !c.Value.ChildElements.Any() && !c.Value.Attributes.Any()))
+            {
+                worksheet.Cell(currentRow, col).Value = child.Key;
+                col++;
+            }
+            
+            // 복잡한 자식 요소들 (객체 마커와 속성 헤더 추가)
+            foreach (var child in structure.ChildElements.Where(c => !c.Value.IsArray && (c.Value.ChildElements.Any() || c.Value.Attributes.Any())))
+            {
+                int nestedColumns = GetNestedColumnCount(child.Value);
+                
+                // 중첩 객체 마커 작성
+                worksheet.Cell(currentRow, col).Value = child.Key + ObjectMarker;
+                if (nestedColumns > 1)
+                {
+                    worksheet.Range(currentRow, col, currentRow, col + nestedColumns - 1).Merge();
+                }
+                worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.LightGreen;
+                
+                // 다음 행에 중첩 객체의 속성 헤더 작성
+                int nextRow = currentRow + 1;
+                int nestedHeaderEndRow = WriteNestedStructureHeaders(worksheet, child.Value, nextRow, col, maxColumns);
+                currentRow = Math.Max(currentRow, nestedHeaderEndRow);
+                
+                col += nestedColumns;
+            }
+            
+            // 배열 자식 요소들 처리
+            foreach (var child in structure.ChildElements.Where(c => c.Value.IsArray))
+            {
+                int arrayColumns = GetNestedColumnCount(child.Value);
+                
+                // 배열 마커 작성
+                worksheet.Cell(currentRow, col).Value = child.Key + ArrayMarker;
+                if (arrayColumns > 1)
+                {
+                    worksheet.Range(currentRow, col, currentRow, col + arrayColumns - 1).Merge();
+                }
+                worksheet.Row(currentRow).Style.Fill.BackgroundColor = XLColor.Green;
+                
+                // 배열 내부 구조 처리
+                int nextRow = currentRow + 1;
+                int nestedHeaderEndRow = WriteNestedStructureHeaders(worksheet, child.Value, nextRow, col, maxColumns);
+                currentRow = Math.Max(currentRow, nestedHeaderEndRow);
+                
+                col += arrayColumns;
+            }
+            
+            // 텍스트 내용
+            if (structure.HasTextContent)
+            {
+                worksheet.Cell(currentRow, col).Value = TextContentKey;
+                col++;
+            }
+            
+            return currentRow;
         }
 
         /// <summary>
