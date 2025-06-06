@@ -179,8 +179,22 @@ public class DynamicPatternRecognizer
             HasLargeNestedArrays = pattern.Arrays.Any(a => a.Value.MaxSize > 3),
             ArrayElementCount = pattern.Arrays.Sum(a => a.Value.MaxSize),
             HasVariableDepth = pattern.Properties.Any(p => p.Value.OccurrenceRatio < 0.5),
-            HasOptionalNesting = pattern.Arrays.Any(a => a.Value.OccurrenceRatio < 1.0)
+            HasOptionalNesting = pattern.Arrays.Any(a => a.Value.OccurrenceRatio < 1.0),
+            HasVariableArrayProperties = pattern.Arrays.Any(a => a.Value.HasVariableProperties)
         };
+    }
+    
+    /// <summary>
+    /// 배열 요소의 속성 가변성을 분석합니다.
+    /// </summary>
+    public class ArrayPattern
+    {
+        public string Name { get; set; }
+        public int MaxSize { get; set; }
+        public double OccurrenceRatio { get; set; }
+        public bool HasVariableProperties { get; set; }
+        public Dictionary<string, int> ElementPropertyCounts { get; set; }
+        public List<string> AllUniqueProperties { get; set; }
     }
 }
 ```
@@ -268,6 +282,8 @@ public class DynamicHorizontalExpander
         public int ElementCount { get; set; }
         public List<ElementLayout> Elements { get; set; }
         public int TotalColumns { get; set; }
+        public int ActualUsedColumns { get; set; } // 실제 사용된 컬럼 수
+        public bool OptimizeColumns { get; set; } // 컬럼 최적화 여부
     }
 
     public DynamicArrayLayout CalculateArrayLayout(
@@ -279,7 +295,8 @@ public class DynamicHorizontalExpander
         {
             ArrayPath = arrayPath,
             ElementCount = array.Children.Count,
-            Elements = new List<ElementLayout>()
+            Elements = new List<ElementLayout>(),
+            OptimizeColumns = true
         };
 
         // 각 요소별 레이아웃 계산
@@ -305,10 +322,62 @@ public class DynamicHorizontalExpander
             }
         }
 
+        // 컬럼 최적화: 가변 속성을 가진 배열의 경우
+        if (layout.OptimizeColumns)
+        {
+            OptimizeArrayColumns(layout, unifiedSchema);
+        }
+        
         // 전체 컬럼 수 계산
         layout.TotalColumns = layout.Elements.Sum(e => e.RequiredColumns);
+        layout.ActualUsedColumns = CalculateActualUsedColumns(layout);
 
         return layout;
+    }
+    
+    /// <summary>
+    /// 배열 요소들의 가변 속성을 분석하여 컬럼을 최적화합니다.
+    /// </summary>
+    private void OptimizeArrayColumns(
+        DynamicArrayLayout layout,
+        Dictionary<string, PropertyPattern> unifiedSchema)
+    {
+        // 모든 요소에서 사용되는 고유 속성 수집
+        var allProperties = new HashSet<string>();
+        foreach (var element in layout.Elements)
+        {
+            allProperties.UnionWith(element.Properties);
+        }
+        
+        // 통합 스키마 생성
+        var unifiedProperties = allProperties.OrderBy(p => 
+        {
+            // 우선순위: 1) 스키마에 있는 속성, 2) 출현 빈도, 3) 알파벳 순
+            if (unifiedSchema.ContainsKey(p))
+                return unifiedSchema[p].FirstAppearanceIndex;
+            return int.MaxValue;
+        }).ToList();
+        
+        // 각 요소의 컬럼 수를 통합 스키마 크기로 맞춤
+        foreach (var element in layout.Elements)
+        {
+            element.RequiredColumns = unifiedProperties.Count;
+            element.UnifiedProperties = unifiedProperties;
+        }
+    }
+    
+    /// <summary>
+    /// 실제 사용된 컬럼 수를 계산합니다.
+    /// </summary>
+    private int CalculateActualUsedColumns(DynamicArrayLayout layout)
+    {
+        // XmlToExcelConverter의 GetActualUsedColumns 개념 적용
+        int maxColumns = 0;
+        foreach (var element in layout.Elements)
+        {
+            maxColumns = Math.Max(maxColumns, element.RequiredColumns);
+        }
+        return maxColumns * layout.ElementCount;
     }
 
     private int CalculateRequiredColumns(
@@ -322,6 +391,14 @@ public class DynamicHorizontalExpander
         var extraProperties = properties.Except(schema.Keys).Count();
         
         return schemaProperties + extraProperties;
+    }
+    
+    public class ElementLayout
+    {
+        public int Index { get; set; }
+        public List<string> Properties { get; set; }
+        public int RequiredColumns { get; set; }
+        public List<string> UnifiedProperties { get; set; } // 통합된 속성 목록
     }
 }
 ```
@@ -409,7 +486,74 @@ public class DynamicVerticalNester
 
 ## 5. Excel 스키마 생성
 
-### 5.1 동적 스키마 빌더
+### 5.1 중복 요소 처리 및 병합 관리
+
+```csharp
+public class DuplicateElementManager
+{
+    /// <summary>
+    /// XmlToExcelConverter의 DuplicateElementCounts 개념 적용
+    /// </summary>
+    public Dictionary<string, int> AnalyzeDuplicateElements(YamlSequenceNode array)
+    {
+        var duplicateCounts = new Dictionary<string, int>();
+        
+        foreach (var item in array.Children)
+        {
+            if (item is YamlMappingNode mapping)
+            {
+                // 각 항목에서 중복 요소 카운트
+                var elementCounts = new Dictionary<string, int>();
+                
+                foreach (var child in mapping.Children)
+                {
+                    var key = child.Key.ToString();
+                    if (child.Value is YamlSequenceNode)
+                    {
+                        // 배열인 경우 요소 수 카운트
+                        var count = ((YamlSequenceNode)child.Value).Children.Count;
+                        
+                        if (!duplicateCounts.ContainsKey(key) || duplicateCounts[key] < count)
+                        {
+                            duplicateCounts[key] = count;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return duplicateCounts;
+    }
+    
+    /// <summary>
+    /// 스키마 병합을 실제 사용된 컬럼에 맞춰 업데이트
+    /// </summary>
+    public void UpdateSchemaMerging(
+        ExcelScheme scheme,
+        int actualUsedColumns,
+        int lastSchemaRow)
+    {
+        // XmlToExcelConverter의 UpdateSchemaMerging 개념
+        for (int row = 2; row <= lastSchemaRow; row++)
+        {
+            var mergedCells = scheme.GetMergedCellsInRow(row);
+            foreach (var merged in mergedCells)
+            {
+                if (merged.EndColumn > actualUsedColumns)
+                {
+                    // 병합 범위를 실제 사용된 컬럼까지로 조정
+                    scheme.UpdateMergedCell(row, merged.StartColumn, actualUsedColumns);
+                }
+            }
+        }
+        
+        // $scheme_end 마커도 실제 컬럼 수에 맞춰 조정
+        scheme.UpdateSchemeEndMarker(actualUsedColumns);
+    }
+}
+```
+
+### 5.2 동적 스키마 빌더
 
 ```csharp
 public class DynamicSchemaBuilder
@@ -497,21 +641,55 @@ public class DynamicSchemaBuilder
     {
         int currentCol = startCol;
         
-        // 각 배열 요소에 대한 스키마
-        foreach (var element in layout.Elements)
+        // 가변 속성을 가진 배열의 경우 통합 스키마 사용
+        if (layout.OptimizeColumns && layout.Elements.Any(e => e.UnifiedProperties != null))
         {
-            // ${} 마커
-            scheme.AddMergedCell(startRow, currentCol, 
-                currentCol + element.RequiredColumns - 1, "${}");
+            // 통합된 속성 목록 사용
+            var unifiedProps = layout.Elements.First().UnifiedProperties;
             
-            // 속성들
-            int propCol = currentCol;
-            foreach (var prop in element.Properties)
+            foreach (var element in layout.Elements)
             {
-                scheme.AddCell(startRow + 1, propCol++, prop);
+                // ${} 마커
+                scheme.AddMergedCell(startRow, currentCol, 
+                    currentCol + element.RequiredColumns - 1, "${}");
+                
+                // 통합 속성 스키마
+                int propCol = currentCol;
+                foreach (var prop in unifiedProps)
+                {
+                    scheme.AddCell(startRow + 1, propCol++, prop);
+                }
+                
+                currentCol += element.RequiredColumns;
             }
-            
-            currentCol += element.RequiredColumns;
+        }
+        else
+        {
+            // 기존 로직: 각 요소별 개별 스키마
+            foreach (var element in layout.Elements)
+            {
+                // ${} 마커
+                scheme.AddMergedCell(startRow, currentCol, 
+                    currentCol + element.RequiredColumns - 1, "${}");
+                
+                // 속성들
+                int propCol = currentCol;
+                foreach (var prop in element.Properties)
+                {
+                    scheme.AddCell(startRow + 1, propCol++, prop);
+                }
+                
+                currentCol += element.RequiredColumns;
+            }
+        }
+        
+        // 실제 사용된 컬럼 수로 병합 업데이트
+        if (layout.ActualUsedColumns < layout.TotalColumns)
+        {
+            var duplicateManager = new DuplicateElementManager();
+            duplicateManager.UpdateSchemaMerging(scheme, 
+                startCol + layout.ActualUsedColumns - 1, 
+                startRow + 1);
         }
     }
 }
@@ -671,6 +849,7 @@ public class DynamicYamlToExcelConverter
     private readonly DynamicPatternRecognizer _recognizer;
     private readonly DynamicSchemaBuilder _schemaBuilder;
     private readonly DynamicDataMapper _dataMapper;
+    private readonly DuplicateElementManager _duplicateManager;
 
     public void Convert(string yamlPath, string excelPath)
     {
@@ -692,9 +871,20 @@ public class DynamicYamlToExcelConverter
 
         // 5. Excel 스키마 생성
         var scheme = _schemaBuilder.BuildScheme(pattern, strategy, layoutInfo);
+        
+        // 5.1. 중복 요소 분석 및 스키마 최적화
+        if (rootNode is YamlSequenceNode sequence)
+        {
+            var duplicateCounts = _duplicateManager.AnalyzeDuplicateElements(sequence);
+            scheme.OptimizeForDuplicates(duplicateCounts);
+        }
 
         // 6. 데이터 매핑
         var rows = _dataMapper.MapToExcelRows(rootNode, scheme, pattern);
+        
+        // 6.1. 실제 사용된 컬럼 수 계산 및 병합 업데이트
+        var actualColumns = scheme.CalculateActualUsedColumns(rows);
+        _duplicateManager.UpdateSchemaMerging(scheme, actualColumns, scheme.LastSchemaRow);
 
         // 7. Excel 파일 작성
         WriteExcel(scheme, rows, excelPath);
@@ -760,6 +950,12 @@ public class DynamicYamlToExcelConverter
 - 새로운 YAML 구조 자동 지원
 - 커스텀 패턴 인식기 추가 가능
 - 플러그인 아키텍처
+
+### 8.5 최적화 기능 (XmlToExcelConverter 참고)
+- **중복 요소 카운트**: 배열 내 중복 요소의 최대 개수 추적
+- **실제 사용 컬럼 계산**: 스키마와 데이터의 실제 사용 컬럼 수 차이 보정
+- **동적 병합 업데이트**: 병합 범위를 실제 데이터에 맞춰 자동 조정
+- **가변 속성 처리**: 배열 요소의 서로 다른 속성 통합 관리
 
 ## 9. 사용 예시
 

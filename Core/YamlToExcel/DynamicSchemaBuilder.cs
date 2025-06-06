@@ -317,59 +317,75 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             int col = 2;
             var orderer = new DynamicPropertyOrderer();
 
-            // 단순 속성들 순서: id, role, damage 등
+            // 속성들을 동적으로 처리
+            // 1. 단순 속성들 먼저 처리 (객체와 배열이 아닌 것들)
             var simpleProps = pattern.Properties
-                .Where(p => !p.Value.IsArray && !p.Value.IsObject)
+                .Where(p => !p.Value.IsObject && !p.Value.IsArray)
+                .OrderBy(p => p.Value.FirstAppearanceIndex)
                 .ToDictionary(p => p.Key, p => p.Value);
-            
-            // 객체 속성들 (desc 같은 것)
-            var objectProps = pattern.Properties
-                .Where(p => p.Value.IsObject && !p.Value.IsArray)
-                .ToDictionary(p => p.Key, p => p.Value);
-
-            foreach (var prop in orderer.DeterminePropertyOrder(simpleProps))
+                
+            foreach (var prop in simpleProps)
             {
-                scheme.AddCell(row, col, prop);
-                scheme.SetColumnMapping(prop, col);
+                scheme.AddCell(row, col, prop.Key);
+                scheme.SetColumnMapping(prop.Key, col);
                 col++;
             }
             
-            // 객체 속성 처리 (동적으로)
+            // 2. 객체 속성들 처리 (동적으로)
+            var objectProps = pattern.Properties
+                .Where(p => p.Value.IsObject && !p.Value.IsArray)
+                .OrderBy(p => p.Value.FirstAppearanceIndex)
+                .ToDictionary(p => p.Key, p => p.Value);
+                
             foreach (var objProp in objectProps)
             {
-                // 객체의 하위 속성들을 동적으로 가져옴
-                var objProperties = objProp.Value.NestedProperties ?? new List<string>();
-                int objPropCount = objProperties.Count;
+                var objProperties = objProp.Value.ObjectProperties ?? objProp.Value.NestedProperties ?? new List<string>();
                 
-                if (objPropCount > 0)
+                Logger.Debug($"{objProp.Key} 객체 처리: 속성 개수 = {objProperties.Count}");
+                
+                if (objProperties.Count > 0)
                 {
-                    int objEndCol = col + objPropCount - 1;
+                    int objStartCol = col;
+                    int objEndCol = col + objProperties.Count - 1;
                     
-                    // 객체 마커 (병합)
-                    scheme.AddMergedCell(row, col, objEndCol, $"{objProp.Key}${{}}");
+                    // 4행: 객체${} 마커 (병합)
+                    scheme.AddMergedCell(row, objStartCol, objEndCol, $"{objProp.Key}${{}}");
                     
-                    // 5행: 객체의 하위 속성들
-                    int propCol = col;
+                    // 5행: ^ 마커들과 객체 속성들
+                    for (int i = 1; i < objStartCol; i++)
+                    {
+                        scheme.AddCell(row + 1, i, "^");
+                    }
+                    
+                    int propCol = objStartCol;
                     foreach (var prop in objProperties)
                     {
                         scheme.AddCell(row + 1, propCol, prop);
                         scheme.SetColumnMapping($"{objProp.Key}.{prop}", propCol);
-                        Logger.Debug($"객체 속성 매핑: {objProp.Key}.{prop} -> 컬럼 {propCol}");
+                        Logger.Information($"{objProp.Key} 속성 매핑: {objProp.Key}.{prop} -> 컬럼 {propCol}");
                         propCol++;
+                    }
+                    
+                    // 6행: 모든 컬럼에 ^ 마커
+                    for (int i = 1; i <= objEndCol; i++)
+                    {
+                        scheme.AddCell(row + 2, i, "^");
                     }
                     
                     col = objEndCol + 1;
                 }
                 else
                 {
-                    // 속성이 없는 객체
+                    // 객체가 속성이 없는 경우
                     scheme.AddCell(row, col, objProp.Key);
                     scheme.SetColumnMapping(objProp.Key, col);
                     col++;
                 }
             }
-
-            // 배열 속성 처리
+            
+            // 3. 배열 속성들은 아래에서 처리하므로 여기서는 스킵
+            
+            // 4. 배열 속성들 처리
             if (arrayLayout != null && arrayLayout.ArrayLayouts != null)
             {
                 foreach (var array in arrayLayout.ArrayLayouts)
@@ -412,7 +428,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 {
                     var element = i < layout.Elements.Count ? layout.Elements[i] : layout.Elements.Last();
                     var elementProps = element.UnifiedProperties ?? element.Properties;
-                    int elementColumns = elementProps.Count;
+                    
+                    // 각 요소의 실제 속성 개수 계산
+                    int elementColumns = element.RequiredColumns;
                     
                     // 5행: ${} 마커
                     scheme.AddMergedCell(startRow, currentCol, currentCol + elementColumns - 1, "${}");
@@ -505,75 +523,33 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
         }
         
-        private void AddObjectProperties(ExcelScheme scheme, int row, int startCol, int count, string objectName = "desc")
-        {
-            // desc 객체의 속성들
-            string[] descProps = { "keyword", "name", "skillName", "skillKeyword", "skillExplanation", "skillRange", "skillCooltime" };
-            
-            // ^ 마커들
-            scheme.AddCell(row, 1, "^");
-            
-            // 속성들
-            for (int i = 0; i < descProps.Length && i < count; i++)
-            {
-                scheme.AddCell(row, startCol + i, descProps[i]);
-                // 객체명.속성명 형태로 컬럼 매핑 추가
-                scheme.SetColumnMapping($"{objectName}.{descProps[i]}", startCol + i);
-            }
-        }
-        
-        private void AddDynamicObjectProperties(ExcelScheme scheme, int row, int startCol, string objectName, List<string> properties)
-        {
-            // ^ 마커
-            scheme.AddCell(row, 1, "^");
-            
-            // 속성들
-            for (int i = 0; i < properties.Count; i++)
-            {
-                scheme.AddCell(row, startCol + i, properties[i]);
-                // 객체명.속성명 형태로 컬럼 매핑 추가
-                scheme.SetColumnMapping($"{objectName}.{properties[i]}", startCol + i);
-            }
-        }
-        
-        private List<string> GetObjectProperties(DynamicStructureAnalyzer.StructurePattern pattern, string objectName)
-        {
-            // 패턴에서 객체 속성 찾기
-            if (pattern.Properties.ContainsKey(objectName))
-            {
-                var prop = pattern.Properties[objectName];
-                if (prop.IsObject && prop.ObjectProperties != null)
-                {
-                    return prop.ObjectProperties;
-                }
-            }
-            
-            // 기본값: desc 객체의 경우 하드코듩된 속성 반환
-            if (objectName == "desc")
-            {
-                return new List<string> { "keyword", "name", "skillName", "skillKeyword", "skillExplanation", "skillRange", "skillCooltime" };
-            }
-            
-            return new List<string>();
-        }
         
         private int EstimateTotalColumns(DynamicStructureAnalyzer.StructurePattern pattern, DynamicHorizontalExpander.HorizontalLayout layout)
         {
-            // 기본 컬럼: ^ + 단순 속성들
-            int baseColumns = 1 + pattern.Properties.Count(p => !p.Value.IsArray && !p.Value.IsObject);
+            // ^ 마커
+            int columns = 1;
             
-            // 객체 속성 (desc)
-            int objectColumns = 7; // desc의 속성 수
+            // 단순 속성들
+            columns += pattern.Properties.Count(p => !p.Value.IsObject && !p.Value.IsArray);
             
-            // 배열 속성 (weaponSpec)
-            int arrayColumns = 0;
-            if (layout != null && layout.ArrayLayouts.Any())
+            // 객체 속성들의 하위 속성들
+            var objectProps = pattern.Properties.Where(p => p.Value.IsObject && !p.Value.IsArray);
+            foreach (var objProp in objectProps)
             {
-                // weaponSpec: 5개는 4컬럼, 3개는 5컬럼 = 35컬럼
-                arrayColumns = 35;
+                var objProperties = objProp.Value.ObjectProperties ?? objProp.Value.NestedProperties ?? new List<string>();
+                columns += objProperties.Count;
             }
             
-            return baseColumns + objectColumns + arrayColumns;
+            // 배열 속성들
+            if (layout != null && layout.ArrayLayouts.Any())
+            {
+                foreach (var array in layout.ArrayLayouts)
+                {
+                    columns += array.Value.TotalColumns;
+                }
+            }
+            
+            return columns;
         }
     }
 }

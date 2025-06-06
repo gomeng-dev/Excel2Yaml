@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using YamlDotNet.RepresentationModel;
+using ExcelToYamlAddin.Logging;
 
 namespace ExcelToYamlAddin.Core.YamlToExcel
 {
     public class DynamicStructureAnalyzer
     {
+        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<DynamicStructureAnalyzer>();
+        
         public enum PatternType
         {
             RootArray,
@@ -24,7 +27,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public bool IsRequired { get; set; }
             public bool IsArray { get; set; }
             public bool IsObject { get; set; }
-            public List<string> ObjectProperties { get; set; } // 객체의 하위 속성들
+            public List<string> ObjectProperties { get; set; } = new List<string>(); // 객체의 하위 속성들
             public List<string> NestedProperties => ObjectProperties; // 별칭 추가
         }
 
@@ -124,6 +127,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 {
                     prop.IsObject = true;
                     prop.ObjectProperties = ExtractObjectPropertyNames(objMapping);
+                    Logger.Information($"AnalyzeObjectProperties: '{key}' 객체 속성 분석 완료, ObjectProperties 개수 = {prop.ObjectProperties?.Count ?? 0}");
                 }
 
                 pattern.Properties[key] = prop;
@@ -137,6 +141,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             {
                 properties.Add(kvp.Key.ToString());
             }
+            Logger.Debug($"ExtractObjectPropertyNames: 추출된 속성 개수 = {properties.Count}, 속성들 = [{string.Join(", ", properties)}]");
             return properties;
         }
 
@@ -184,11 +189,12 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     else if (value is YamlMappingNode nestedMapping)
                     {
                         // 중첩 객체의 속성들도 추출
-                        var objInfo = new
+                        var objInfo = new ObjectInfo
                         {
                             Type = "Object",
                             Properties = ExtractObjectPropertyNames(nestedMapping)
                         };
+                        Logger.Debug($"ExtractElementSchema: '{key}' 객체 발견, 속성 개수 = {objInfo.Properties.Count}");
                         schema[key] = objInfo;
                     }
                 }
@@ -214,7 +220,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                             Name = prop.Key,
                             OccurrenceCount = 0,
                             Types = new HashSet<Type>(),
-                            FirstAppearanceIndex = i
+                            FirstAppearanceIndex = i,
+                            ObjectProperties = new List<string>()
                         };
                     }
                     
@@ -222,13 +229,52 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     unified[prop.Key].Types.Add(prop.Value?.GetType() ?? typeof(object));
 
                     // 배열이나 객체 타입 감지
-                    if (prop.Value is Dictionary<string, object> dict)
+                    if (prop.Value is ArrayInfo arrayInfo)
+                    {
+                        unified[prop.Key].IsArray = true;
+                    }
+                    else if (prop.Value is Dictionary<string, object> dict)
                     {
                         var type = dict.ContainsKey("Type") ? dict["Type"].ToString() : "";
                         if (type == "Array")
                             unified[prop.Key].IsArray = true;
                         else if (type == "Object")
                             unified[prop.Key].IsObject = true;
+                    }
+                    else if (prop.Value is ObjectInfo objInfo)
+                    {
+                        // ObjectInfo 타입 직접 처리
+                        Logger.Debug($"UnifySchemas: ObjectInfo 타입 감지 - '{prop.Key}', Type={objInfo.Type}, 속성 개수={objInfo.Properties?.Count ?? 0}");
+                        if (objInfo.Type == "Object")
+                        {
+                            unified[prop.Key].IsObject = true;
+                            unified[prop.Key].ObjectProperties = objInfo.Properties;
+                            Logger.Information($"UnifySchemas: '{prop.Key}' 객체 속성 설정 완료, ObjectProperties 개수 = {unified[prop.Key].ObjectProperties?.Count ?? 0}");
+                        }
+                    }
+                    else
+                    {
+                        // 익명 타입 처리 (폴백)
+                        var valueType = prop.Value?.GetType();
+                        if (valueType != null && !valueType.IsPrimitive && valueType != typeof(string))
+                        {
+                            var typeProperty = valueType.GetProperty("Type");
+                            var propertiesProperty = valueType.GetProperty("Properties");
+                            
+                            if (typeProperty != null && propertiesProperty != null)
+                            {
+                                var typeValue = typeProperty.GetValue(prop.Value)?.ToString();
+                                if (typeValue == "Object")
+                                {
+                                    unified[prop.Key].IsObject = true;
+                                    var properties = propertiesProperty.GetValue(prop.Value) as List<string>;
+                                    if (properties != null)
+                                    {
+                                        unified[prop.Key].ObjectProperties = properties;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -397,6 +443,12 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public bool IsArray { get; set; }
             public int ElementCount { get; set; }
             public List<Dictionary<string, object>> Elements { get; set; }
+        }
+        
+        private class ObjectInfo
+        {
+            public string Type { get; set; }
+            public List<string> Properties { get; set; }
         }
     }
 }
