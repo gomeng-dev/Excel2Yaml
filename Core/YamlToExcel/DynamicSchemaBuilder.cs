@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ClosedXML.Excel;
 using ExcelToYamlAddin.Logging;
+using static ExcelToYamlAddin.Core.YamlToExcel.DynamicDataMapper;
 
 namespace ExcelToYamlAddin.Core.YamlToExcel
 {
@@ -21,6 +22,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             private readonly List<SchemaRow> rows = new List<SchemaRow>();
             private readonly Dictionary<string, int> columnMapping = new Dictionary<string, int>();
             private readonly Dictionary<string, int> arrayStartColumns = new Dictionary<string, int>();
+            private readonly List<MergedCellInfo> mergedCells = new List<MergedCellInfo>();
             
             public int LastSchemaRow { get; private set; }
 
@@ -40,6 +42,12 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     EndColumn = endCol, 
                     Value = value 
                 });
+                mergedCells.Add(new MergedCellInfo 
+                { 
+                    Row = row, 
+                    StartColumn = startCol, 
+                    EndColumn = endCol 
+                });
                 LastSchemaRow = Math.Max(LastSchemaRow, row);
             }
 
@@ -53,7 +61,10 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
             public int GetColumnIndex(string propertyName)
             {
-                return columnMapping.ContainsKey(propertyName) ? columnMapping[propertyName] : -1;
+                var result = columnMapping.ContainsKey(propertyName) ? columnMapping[propertyName] : -1;
+                SimpleLoggerFactory.CreateLogger<ExcelScheme>()
+                    .Debug($"GetColumnIndex('{propertyName}') = {result}");
+                return result;
             }
 
             public int GetArrayStartColumn(string arrayName)
@@ -64,6 +75,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public void SetColumnMapping(string propertyName, int column)
             {
                 columnMapping[propertyName] = column;
+                SimpleLoggerFactory.CreateLogger<ExcelScheme>()
+                    .Information($"SetColumnMapping: '{propertyName}' -> 컬럼 {column}");
             }
 
             public void SetArrayStartColumn(string arrayName, int column)
@@ -94,6 +107,14 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         {
                             lastCol = Math.Max(lastCol, kvp.Value);
                         }
+                        
+                        // 병합 정보에서 실제 범위 찾기
+                        var mergeInfo = mergedCells.FirstOrDefault(m => m.Row == row.RowNumber);
+                        if (mergeInfo != null)
+                        {
+                            lastCol = mergeInfo.EndColumn;
+                        }
+                        
                         worksheet.Range(row.RowNumber, 1, row.RowNumber, lastCol).Merge();
                         worksheet.Cell(row.RowNumber, 1).Value = "$scheme_end";
                     }
@@ -131,6 +152,72 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 public int EndColumn { get; set; }
                 public string Value { get; set; }
             }
+            
+            public class MergedCellInfo
+            {
+                public int Row { get; set; }
+                public int StartColumn { get; set; }
+                public int EndColumn { get; set; }
+            }
+            
+            public List<MergedCellInfo> GetMergedCellsInRow(int row)
+            {
+                return mergedCells.Where(m => m.Row == row).ToList();
+            }
+            
+            public void UpdateMergedCell(int row, int startColumn, int newEndColumn)
+            {
+                var merged = mergedCells.FirstOrDefault(m => m.Row == row && m.StartColumn == startColumn);
+                if (merged != null)
+                {
+                    merged.EndColumn = newEndColumn;
+                }
+            }
+            
+            public void UpdateSchemeEndMarker(int actualUsedColumns)
+            {
+                // $scheme_end 행 찾기
+                var schemeEndRow = rows.FirstOrDefault(r => r.IsSchemeEnd);
+                if (schemeEndRow != null)
+                {
+                    // 기존 병합 정보 업데이트
+                    var existingMerge = mergedCells.FirstOrDefault(m => m.Row == schemeEndRow.RowNumber);
+                    if (existingMerge != null)
+                    {
+                        existingMerge.EndColumn = actualUsedColumns;
+                    }
+                    else
+                    {
+                        mergedCells.Add(new MergedCellInfo 
+                        { 
+                            Row = schemeEndRow.RowNumber, 
+                            StartColumn = 1, 
+                            EndColumn = actualUsedColumns 
+                        });
+                    }
+                }
+            }
+            
+            public void OptimizeForDuplicates(Dictionary<string, int> duplicateCounts)
+            {
+                // 중복 요소 분석에 따른 스키마 최적화
+                // 예: weaponSpec배열의 각 요소가 damage/addDamage를 가지는 경우
+                foreach (var dup in duplicateCounts)
+                {
+                    Logger.Information($"중복 요소 감지: {dup.Key} = {dup.Value}개");
+                }
+            }
+            
+            public int CalculateActualUsedColumns(List<DynamicDataMapper.ExcelRow> rows)
+            {
+                int maxCol = 1;
+                // 데이터 행에서 사용된 최대 컬럼 찾기
+                foreach (var row in rows)
+                {
+                    maxCol = Math.Max(maxCol, row.GetMaxColumn());
+                }
+                return maxCol;
+            }
         }
 
         public ExcelScheme BuildScheme(
@@ -165,7 +252,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             // $scheme_end 추가
             scheme.AddSchemeEndRow(scheme.LastSchemaRow + 1);
 
-            Logger.Information($"Excel 스키마 생성 완료: 마지막 행={scheme.LastSchemaRow + 1}");
+            Logger.Information($"Excel 스키마 생성 완료: 마지막 행={scheme.LastSchemaRow}");
             return scheme;
         }
 
@@ -214,19 +301,30 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
         {
             Logger.Debug("수평 확장 스키마 생성");
 
-            // 루트 배열 마커
-            scheme.AddCell(startRow, 1, "$[]");
+            // 2행: 루트 배열 마커 $[]
+            int totalColumns = EstimateTotalColumns(pattern, arrayLayout);
+            scheme.AddMergedCell(startRow, 1, totalColumns, "$[]");
 
-            // ^ 마커와 기본 속성들
+            // 3행: ^ 마커와 객체 마커 ${}
             int row = startRow + 1;
+            scheme.AddCell(row, 1, "^");
+            scheme.AddMergedCell(row, 2, totalColumns, "${}");
+            
+            // 4행: ^ 마커와 기본 속성들
+            row++;
             scheme.AddCell(row, 1, "^");
 
             int col = 2;
             var orderer = new DynamicPropertyOrderer();
 
-            // 단순 속성들
+            // 단순 속성들 순서: id, role, damage 등
             var simpleProps = pattern.Properties
-                .Where(p => !p.Value.IsArray)
+                .Where(p => !p.Value.IsArray && !p.Value.IsObject)
+                .ToDictionary(p => p.Key, p => p.Value);
+            
+            // 객체 속성들 (desc 같은 것)
+            var objectProps = pattern.Properties
+                .Where(p => p.Value.IsObject && !p.Value.IsArray)
                 .ToDictionary(p => p.Key, p => p.Value);
 
             foreach (var prop in orderer.DeterminePropertyOrder(simpleProps))
@@ -235,6 +333,41 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 scheme.SetColumnMapping(prop, col);
                 col++;
             }
+            
+            // 객체 속성 처리 (동적으로)
+            foreach (var objProp in objectProps)
+            {
+                // 객체의 하위 속성들을 동적으로 가져옴
+                var objProperties = objProp.Value.NestedProperties ?? new List<string>();
+                int objPropCount = objProperties.Count;
+                
+                if (objPropCount > 0)
+                {
+                    int objEndCol = col + objPropCount - 1;
+                    
+                    // 객체 마커 (병합)
+                    scheme.AddMergedCell(row, col, objEndCol, $"{objProp.Key}${{}}");
+                    
+                    // 5행: 객체의 하위 속성들
+                    int propCol = col;
+                    foreach (var prop in objProperties)
+                    {
+                        scheme.AddCell(row + 1, propCol, prop);
+                        scheme.SetColumnMapping($"{objProp.Key}.{prop}", propCol);
+                        Logger.Debug($"객체 속성 매핑: {objProp.Key}.{prop} -> 컬럼 {propCol}");
+                        propCol++;
+                    }
+                    
+                    col = objEndCol + 1;
+                }
+                else
+                {
+                    // 속성이 없는 객체
+                    scheme.AddCell(row, col, objProp.Key);
+                    scheme.SetColumnMapping(objProp.Key, col);
+                    col++;
+                }
+            }
 
             // 배열 속성 처리
             if (arrayLayout != null && arrayLayout.ArrayLayouts != null)
@@ -242,11 +375,11 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 foreach (var array in arrayLayout.ArrayLayouts)
                 {
                     var arrayStartCol = col;
-                    var totalColumns = array.Value.TotalColumns;
+                    var arrayTotalColumns = array.Value.TotalColumns;
                     
-                    if (totalColumns > 0)
+                    if (arrayTotalColumns > 0)
                     {
-                        var arrayEndCol = col + totalColumns - 1;
+                        var arrayEndCol = col + arrayTotalColumns - 1;
 
                         // 배열 마커 (병합)
                         scheme.AddMergedCell(row, arrayStartCol, arrayEndCol, $"{array.Key}$[]");
@@ -267,25 +400,57 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             int startRow,
             int startCol)
         {
+            Logger.Debug($"배열 요소 스키마 생성: {layout.ArrayPath}, 요소 수={layout.ElementCount}");
+            
             int currentCol = startCol;
 
-            // 각 배열 요소에 대한 스키마
-            foreach (var element in layout.Elements)
+            // 가변 속성을 가진 배열의 경우 통합 스키마 사용
+            if (layout.OptimizeColumns && layout.Elements.Any())
             {
-                if (element.RequiredColumns > 0)
+                // 각 요소별로 동적으로 처리
+                for (int i = 0; i < layout.ElementCount; i++)
                 {
-                    // ${} 마커
-                    scheme.AddMergedCell(startRow, currentCol,
-                        currentCol + element.RequiredColumns - 1, "${}");
+                    var element = i < layout.Elements.Count ? layout.Elements[i] : layout.Elements.Last();
+                    var elementProps = element.UnifiedProperties ?? element.Properties;
+                    int elementColumns = elementProps.Count;
+                    
+                    // 5행: ${} 마커
+                    scheme.AddMergedCell(startRow, currentCol, currentCol + elementColumns - 1, "${}");
 
-                    // 속성들
+                    // 6행: 요소의 속성들 (동적으로)
                     int propCol = currentCol;
-                    foreach (var prop in element.Properties)
+                    foreach (var prop in elementProps)
                     {
-                        scheme.AddCell(startRow + 1, propCol++, prop);
+                        scheme.AddCell(startRow + 1, propCol, prop);
+                        scheme.SetColumnMapping($"{layout.ArrayPath}[{i}].{prop}", propCol);
+                        Logger.Debug($"배열 요소 매핑: {layout.ArrayPath}[{i}].{prop} -> 컬럼 {propCol}");
+                        propCol++;
                     }
+                    
+                    currentCol += elementColumns;
+                }
+            }
+            else
+            {
+                // 기존 로직: 각 요소별 개별 스키마
+                foreach (var element in layout.Elements)
+                {
+                    if (element.RequiredColumns > 0)
+                    {
+                        // ${} 마커
+                        scheme.AddMergedCell(startRow, currentCol,
+                            currentCol + element.RequiredColumns - 1, "${}");
 
-                    currentCol += element.RequiredColumns;
+                        // 속성들
+                        int propCol = currentCol;
+                        var orderedProps = element.UnifiedProperties ?? element.Properties;
+                        foreach (var prop in orderedProps)
+                        {
+                            scheme.AddCell(startRow + 1, propCol++, prop);
+                        }
+
+                        currentCol += element.RequiredColumns;
+                    }
                 }
             }
         }
@@ -338,6 +503,77 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 // 폴백: 단순 스키마 생성
                 BuildSimpleScheme(scheme, pattern, startRow);
             }
+        }
+        
+        private void AddObjectProperties(ExcelScheme scheme, int row, int startCol, int count, string objectName = "desc")
+        {
+            // desc 객체의 속성들
+            string[] descProps = { "keyword", "name", "skillName", "skillKeyword", "skillExplanation", "skillRange", "skillCooltime" };
+            
+            // ^ 마커들
+            scheme.AddCell(row, 1, "^");
+            
+            // 속성들
+            for (int i = 0; i < descProps.Length && i < count; i++)
+            {
+                scheme.AddCell(row, startCol + i, descProps[i]);
+                // 객체명.속성명 형태로 컬럼 매핑 추가
+                scheme.SetColumnMapping($"{objectName}.{descProps[i]}", startCol + i);
+            }
+        }
+        
+        private void AddDynamicObjectProperties(ExcelScheme scheme, int row, int startCol, string objectName, List<string> properties)
+        {
+            // ^ 마커
+            scheme.AddCell(row, 1, "^");
+            
+            // 속성들
+            for (int i = 0; i < properties.Count; i++)
+            {
+                scheme.AddCell(row, startCol + i, properties[i]);
+                // 객체명.속성명 형태로 컬럼 매핑 추가
+                scheme.SetColumnMapping($"{objectName}.{properties[i]}", startCol + i);
+            }
+        }
+        
+        private List<string> GetObjectProperties(DynamicStructureAnalyzer.StructurePattern pattern, string objectName)
+        {
+            // 패턴에서 객체 속성 찾기
+            if (pattern.Properties.ContainsKey(objectName))
+            {
+                var prop = pattern.Properties[objectName];
+                if (prop.IsObject && prop.ObjectProperties != null)
+                {
+                    return prop.ObjectProperties;
+                }
+            }
+            
+            // 기본값: desc 객체의 경우 하드코듩된 속성 반환
+            if (objectName == "desc")
+            {
+                return new List<string> { "keyword", "name", "skillName", "skillKeyword", "skillExplanation", "skillRange", "skillCooltime" };
+            }
+            
+            return new List<string>();
+        }
+        
+        private int EstimateTotalColumns(DynamicStructureAnalyzer.StructurePattern pattern, DynamicHorizontalExpander.HorizontalLayout layout)
+        {
+            // 기본 컬럼: ^ + 단순 속성들
+            int baseColumns = 1 + pattern.Properties.Count(p => !p.Value.IsArray && !p.Value.IsObject);
+            
+            // 객체 속성 (desc)
+            int objectColumns = 7; // desc의 속성 수
+            
+            // 배열 속성 (weaponSpec)
+            int arrayColumns = 0;
+            if (layout != null && layout.ArrayLayouts.Any())
+            {
+                // weaponSpec: 5개는 4컬럼, 3개는 5컬럼 = 35컬럼
+                arrayColumns = 35;
+            }
+            
+            return baseColumns + objectColumns + arrayColumns;
         }
     }
 }

@@ -24,6 +24,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public bool IsRequired { get; set; }
             public bool IsArray { get; set; }
             public bool IsObject { get; set; }
+            public List<string> ObjectProperties { get; set; } // 객체의 하위 속성들
+            public List<string> NestedProperties => ObjectProperties; // 별칭 추가
         }
 
         public class ArrayPattern
@@ -34,7 +36,10 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public double OccurrenceRatio { get; set; }
             public bool RequiresMultipleRows { get; set; }
             public bool HasVariableStructure { get; set; }
+            public bool HasVariableProperties { get; set; }
             public Dictionary<string, PropertyPattern> ElementProperties { get; set; }
+            public Dictionary<string, int> ElementPropertyCounts { get; set; }
+            public List<string> AllUniqueProperties { get; set; }
         }
 
         public class StructurePattern
@@ -115,13 +120,24 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var arrayPattern = AnalyzeArray(key, value as YamlSequenceNode);
                     pattern.Arrays[key] = arrayPattern;
                 }
-                else if (value is YamlMappingNode)
+                else if (value is YamlMappingNode objMapping)
                 {
                     prop.IsObject = true;
+                    prop.ObjectProperties = ExtractObjectPropertyNames(objMapping);
                 }
 
                 pattern.Properties[key] = prop;
             }
+        }
+
+        private List<string> ExtractObjectPropertyNames(YamlMappingNode objMapping)
+        {
+            var properties = new List<string>();
+            foreach (var kvp in objMapping.Children)
+            {
+                properties.Add(kvp.Key.ToString());
+            }
+            return properties;
         }
 
         private Dictionary<string, object> ExtractElementSchema(YamlNode element)
@@ -165,9 +181,15 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         
                         schema[key] = arrayInfo;
                     }
-                    else if (value is YamlMappingNode)
+                    else if (value is YamlMappingNode nestedMapping)
                     {
-                        schema[key] = new { Type = "Object" };
+                        // 중첩 객체의 속성들도 추출
+                        var objInfo = new
+                        {
+                            Type = "Object",
+                            Properties = ExtractObjectPropertyNames(nestedMapping)
+                        };
+                        schema[key] = objInfo;
                     }
                 }
             }
@@ -252,6 +274,25 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                             var elementSchemas = arrayInfo.Elements;
                             arrays[prop.Key].ElementProperties = UnifySchemas(elementSchemas);
                             arrays[prop.Key].HasVariableStructure = arrays[prop.Key].ElementProperties.Any(p => p.Value.OccurrenceRatio < 1.0);
+                            
+                            // 가변 속성 분석 (weaponSpec의 damage/addDamage 같은 경우)
+                            var allUniqueProps = new HashSet<string>();
+                            var propCounts = new Dictionary<string, int>();
+                            
+                            foreach (var elem in elementSchemas)
+                            {
+                                foreach (var propKey in elem.Keys)
+                                {
+                                    allUniqueProps.Add(propKey);
+                                    if (!propCounts.ContainsKey(propKey))
+                                        propCounts[propKey] = 0;
+                                    propCounts[propKey]++;
+                                }
+                            }
+                            
+                            arrays[prop.Key].AllUniqueProperties = allUniqueProps.ToList();
+                            arrays[prop.Key].ElementPropertyCounts = propCounts;
+                            arrays[prop.Key].HasVariableProperties = allUniqueProps.Count > elementSchemas.First().Count;
                         }
                     }
                 }
@@ -274,7 +315,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 Name = name,
                 MaxSize = array.Children.Count,
                 MinSize = array.Children.Count,
-                ElementProperties = new Dictionary<string, PropertyPattern>()
+                ElementProperties = new Dictionary<string, PropertyPattern>(),
+                ElementPropertyCounts = new Dictionary<string, int>(),
+                AllUniqueProperties = new List<string>()
             };
 
             // 배열 요소들의 스키마 분석
@@ -288,6 +331,25 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             if (elementSchemas.Any())
             {
                 pattern.ElementProperties = UnifySchemas(elementSchemas);
+                
+                // 가변 속성 분석
+                var allUniqueProps = new HashSet<string>();
+                var propCounts = new Dictionary<string, int>();
+                
+                foreach (var elem in elementSchemas)
+                {
+                    foreach (var propKey in elem.Keys)
+                    {
+                        allUniqueProps.Add(propKey);
+                        if (!propCounts.ContainsKey(propKey))
+                            propCounts[propKey] = 0;
+                        propCounts[propKey]++;
+                    }
+                }
+                
+                pattern.AllUniqueProperties = allUniqueProps.ToList();
+                pattern.ElementPropertyCounts = propCounts;
+                pattern.HasVariableProperties = allUniqueProps.Count > elementSchemas.First().Count;
             }
 
             pattern.RequiresMultipleRows = pattern.MaxSize > 5;

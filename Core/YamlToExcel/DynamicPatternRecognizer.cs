@@ -20,6 +20,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public int ArrayElementCount { get; set; }
             public bool HasVariableDepth { get; set; }
             public bool HasOptionalNesting { get; set; }
+            public bool HasVariableArrayProperties { get; set; }
             public int TotalProperties { get; set; }
             public int TotalArrays { get; set; }
             public double AverageArraySize { get; set; }
@@ -33,6 +34,12 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             if (metrics.IsSimpleStructure)
             {
                 return LayoutStrategy.Simple;
+            }
+            
+            // Weapons.yaml처럼 루트가 배열이고 중첩 배열이 있는 경우
+            if (pattern.Type == PatternType.RootArray && pattern.Arrays.Any())
+            {
+                return LayoutStrategy.HorizontalExpansion;
             }
             
             if (metrics.HasLargeNestedArrays && metrics.ArrayElementCount > 5)
@@ -57,6 +64,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 ArrayElementCount = pattern.Arrays.Sum(a => a.Value.MaxSize),
                 HasVariableDepth = pattern.Properties.Any(p => p.Value.OccurrenceRatio < 0.5),
                 HasOptionalNesting = pattern.Arrays.Any(a => a.Value.OccurrenceRatio < 1.0),
+                HasVariableArrayProperties = pattern.Arrays.Any(a => a.Value.HasVariableProperties),
                 TotalProperties = pattern.Properties.Count,
                 TotalArrays = pattern.Arrays.Count
             };

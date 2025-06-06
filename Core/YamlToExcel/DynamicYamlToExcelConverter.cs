@@ -19,6 +19,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
         private readonly DynamicPatternRecognizer _recognizer;
         private readonly DynamicSchemaBuilder _schemaBuilder;
         private readonly DynamicDataMapper _dataMapper;
+        private readonly DuplicateElementManager _duplicateManager;
 
         public DynamicYamlToExcelConverter()
         {
@@ -26,6 +27,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             _recognizer = new DynamicPatternRecognizer();
             _schemaBuilder = new DynamicSchemaBuilder();
             _dataMapper = new DynamicDataMapper();
+            _duplicateManager = new DuplicateElementManager();
         }
 
         /// <summary>
@@ -70,12 +72,25 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 Logger.Debug("Excel 스키마 생성 중...");
                 var scheme = _schemaBuilder.BuildScheme(pattern, strategy, layoutInfo);
 
-                // 6. 데이터 매핑
+                // 6. 중복 요소 분석 및 스키마 최적화
+                if (rootNode is YamlSequenceNode rootSequence)
+                {
+                    Logger.Debug("중복 요소 분석 중...");
+                    var duplicateCounts = _duplicateManager.AnalyzeDuplicateElements(rootSequence);
+                    scheme.OptimizeForDuplicates(duplicateCounts);
+                }
+
+                // 7. 데이터 매핑
                 Logger.Debug("데이터 매핑 중...");
                 var rows = _dataMapper.MapToExcelRows(rootNode, scheme, pattern);
                 Logger.Information($"데이터 매핑 완료: {rows.Count}개 행");
 
-                // 7. Excel 파일 작성
+                // 8. 실제 사용 컬럼 계산 및 스키마 업데이트
+                var actualUsedColumns = scheme.CalculateActualUsedColumns(rows);
+                Logger.Debug($"실제 사용 컬럼 수: {actualUsedColumns}");
+                _duplicateManager.UpdateSchemaMerging(scheme, actualUsedColumns, scheme.LastSchemaRow);
+
+                // 9. Excel 파일 작성
                 Logger.Debug("Excel 파일 작성 중...");
                 WriteExcel(scheme, rows, excelPath);
 
@@ -115,7 +130,20 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 var strategy = _recognizer.DetermineStrategy(pattern);
                 var layoutInfo = GenerateLayoutInfo(rootNode, pattern, strategy);
                 var scheme = _schemaBuilder.BuildScheme(pattern, strategy, layoutInfo);
+                
+                // 중복 요소 분석
+                if (rootNode is YamlSequenceNode rootSequence)
+                {
+                    var duplicateCounts = _duplicateManager.AnalyzeDuplicateElements(rootSequence);
+                    scheme.OptimizeForDuplicates(duplicateCounts);
+                }
+                
                 var rows = _dataMapper.MapToExcelRows(rootNode, scheme, pattern);
+                
+                // 실제 사용 컬럼 계산 및 스키마 업데이트
+                var actualUsedColumns = scheme.CalculateActualUsedColumns(rows);
+                _duplicateManager.UpdateSchemaMerging(scheme, actualUsedColumns, scheme.LastSchemaRow);
+                
                 WriteExcel(scheme, rows, excelPath);
 
                 Logger.Information($"변환 완료: {excelPath}");
@@ -155,7 +183,19 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 var strategy = _recognizer.DetermineStrategy(pattern);
                 var layoutInfo = GenerateLayoutInfo(rootNode, pattern, strategy);
                 var scheme = _schemaBuilder.BuildScheme(pattern, strategy, layoutInfo);
+                
+                // 중복 요소 분석
+                if (rootNode is YamlSequenceNode rootSequence)
+                {
+                    var duplicateCounts = _duplicateManager.AnalyzeDuplicateElements(rootSequence);
+                    scheme.OptimizeForDuplicates(duplicateCounts);
+                }
+                
                 var rows = _dataMapper.MapToExcelRows(rootNode, scheme, pattern);
+                
+                // 실제 사용 컬럼 계산 및 스키마 업데이트
+                var actualUsedColumns = scheme.CalculateActualUsedColumns(rows);
+                _duplicateManager.UpdateSchemaMerging(scheme, actualUsedColumns, scheme.LastSchemaRow);
 
                 // 워크북 생성
                 var workbook = new XLWorkbook();
@@ -165,7 +205,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 scheme.WriteToWorksheet(worksheet);
 
                 // 데이터 작성
-                int dataStartRow = scheme.LastSchemaRow + 2;
+                int dataStartRow = scheme.LastSchemaRow + 1;
                 foreach (var row in rows)
                 {
                     row.WriteToWorksheet(worksheet, dataStartRow++);
@@ -268,7 +308,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 scheme.WriteToWorksheet(worksheet);
 
                 // 데이터 작성
-                int dataStartRow = scheme.LastSchemaRow + 2;
+                int dataStartRow = scheme.LastSchemaRow + 1;
                 foreach (var row in rows)
                 {
                     row.WriteToWorksheet(worksheet, dataStartRow++);

@@ -32,6 +32,11 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 return cells.ContainsKey(column) ? cells[column] : null;
             }
 
+            public int GetMaxColumn()
+            {
+                return cells.Keys.DefaultIfEmpty(0).Max();
+            }
+
             public void WriteToWorksheet(IXLWorksheet worksheet, int rowNumber)
             {
                 foreach (var cell in cells)
@@ -106,21 +111,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
         {
             var rows = new List<ExcelRow>();
 
-            // 수직 확장이 필요한지 확인
-            bool needsVerticalExpansion = pattern.Arrays.Any(a => 
-                a.Value.RequiresMultipleRows || 
-                (a.Value.HasVariableStructure && a.Value.MaxSize > 3));
-
-            if (needsVerticalExpansion)
-            {
-                // 수직 확장 필요
-                rows.AddRange(ExpandVertically(item, scheme, pattern));
-            }
-            else
-            {
-                // 단일 행 매핑
-                rows.Add(MapHorizontally(item, scheme, pattern));
-            }
+            // Weapons.yaml의 경우 수평 확장만 사용
+            // 각 무기 항목은 하나의 행으로 매핑되어야 함
+            rows.Add(MapHorizontally(item, scheme, pattern));
 
             return rows;
         }
@@ -134,34 +127,48 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
             if (item is YamlMappingNode mapping)
             {
-                // ^ 마커 (무시 마커)
-                row.SetCell(1, "^");
+                // ^ 마커 (무시 마커)를 첫 번째 컬럼에 설정
+                // 주의: 데이터 행의 첫 번째 컬럼은 빈 셀로 남겨둬야 함
+                // row.SetCell(1, "^"); // 이 줄을 제거하고 빈 셀로 남김
 
                 // 속성 매핑
+                Logger.Information("========== MapHorizontally 속성 매핑 시작 ==========");
                 foreach (var prop in mapping.Children)
                 {
                     var key = prop.Key.ToString();
+                    Logger.Debug($"속성 처리: {key}, 타입: {prop.Value.GetType().Name}");
+                    
                     var columnIndex = scheme.GetColumnIndex(key);
 
-                    if (columnIndex > 0)
+                    if (prop.Value is YamlSequenceNode nestedArray)
                     {
-                        if (prop.Value is YamlSequenceNode nestedArray)
-                        {
-                            // 중첩 배열은 별도 처리
-                            MapNestedArray(row, nestedArray, key, scheme, pattern);
-                        }
-                        else
-                        {
-                            var value = ConvertValue(prop.Value);
-                            row.SetCell(columnIndex, value);
-                        }
+                        Logger.Debug($"→ {key}는 배열 타입, MapNestedArray로 처리");
+                        // 중첩 배열은 별도 처리
+                        MapNestedArray(row, nestedArray, key, scheme, pattern);
+                    }
+                    else if (prop.Value is YamlMappingNode nestedObject)
+                    {
+                        Logger.Debug($"→ {key}는 객체 타입, MapNestedObject로 처리");
+                        // 중첩 객체는 속성들을 확장하여 매핑
+                        MapNestedObject(row, nestedObject, key, scheme, pattern);
+                    }
+                    else if (columnIndex > 0)
+                    {
+                        // 단순 값만 직접 매핑
+                        var value = ConvertValue(prop.Value);
+                        row.SetCell(columnIndex, value);
+                        Logger.Information($"✓ 단순 속성 매핑: {key} -> 컬럼 {columnIndex}: {value}");
+                    }
+                    else
+                    {
+                        Logger.Warning($"✗ {key} 속성의 컬럼 인덱스를 찾을 수 없음");
                     }
                 }
+                Logger.Information("========== MapHorizontally 속성 매핑 완료 ==========");
             }
             else if (item is YamlScalarNode scalar)
             {
                 // 스칼라 값인 경우
-                row.SetCell(1, "^");
                 row.SetCell(2, ConvertValue(scalar));
             }
 
@@ -175,63 +182,68 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             DynamicSchemaBuilder.ExcelScheme scheme,
             DynamicStructureAnalyzer.StructurePattern pattern)
         {
-            var startColumn = scheme.GetArrayStartColumn(arrayName);
-            if (startColumn < 0)
-            {
-                Logger.Warning($"배열 '{arrayName}'의 시작 컬럼을 찾을 수 없음");
-                return;
-            }
-
-            int currentCol = startColumn;
+            Logger.Information($"========== MapNestedArray 시작: {arrayName} ==========");
+            Logger.Debug($"배열 크기: {array.Children.Count}개 요소");
             
-            // 배열의 각 요소 처리
+            // 배열을 수평으로 확장하여 매핑
+            int elementIndex = 0;
             foreach (var element in array.Children)
             {
+                Logger.Debug($"--- 배열 요소 [{elementIndex}] 처리 시작 ---");
+                
                 if (element is YamlMappingNode elementMapping)
                 {
-                    // 객체의 각 속성을 순서대로 매핑
-                    var orderer = new DynamicPropertyOrderer();
-                    var elementProps = elementMapping.Children.Keys
-                        .Select(k => k.ToString())
-                        .ToList();
-
-                    // 통합 스키마가 있으면 그 순서를 따름
-                    if (pattern.Arrays.ContainsKey(arrayName))
+                    Logger.Debug($"요소 타입: YamlMappingNode, 속성 개수: {elementMapping.Children.Count}");
+                    
+                    // 각 요소의 속성들을 개별 컬럼으로 매핑
+                    foreach (var prop in elementMapping.Children)
                     {
-                        var arrayPattern = pattern.Arrays[arrayName];
-                        var orderedProps = orderer.DeterminePropertyOrder(arrayPattern.ElementProperties);
-
-                        foreach (var prop in orderedProps)
-                        {
-                            if (elementMapping.Children.ContainsKey(new YamlScalarNode(prop)))
-                            {
-                                var value = ConvertValue(elementMapping.Children[new YamlScalarNode(prop)]);
-                                row.SetCell(currentCol++, value);
-                            }
-                            else
-                            {
-                                // 속성이 없으면 빈 셀
-                                row.SetCell(currentCol++, "");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // 스키마 정보가 없으면 있는 속성만 순서대로
-                        foreach (var prop in elementMapping.Children)
+                        var propKey = prop.Key.ToString();
+                        var fullKey = $"{arrayName}[{elementIndex}].{propKey}";
+                        
+                        Logger.Debug($"속성 매핑 시도: {fullKey}");
+                        var columnIndex = scheme.GetColumnIndex(fullKey);
+                        Logger.Debug($"scheme.GetColumnIndex('{fullKey}') = {columnIndex}");
+                        
+                        if (columnIndex > 0)
                         {
                             var value = ConvertValue(prop.Value);
-                            row.SetCell(currentCol++, value);
+                            row.SetCell(columnIndex, value);
+                            Logger.Information($"✓ 매핑 성공: {fullKey} -> 컬럼 {columnIndex}: {value}");
+                        }
+                        else
+                        {
+                            Logger.Warning($"✗ 매핑 실패: {fullKey} - 컬럼 인덱스를 찾을 수 없음");
                         }
                     }
                 }
                 else
                 {
+                    Logger.Debug($"요소 타입: {element.GetType().Name}");
+                    
                     // 단순 값인 경우
-                    var value = ConvertValue(element);
-                    row.SetCell(currentCol++, value);
+                    var fullKey = $"{arrayName}[{elementIndex}]";
+                    Logger.Debug($"단순 값 매핑 시도: {fullKey}");
+                    
+                    var columnIndex = scheme.GetColumnIndex(fullKey);
+                    Logger.Debug($"scheme.GetColumnIndex('{fullKey}') = {columnIndex}");
+                    
+                    if (columnIndex > 0)
+                    {
+                        var value = ConvertValue(element);
+                        row.SetCell(columnIndex, value);
+                        Logger.Information($"✓ 매핑 성공: {fullKey} -> 컬럼 {columnIndex}: {value}");
+                    }
+                    else
+                    {
+                        Logger.Warning($"✗ 매핑 실패: {fullKey} - 컬럼 인덱스를 찾을 수 없음");
+                    }
                 }
+                
+                elementIndex++;
             }
+            
+            Logger.Information($"========== MapNestedArray 완료: {arrayName} ==========");
         }
 
         private List<ExcelRow> ExpandVertically(
@@ -245,7 +257,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             {
                 // 기본 행 생성
                 var baseRow = new ExcelRow();
-                baseRow.SetCell(1, "^");
+                // 첫 번째 컬럼은 빈 셀로 남김 (데이터 행에서는 ^ 마커를 사용하지 않음)
+                // baseRow.SetCell(1, "^"); // 제거
 
                 // 단순 속성들 먼저 처리
                 var simpleProps = new Dictionary<string, object>();
@@ -321,6 +334,43 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             DynamicStructureAnalyzer.StructurePattern pattern)
         {
             return MapHorizontally(mapping, scheme, pattern);
+        }
+
+        private void MapNestedObject(
+            ExcelRow row,
+            YamlMappingNode obj,
+            string objectName,
+            DynamicSchemaBuilder.ExcelScheme scheme,
+            DynamicStructureAnalyzer.StructurePattern pattern)
+        {
+            Logger.Information($"========== MapNestedObject 시작: {objectName} ==========");
+            Logger.Debug($"객체 속성 개수: {obj.Children.Count}");
+            
+            // 중첩 객체의 각 속성을 개별 컬럼으로 매핑
+            foreach (var prop in obj.Children)
+            {
+                var propKey = prop.Key.ToString();
+                var fullKey = $"{objectName}.{propKey}";
+                
+                Logger.Debug($"속성 매핑 시도: {fullKey}");
+                Logger.Debug($"속성 값 타입: {prop.Value.GetType().Name}");
+                
+                var columnIndex = scheme.GetColumnIndex(fullKey);
+                Logger.Debug($"scheme.GetColumnIndex('{fullKey}') = {columnIndex}");
+                
+                if (columnIndex > 0)
+                {
+                    var value = ConvertValue(prop.Value);
+                    row.SetCell(columnIndex, value);
+                    Logger.Information($"✓ 매핑 성공: {fullKey} -> 컬럼 {columnIndex}: {value}");
+                }
+                else
+                {
+                    Logger.Warning($"✗ 매핑 실패: {fullKey} - 컬럼 인덱스를 찾을 수 없음");
+                }
+            }
+            
+            Logger.Information($"========== MapNestedObject 완료: {objectName} ==========");
         }
 
         private object ConvertValue(YamlNode node)

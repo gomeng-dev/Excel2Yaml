@@ -12,6 +12,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public int Index { get; set; }
             public List<string> Properties { get; set; }
             public int RequiredColumns { get; set; }
+            public List<string> UnifiedProperties { get; set; }
             public Dictionary<string, int> PropertyColumnMap { get; set; }
         }
 
@@ -21,6 +22,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public int ElementCount { get; set; }
             public List<ElementLayout> Elements { get; set; }
             public int TotalColumns { get; set; }
+            public int ActualUsedColumns { get; set; }
+            public bool OptimizeColumns { get; set; }
             public Dictionary<string, PropertyPattern> UnifiedSchema { get; set; }
             public List<string> OrderedProperties { get; set; }
         }
@@ -42,7 +45,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 ArrayPath = arrayPath,
                 ElementCount = array.Children.Count,
                 Elements = new List<ElementLayout>(),
-                UnifiedSchema = unifiedSchema ?? new Dictionary<string, PropertyPattern>()
+                UnifiedSchema = unifiedSchema ?? new Dictionary<string, PropertyPattern>(),
+                OptimizeColumns = true
             };
 
             // 배열 요소들의 모든 속성 수집
@@ -69,8 +73,15 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 }
             }
 
+            // 컬럼 최적화: 가변 속성을 가진 배열의 경우
+            if (layout.OptimizeColumns)
+            {
+                OptimizeArrayColumns(layout);
+            }
+
             // 전체 컬럼 수 계산
             layout.TotalColumns = CalculateTotalColumns(layout);
+            layout.ActualUsedColumns = CalculateActualUsedColumns(layout);
 
             return layout;
         }
@@ -144,7 +155,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             {
                 Index = index,
                 Properties = new List<string>(),
-                PropertyColumnMap = new Dictionary<string, int>()
+                PropertyColumnMap = new Dictionary<string, int>(),
+                UnifiedProperties = orderedProperties
             };
 
             // 요소가 가진 속성들 수집
@@ -278,6 +290,67 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
 
             return layout;
+        }
+
+        private void OptimizeArrayColumns(DynamicArrayLayout layout)
+        {
+            // 모든 요소에서 사용되는 고유 속성 수집
+            var allProperties = new HashSet<string>();
+            foreach (var element in layout.Elements)
+            {
+                allProperties.UnionWith(element.Properties);
+            }
+
+            // 통합 스키마 생성
+            var unifiedProperties = allProperties.OrderBy(p => 
+            {
+                // 우선순위: 1) 스키마에 있는 속성, 2) 출현 빈도, 3) 알파벳 순
+                if (layout.UnifiedSchema.ContainsKey(p))
+                    return layout.UnifiedSchema[p].FirstAppearanceIndex;
+                return int.MaxValue;
+            }).ToList();
+
+            // level, material, mineral은 앞쪽에, damage/addDamage는 뒤쪽에 배치
+            var orderedProperties = new List<string>();
+            
+            // 공통 속성 먼저
+            var commonProps = unifiedProperties.Where(p => 
+                layout.Elements.All(e => e.Properties.Contains(p))).ToList();
+            orderedProperties.AddRange(commonProps);
+            
+            // 가변 속성
+            var variableProps = unifiedProperties.Except(commonProps).ToList();
+            orderedProperties.AddRange(variableProps);
+
+            layout.OrderedProperties = orderedProperties;
+
+            // 각 요소의 컬럼 수를 통합 스키마 크기로 맞춤
+            foreach (var element in layout.Elements)
+            {
+                element.RequiredColumns = orderedProperties.Count;
+                element.UnifiedProperties = orderedProperties;
+                
+                // 속성 컬럼 맵 재계산
+                element.PropertyColumnMap.Clear();
+                for (int i = 0; i < orderedProperties.Count; i++)
+                {
+                    if (element.Properties.Contains(orderedProperties[i]))
+                    {
+                        element.PropertyColumnMap[orderedProperties[i]] = i;
+                    }
+                }
+            }
+        }
+
+        private int CalculateActualUsedColumns(DynamicArrayLayout layout)
+        {
+            // 실제 사용된 컬럼 수를 계산합니다.
+            int maxColumns = 0;
+            foreach (var element in layout.Elements)
+            {
+                maxColumns = System.Math.Max(maxColumns, element.RequiredColumns);
+            }
+            return maxColumns * layout.ElementCount;
         }
     }
 }
