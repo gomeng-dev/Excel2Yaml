@@ -313,63 +313,107 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             // 4행: ^ 마커와 기본 속성들
             row++;
             scheme.AddCell(row, 1, "^");
+            
+            // 사용된 행과 열을 추적
+            var usedCells = new HashSet<(int row, int col)>();
+            usedCells.Add((row, 1)); // 4행 1열의 ^ 마커
 
             int col = 2;
             var orderer = new DynamicPropertyOrderer();
 
             // 속성들을 동적으로 처리
-            // 1. 단순 속성들 먼저 처리 (객체와 배열이 아닌 것들)
-            var simpleProps = pattern.Properties
-                .Where(p => !p.Value.IsObject && !p.Value.IsArray)
-                .OrderBy(p => p.Value.FirstAppearanceIndex)
-                .ToDictionary(p => p.Key, p => p.Value);
-                
-            foreach (var prop in simpleProps)
+            // 먼저 전체 속성들 디버깅
+            Logger.Information($"전체 속성 개수: {pattern.Properties.Count}");
+            foreach (var prop in pattern.Properties)
             {
-                scheme.AddCell(row, col, prop.Key);
-                scheme.SetColumnMapping(prop.Key, col);
-                col++;
+                Logger.Information($"  - '{prop.Key}': IsObject={prop.Value.IsObject}, IsArray={prop.Value.IsArray}, " +
+                                 $"ObjectProperties={prop.Value.ObjectProperties?.Count ?? 0}개");
             }
             
-            // 2. 객체 속성들 처리 (동적으로)
+            // 1. 먼저 모든 객체의 하위 속성명을 수집
+            var objectSubProperties = new HashSet<string>();
             var objectProps = pattern.Properties
                 .Where(p => p.Value.IsObject && !p.Value.IsArray)
-                .OrderBy(p => p.Value.FirstAppearanceIndex)
                 .ToDictionary(p => p.Key, p => p.Value);
                 
             foreach (var objProp in objectProps)
             {
                 var objProperties = objProp.Value.ObjectProperties ?? objProp.Value.NestedProperties ?? new List<string>();
+                foreach (var subProp in objProperties)
+                {
+                    objectSubProperties.Add(subProp);
+                }
+            }
+            
+            // 2. 단순 속성들 처리 (객체 내부 속성과 중복되지 않는 것만)
+            var simpleProps = pattern.Properties
+                .Where(p => !p.Value.IsObject && !p.Value.IsArray)
+                .OrderBy(p => p.Value.FirstAppearanceIndex)
+                .ToDictionary(p => p.Key, p => p.Value);
+            
+            Logger.Information($"단순 속성 개수: {simpleProps.Count}");
+            foreach (var prop in simpleProps)
+            {
+                Logger.Information($"단순 속성 처리: '{prop.Key}'");
                 
-                Logger.Debug($"{objProp.Key} 객체 처리: 속성 개수 = {objProperties.Count}");
+                // 객체 내부에 동일한 이름의 속성이 있으면 스킵
+                if (objectSubProperties.Contains(prop.Key))
+                {
+                    Logger.Information($"  -> 스킵됨 - 객체 내부 속성과 중복");
+                    continue;
+                }
+                
+                Logger.Information($"  -> 컬럼 {col}에 추가");
+                scheme.AddCell(row, col, prop.Key);
+                scheme.SetColumnMapping(prop.Key, col);
+                usedCells.Add((row, col));
+                col++;
+            }
+            
+            // 3. 객체 속성들 처리 (동적으로)
+            foreach (var objProp in objectProps.OrderBy(p => p.Value.FirstAppearanceIndex))
+            {
+                var objProperties = objProp.Value.ObjectProperties ?? objProp.Value.NestedProperties ?? new List<string>();
+                
+                Logger.Information($"{objProp.Key} 객체 처리 시작");
+                Logger.Information($"  - IsObject: {objProp.Value.IsObject}");
+                Logger.Information($"  - ObjectProperties: {objProp.Value.ObjectProperties?.Count ?? 0}개");
+                Logger.Information($"  - NestedProperties: {objProp.Value.NestedProperties?.Count ?? 0}개");
+                Logger.Information($"  - 최종 속성 수: {objProperties.Count}개");
+                
+                if (objProperties.Count > 0)
+                {
+                    Logger.Information($"  - 속성 목록: [{string.Join(", ", objProperties)}]");
+                }
                 
                 if (objProperties.Count > 0)
                 {
                     int objStartCol = col;
                     int objEndCol = col + objProperties.Count - 1;
                     
+                    Logger.Information($"{objProp.Key} 객체 스키마 생성:");
+                    Logger.Information($"  - 시작 컬럼: {objStartCol}");
+                    Logger.Information($"  - 종료 컬럼: {objEndCol}");
+                    Logger.Information($"  - 속성 개수: {objProperties.Count}");
+                    Logger.Information($"  - 현재 row: {row}");
+                    
                     // 4행: 객체${} 마커 (병합)
                     scheme.AddMergedCell(row, objStartCol, objEndCol, $"{objProp.Key}${{}}");
-                    
-                    // 5행: ^ 마커들과 객체 속성들
-                    for (int i = 1; i < objStartCol; i++)
+                    for (int c = objStartCol; c <= objEndCol; c++)
                     {
-                        scheme.AddCell(row + 1, i, "^");
+                        usedCells.Add((row, c));
                     }
                     
+                    // 5행: 객체 속성들
+                    Logger.Information($"5행 생성 중 (row+1={row+1}):");
                     int propCol = objStartCol;
                     foreach (var prop in objProperties)
                     {
+                        Logger.Information($"  - 컬럼 {propCol}: '{prop}' 속성 추가");
                         scheme.AddCell(row + 1, propCol, prop);
                         scheme.SetColumnMapping($"{objProp.Key}.{prop}", propCol);
-                        Logger.Information($"{objProp.Key} 속성 매핑: {objProp.Key}.{prop} -> 컬럼 {propCol}");
+                        usedCells.Add((row + 1, propCol));
                         propCol++;
-                    }
-                    
-                    // 6행: 모든 컬럼에 ^ 마커
-                    for (int i = 1; i <= objEndCol; i++)
-                    {
-                        scheme.AddCell(row + 2, i, "^");
                     }
                     
                     col = objEndCol + 1;
@@ -379,6 +423,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     // 객체가 속성이 없는 경우
                     scheme.AddCell(row, col, objProp.Key);
                     scheme.SetColumnMapping(objProp.Key, col);
+                    usedCells.Add((row, col));
                     col++;
                 }
             }
@@ -400,21 +445,29 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         // 배열 마커 (병합)
                         scheme.AddMergedCell(row, arrayStartCol, arrayEndCol, $"{array.Key}$[]");
                         scheme.SetArrayStartColumn(array.Key, arrayStartCol);
+                        for (int c = arrayStartCol; c <= arrayEndCol; c++)
+                        {
+                            usedCells.Add((row, c));
+                        }
 
                         // 각 요소별 처리
-                        BuildArrayElementScheme(scheme, array.Value, row + 1, arrayStartCol);
+                        BuildArrayElementScheme(scheme, array.Value, row + 1, arrayStartCol, usedCells);
 
                         col = arrayEndCol + 1;
                     }
                 }
             }
+            
+            // 5. 모든 데이터 헤더 작성 후, 빈 셀에 ^ 마커 추가
+            FillEmptyCellsWithCaretMarker(scheme, startRow, totalColumns, usedCells);
         }
 
         private void BuildArrayElementScheme(
             ExcelScheme scheme,
             DynamicHorizontalExpander.DynamicArrayLayout layout,
             int startRow,
-            int startCol)
+            int startCol,
+            HashSet<(int row, int col)> usedCells)
         {
             Logger.Debug($"배열 요소 스키마 생성: {layout.ArrayPath}, 요소 수={layout.ElementCount}");
             
@@ -434,6 +487,10 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     
                     // 5행: ${} 마커
                     scheme.AddMergedCell(startRow, currentCol, currentCol + elementColumns - 1, "${}");
+                    for (int c = currentCol; c < currentCol + elementColumns; c++)
+                    {
+                        usedCells.Add((startRow, c));
+                    }
 
                     // 6행: 요소의 속성들 (동적으로)
                     int propCol = currentCol;
@@ -441,6 +498,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     {
                         scheme.AddCell(startRow + 1, propCol, prop);
                         scheme.SetColumnMapping($"{layout.ArrayPath}[{i}].{prop}", propCol);
+                        usedCells.Add((startRow + 1, propCol));
                         Logger.Debug($"배열 요소 매핑: {layout.ArrayPath}[{i}].{prop} -> 컬럼 {propCol}");
                         propCol++;
                     }
@@ -458,13 +516,19 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         // ${} 마커
                         scheme.AddMergedCell(startRow, currentCol,
                             currentCol + element.RequiredColumns - 1, "${}");
+                        for (int c = currentCol; c < currentCol + element.RequiredColumns; c++)
+                        {
+                            usedCells.Add((startRow, c));
+                        }
 
                         // 속성들
                         int propCol = currentCol;
                         var orderedProps = element.UnifiedProperties ?? element.Properties;
                         foreach (var prop in orderedProps)
                         {
-                            scheme.AddCell(startRow + 1, propCol++, prop);
+                            scheme.AddCell(startRow + 1, propCol, prop);
+                            usedCells.Add((startRow + 1, propCol));
+                            propCol++;
                         }
 
                         currentCol += element.RequiredColumns;
@@ -523,6 +587,29 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
         }
         
+        
+        private void FillEmptyCellsWithCaretMarker(ExcelScheme scheme, int startRow, int totalColumns, HashSet<(int row, int col)> usedCells)
+        {
+            Logger.Debug("빈 셀에 ^ 마커 추가 시작");
+            
+            // 마지막 데이터 행 찾기
+            int lastDataRow = scheme.LastSchemaRow;
+            
+            // startRow부터 lastDataRow까지 모든 빈 셀에 ^ 마커 추가
+            for (int row = startRow; row <= lastDataRow; row++)
+            {
+                for (int col = 1; col <= totalColumns; col++)
+                {
+                    if (!usedCells.Contains((row, col)))
+                    {
+                        Logger.Debug($"빈 셀 발견: 행={row}, 열={col} - ^ 마커 추가");
+                        scheme.AddCell(row, col, "^");
+                    }
+                }
+            }
+            
+            Logger.Debug("빈 셀에 ^ 마커 추가 완료");
+        }
         
         private int EstimateTotalColumns(DynamicStructureAnalyzer.StructurePattern pattern, DynamicHorizontalExpander.HorizontalLayout layout)
         {

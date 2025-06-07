@@ -150,12 +150,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
         private bool IsIdentifierProperty(string propertyName)
         {
-            var lowerName = propertyName.ToLower();
-            // ID나 식별자로 보이는 속성들을 우선 배치
-            return lowerName.Contains("id") || 
-                   lowerName.Contains("key") || 
-                   lowerName.Contains("name") ||
-                   lowerName.Contains("code");
+            // 첫 번째 속성이거나 짧은 이름을 가진 속성을 식별자로 간주
+            // 이는 일반적으로 식별자가 간결한 이름을 갖는 패턴을 활용
+            return propertyName.Length <= 4 || propertyName.EndsWith("_id", StringComparison.OrdinalIgnoreCase);
         }
 
         public Dictionary<string, int> CreatePropertyPriorityMap(
