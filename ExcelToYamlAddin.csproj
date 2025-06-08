@@ -33,7 +33,7 @@
     <IsWebBootstrapper>False</IsWebBootstrapper>
     <GenerateManifests>true</GenerateManifests>
     <SignManifests>true</SignManifests>
-    <ManifestCertificateThumbprint>0B5635163E543DD932A80623148397D2BB45F7B4</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>48D5CA79896322E3160D69B2D1AC8AA99F0678D8</ManifestCertificateThumbprint>
     <SignAssembly>false</SignAssembly>
     <DelaySign>false</DelaySign>
     <AssemblyOriginatorKeyFile>ExcelToYaml.pfx</AssemblyOriginatorKeyFile>
@@ -263,6 +263,15 @@
     <Compile Include="Core\XmlToExcelConverter.cs" />
     <Compile Include="Core\YamlPostProcessors\FinalRawStringConverter.cs" />
     <Compile Include="Core\YamlPostProcessors\YamlToXmlConverter.cs" />
+    <Compile Include="Core\YamlToExcel\DynamicDataMapper.cs" />
+    <Compile Include="Core\YamlToExcel\DynamicHorizontalExpander.cs" />
+    <Compile Include="Core\YamlToExcel\DynamicPatternRecognizer.cs" />
+    <Compile Include="Core\YamlToExcel\DynamicPropertyOrderer.cs" />
+    <Compile Include="Core\YamlToExcel\DynamicSchemaBuilder.cs" />
+    <Compile Include="Core\YamlToExcel\DynamicStructureAnalyzer.cs" />
+    <Compile Include="Core\YamlToExcel\DynamicVerticalNester.cs" />
+    <Compile Include="Core\YamlToExcel\DynamicYamlToExcelConverter.cs" />
+    <Compile Include="Core\YamlToExcel\DuplicateElementManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -401,7 +410,7 @@
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>ExcelToYamlAddin_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>ExcelToYaml.pfx</ManifestKeyFile>
   </PropertyGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

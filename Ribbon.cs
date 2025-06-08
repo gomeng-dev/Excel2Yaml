@@ -1525,6 +1525,90 @@ namespace ExcelToYamlAddin
             }
         }
 
+        // YAML 가져오기 버튼 클릭
+        public void OnImportYamlClick(object sender, RibbonControlEventArgs e)
+        {
+            try
+            {
+                // 파일 선택 대화상자
+                var openFileDialog = new OpenFileDialog
+                {
+                    Title = "YAML 파일 선택",
+                    Filter = "YAML 파일 (*.yaml;*.yml)|*.yaml;*.yml|모든 파일 (*.*)|*.*",
+                    FilterIndex = 1,
+                    RestoreDirectory = true
+                };
+
+                if (openFileDialog.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                string yamlFilePath = openFileDialog.FileName;
+                string fileName = Path.GetFileNameWithoutExtension(yamlFilePath);
+
+                // 현재 워크북 가져오기
+                var app = Globals.ThisAddIn.Application;
+                var currentWorkbook = app.ActiveWorkbook;
+                
+                if (currentWorkbook == null)
+                {
+                    MessageBox.Show("활성 워크북이 없습니다. Excel 파일을 먼저 열어주세요.",
+                        "오류", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // YAML을 Excel로 변환
+                var converter = new Core.YamlToExcel.DynamicYamlToExcelConverter();
+                
+                // 임시 파일로 변환
+                string tempFile = Path.Combine(Path.GetTempPath(), $"temp_{Guid.NewGuid()}.xlsx");
+                converter.Convert(yamlFilePath, tempFile);
+                
+                // 임시 파일을 Excel에서 열기
+                var tempWorkbook = app.Workbooks.Open(tempFile);
+                var sourceSheet = tempWorkbook.Worksheets[1];
+                
+                // 새 시트 이름 생성 (중복 방지)
+                string newSheetName = $"!{fileName}";
+                int suffix = 1;
+                while (WorksheetExists(currentWorkbook, newSheetName))
+                {
+                    newSheetName = $"!{fileName}_{suffix++}";
+                }
+                
+                // 현재 워크북에 시트 복사
+                sourceSheet.Copy(After: currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count]);
+                var newSheet = currentWorkbook.ActiveSheet;
+                newSheet.Name = newSheetName;
+                
+                // 임시 워크북 닫기
+                tempWorkbook.Close(false);
+                
+                // 임시 파일 삭제
+                try { File.Delete(tempFile); } catch { }
+                
+                MessageBox.Show($"YAML 파일이 성공적으로 가져와졌습니다.\n\n시트 이름: {newSheetName}",
+                    "가져오기 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"YAML 변환 중 오류가 발생했습니다:\n\n{ex.Message}",
+                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // 워크시트 존재 여부 확인 헬퍼 메서드
+        private bool WorksheetExists(dynamic workbook, string sheetName)
+        {
+            foreach (dynamic sheet in workbook.Worksheets)
+            {
+                if (sheet.Name == sheetName)
+                    return true;
+            }
+            return false;
+        }
+
 
 
         // 엑셀 파일을 임시 디렉토리에 YAML로 변환하는 메서드

@@ -45,6 +45,13 @@
                   imageMso="ImportXmlData" 
                   screentip="XML을 Excel로 가져오기" 
                   supertip="XML 파일을 읽어서 Excel 시트로 변환합니다." />
+          <button id="btnImportYaml" 
+                  label="YAML 가져오기" 
+                  size="large" 
+                  onAction="OnImportYamlClick" 
+                  imageMso="ImportTextFile" 
+                  screentip="YAML을 Excel로 가져오기" 
+                  supertip="YAML 파일을 읽어서 Excel 시트로 변환합니다." />
           <separator id="separator3" />
           <button id="btnSettings" 
                   label="고급 설정" 
