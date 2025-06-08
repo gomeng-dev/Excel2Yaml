@@ -44,6 +44,7 @@ namespace ExcelToYamlAddin
             this.btnImportXml = this.Factory.CreateRibbonButton(); // XML 가져오기 버튼 추가
             this.btnImportYaml = this.Factory.CreateRibbonButton(); // YAML 가져오기 버튼 추가
             this.btnExportToHtml = this.Factory.CreateRibbonButton(); // HTML 내보내기 버튼 추가
+            this.btnTestXmlToYaml = this.Factory.CreateRibbonButton(); // XML to YAML 테스트 버튼 추가
             this.groupSettings = this.Factory.CreateRibbonGroup();
             this.btnSheetPathSettings = this.Factory.CreateRibbonButton();
             this.groupHelp = this.Factory.CreateRibbonGroup();
@@ -139,11 +140,23 @@ namespace ExcelToYamlAddin
             this.btnExportToHtml.SuperTip = "현재 시트를 HTML 파일로 내보내서 브라우저에서 확인할 수 있습니다.";
             this.btnExportToHtml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnExportToHtmlClick);
             // 
+            // btnTestXmlToYaml
+            // 
+            this.btnTestXmlToYaml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnTestXmlToYaml.Image = ((System.Drawing.Image)(resources.GetObject("btnHelp.Image"))); // 임시로 Help 아이콘 사용
+            this.btnTestXmlToYaml.Label = "XML→YAML 테스트";
+            this.btnTestXmlToYaml.Name = "btnTestXmlToYaml";
+            this.btnTestXmlToYaml.ScreenTip = "XML을 YAML로 변환 테스트";
+            this.btnTestXmlToYaml.ShowImage = true;
+            this.btnTestXmlToYaml.SuperTip = "샘플 XML을 YAML로 변환하고 콘솔에 결과를 출력합니다.";
+            this.btnTestXmlToYaml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnTestXmlToYamlClick);
+            // 
             // groupTools
             // 
             this.groupTools.Items.Add(this.btnImportXml);
             this.groupTools.Items.Add(this.btnImportYaml);
             this.groupTools.Items.Add(this.btnExportToHtml);
+            this.groupTools.Items.Add(this.btnTestXmlToYaml);
             this.groupTools.Label = "도구";
             this.groupTools.Name = "groupTools";
             // 
@@ -212,6 +225,7 @@ namespace ExcelToYamlAddin
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnImportXml; // XML 가져오기 버튼 멤버 추가
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnImportYaml; // YAML 가져오기 버튼 멤버 추가
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnExportToHtml; // HTML 내보내기 버튼 멤버 추가
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton btnTestXmlToYaml; // XML to YAML 테스트 버튼 멤버 추가
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnSheetPathSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupHelp;

@@ -606,21 +606,43 @@ namespace ExcelToYamlAddin
                                 });
 
                                 string yamlContent = File.ReadAllText(yamlFilePath);
-                                var deserializedYaml = yamlParser.Deserialize<IDictionary<string, object>>(yamlContent);
-
-                                // YAML의 루트는 보통 시트 이름이므로, 그 내부 객체를 XML의 루트로 사용
-                                // 또는 deserializedYaml 자체가 XML 루트의 내용을 담고 있다면 그대로 사용
+                                
+                                // YAML이 배열인지 객체인지 동적으로 판단하여 역직렬화
+                                object deserializedYaml = yamlParser.Deserialize<object>(yamlContent);
+                                
                                 IDictionary<string, object> dataForXml;
                                 string xmlRootElementName = sheetFileName; // 기본값
 
-                                if (deserializedYaml.Count == 1 && deserializedYaml.Values.First() is IDictionary<string, object> innerData)
+                                if (deserializedYaml is IDictionary<string, object> yamlDict)
                                 {
-                                    xmlRootElementName = deserializedYaml.Keys.First();
-                                    dataForXml = innerData;
+                                    // YAML이 객체인 경우
+                                    if (yamlDict.Count == 1 && yamlDict.Values.First() is IDictionary<string, object> innerData)
+                                    {
+                                        xmlRootElementName = yamlDict.Keys.First();
+                                        dataForXml = innerData;
+                                    }
+                                    else
+                                    {
+                                        dataForXml = yamlDict;
+                                    }
+                                }
+                                else if (deserializedYaml is IList<object> yamlList)
+                                {
+                                    // YAML이 배열인 경우 (루트 요소 제거 후 배열이 된 경우)
+                                    dataForXml = new Dictionary<string, object>
+                                    {
+                                        { "Items", yamlList }  // 배열을 Items로 감싸서 XML 구조 생성
+                                    };
+                                    xmlRootElementName = sheetFileName;
                                 }
                                 else
                                 {
-                                    dataForXml = deserializedYaml; // YAML 자체가 루트 요소의 내용을 나타내는 경우
+                                    // 기타 경우 (스칼라 값 등)
+                                    dataForXml = new Dictionary<string, object>
+                                    {
+                                        { "Value", deserializedYaml }
+                                    };
+                                    xmlRootElementName = sheetFileName;
                                 }
                                 
                                 string xmlString = Core.YamlPostProcessors.YamlToXmlConverter.ConvertToXmlString(dataForXml, xmlRootElementName);
@@ -1472,8 +1494,8 @@ namespace ExcelToYamlAddin
                 string xmlContent = File.ReadAllText(xmlFilePath);
                 string fileName = Path.GetFileNameWithoutExtension(xmlFilePath);
 
-                // XML을 Excel로 변환
-                var converter = new Core.XmlToExcelConverter();
+                // XML을 Excel로 변환 (새로운 방식: XML → YAML → Excel)
+                var converter = new Core.XmlToExcelViaYamlConverter();
                 var workbook = converter.ConvertToExcel(xmlContent, fileName);
 
                 // 현재 워크북 가져오기
@@ -1558,12 +1580,47 @@ namespace ExcelToYamlAddin
                     return;
                 }
 
+                // YAML 파일 읽기
+                string yamlContent = File.ReadAllText(yamlFilePath);
+                
+                // 루트 요소가 있는 경우 제거 (XML에서 변환된 경우 처리)
+                try
+                {
+                    var yaml = new YamlDotNet.RepresentationModel.YamlStream();
+                    yaml.Load(new StringReader(yamlContent));
+                    
+                    if (yaml.Documents.Count > 0 && yaml.Documents[0].RootNode is YamlDotNet.RepresentationModel.YamlMappingNode rootMapping)
+                    {
+                        // 루트가 단일 키를 가진 매핑이면, 그 값을 직접 사용
+                        if (rootMapping.Children.Count == 1)
+                        {
+                            var rootKey = rootMapping.Children.Keys.First();
+                            var rootValue = rootMapping.Children[rootKey];
+                            
+                            Debug.WriteLine($"[OnImportYamlClick] 루트 요소 '{rootKey}' 감지, 제거 중...");
+                            
+                            // 루트 값을 새로운 YAML 문서로 변환
+                            var newYamlDoc = new YamlDotNet.RepresentationModel.YamlDocument(rootValue);
+                            var newYamlStream = new YamlDotNet.RepresentationModel.YamlStream(newYamlDoc);
+                            var writer = new StringWriter();
+                            newYamlStream.Save(writer, false);
+                            yamlContent = writer.ToString();
+                            
+                            Debug.WriteLine($"[OnImportYamlClick] 루트 요소 제거 완료");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[OnImportYamlClick] 루트 요소 처리 중 오류 (무시하고 계속): {ex.Message}");
+                }
+                
                 // YAML을 Excel로 변환
                 var converter = new Core.YamlToExcel.DynamicYamlToExcelConverter();
                 
                 // 임시 파일로 변환
                 string tempFile = Path.Combine(Path.GetTempPath(), $"temp_{Guid.NewGuid()}.xlsx");
-                converter.Convert(yamlFilePath, tempFile);
+                converter.ConvertFromContent(yamlContent, tempFile);
                 
                 // 임시 파일을 Excel에서 열기
                 var tempWorkbook = app.Workbooks.Open(tempFile);
@@ -1675,6 +1732,110 @@ namespace ExcelToYamlAddin
             {
                 Debug.WriteLine($"[ConvertExcelFileToTemp] 변환 중 오류 발생: {ex.Message}");
                 return convertedFiles;
+            }
+        }
+
+        // XML to YAML 테스트 버튼 클릭
+        private void OnTestXmlToYamlClick(object sender, RibbonControlEventArgs e)
+        {
+            try
+            {
+                // 테스트용 XML 데이터
+                string xmlContent = @"<BarbelStage>
+    <Option>StageInfo</Option>
+    <Limit>1</Limit>
+    <Icon>BarbelMedal</Icon>
+    <Item>SoulOfBarbel</Item>
+    <Item>BarbelPet</Item>
+    <SpawnData>
+        <Option>SpawnDataSingle</Option>
+        <Spawn>
+            <Option>SpawnBasic</Option>
+            <Unit>Barbel_Clone</Unit>
+        </Spawn>
+    </SpawnData>
+    <SpawnData>
+        <Option>SpawnDataSingle</Option>
+        <Spawn>
+            <Option>SpawnBasic</Option>
+            <Unit>Barbel</Unit>
+        </Spawn>
+    </SpawnData>
+</BarbelStage>";
+
+                Debug.WriteLine("=== XML to YAML 변환 테스트 시작 ===");
+                Debug.WriteLine("원본 XML:");
+                Debug.WriteLine(xmlContent);
+                Debug.WriteLine("");
+
+                // XML을 YAML로 변환
+                var xmlToYaml = new Core.XmlToYamlConverter();
+                var yamlContent = xmlToYaml.ConvertToYaml(xmlContent);
+
+                Debug.WriteLine("=== 변환된 YAML ===");
+                Debug.WriteLine(yamlContent);
+                Debug.WriteLine("");
+
+                // 루트 요소 제거 테스트
+                try
+                {
+                    var yaml = new YamlDotNet.RepresentationModel.YamlStream();
+                    yaml.Load(new StringReader(yamlContent));
+
+                    if (yaml.Documents.Count > 0 && yaml.Documents[0].RootNode is YamlDotNet.RepresentationModel.YamlMappingNode rootMapping)
+                    {
+                        if (rootMapping.Children.Count == 1)
+                        {
+                            var rootKey = rootMapping.Children.Keys.First();
+                            var rootValue = rootMapping.Children[rootKey];
+
+                            // 루트 값을 새로운 YAML 문서로 변환
+                            var newYamlDoc = new YamlDotNet.RepresentationModel.YamlDocument(rootValue);
+                            var newYamlStream = new YamlDotNet.RepresentationModel.YamlStream(newYamlDoc);
+                            var writer = new StringWriter();
+                            newYamlStream.Save(writer, false);
+                            var rootRemovedYaml = writer.ToString();
+
+                            Debug.WriteLine($"=== 루트 요소 '{rootKey}' 제거 후 YAML ===");
+                            Debug.WriteLine(rootRemovedYaml);
+                            Debug.WriteLine("");
+
+                            // 간단한 YAML to Excel 테스트
+                            Debug.WriteLine("=== YAML to Excel 변환 테스트 ===");
+                            var yamlToExcel = new Core.YamlToExcel.DynamicYamlToExcelConverter();
+                            var outputPath = Path.Combine(Path.GetTempPath(), $"xml_to_yaml_test_{DateTime.Now:yyyyMMddHHmmss}.xlsx");
+                            
+                            yamlToExcel.ConvertFromContent(rootRemovedYaml, outputPath);
+                            Debug.WriteLine($"Excel 파일 생성 완료: {outputPath}");
+
+                            // 사용자에게 결과 알림
+                            var result = MessageBox.Show(
+                                $"XML to YAML 변환 테스트가 완료되었습니다.\n\n" +
+                                $"생성된 파일: {outputPath}\n\n" +
+                                $"파일을 열어보시겠습니까?",
+                                "변환 완료",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Information);
+
+                            if (result == DialogResult.Yes)
+                            {
+                                System.Diagnostics.Process.Start(outputPath);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"YAML 루트 요소 처리 중 오류: {ex.Message}");
+                    Debug.WriteLine(ex.StackTrace);
+                    MessageBox.Show($"변환 중 오류가 발생했습니다:\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"XML to YAML 테스트 중 오류: {ex.Message}");
+                Debug.WriteLine(ex.StackTrace);
+                MessageBox.Show($"테스트 중 오류가 발생했습니다:\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

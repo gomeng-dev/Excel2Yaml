@@ -261,6 +261,8 @@
   <ItemGroup>
     <Compile Include="Core\ExcelToHtmlExporter.cs" />
     <Compile Include="Core\XmlToExcelConverter.cs" />
+    <Compile Include="Core\XmlToYamlConverter.cs" />
+    <Compile Include="Core\XmlToExcelViaYamlConverter.cs" />
     <Compile Include="Core\YamlPostProcessors\FinalRawStringConverter.cs" />
     <Compile Include="Core\YamlPostProcessors\YamlToXmlConverter.cs" />
     <Compile Include="Core\YamlToExcel\DynamicDataMapper.cs" />
