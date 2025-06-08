@@ -164,7 +164,29 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         }
                         else
                         {
-                            Logger.Warning($"✗ {key} 속성의 컬럼 인덱스를 찾을 수 없음");
+                            // 컬럼 인덱스를 찾을 수 없는 경우, 혼재 구조인지 확인
+                            Logger.Warning($"✗ {key} 속성의 컬럼 인덱스를 찾을 수 없음 - 혼재 구조 확인 중...");
+                            
+                            // XML에서 변환된 혼재 구조(_Step, _SubStep, __text 등)인지 확인
+                            if (prop.Value is YamlScalarNode scalar)
+                            {
+                                // 스칼라 값인데 컬럼을 찾을 수 없는 경우
+                                // {key}__{textKey} 형태의 복합 속성일 가능성 체크
+                                string textContentKey = $"{key}.__text";
+                                var textColumnIndex = scheme.GetColumnIndex(textContentKey);
+                                
+                                if (textColumnIndex > 0)
+                                {
+                                    // XML 혼재 구조에서 텍스트 내용만 있는 경우
+                                    var value = ConvertValue(prop.Value);
+                                    row.SetCell(textColumnIndex, value);
+                                    Logger.Information($"✓ 혼재 구조 텍스트 매핑: {textContentKey} -> 컬럼 {textColumnIndex}: {value}");
+                                }
+                                else
+                                {
+                                    Logger.Warning($"✗ {key} 속성과 관련된 어떤 컬럼도 찾을 수 없음 (혼재 구조 포함)");
+                                }
+                            }
                         }
                     }
                 }
@@ -340,6 +362,18 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             Logger.Information($"========== MapNestedObject 시작: {objectName} ==========");
             Logger.Debug($"객체 속성 개수: {obj.Children.Count}");
             
+            // XML 혼재 구조 감지: _속성과 __text가 함께 있는지 확인
+            bool hasXmlAttributes = obj.Children.Any(p => p.Key.ToString().StartsWith("_") && p.Key.ToString() != "__text");
+            bool hasTextContent = obj.Children.Any(p => p.Key.ToString() == "__text");
+            bool isXmlMixedContent = hasXmlAttributes && hasTextContent;
+            
+            if (isXmlMixedContent)
+            {
+                Logger.Information($"🔍 XML 혼재 구조 감지: '{objectName}' - 속성과 텍스트 내용이 혼재됨");
+                Logger.Information($"  - XML 속성들: [{string.Join(", ", obj.Children.Where(p => p.Key.ToString().StartsWith("_")).Select(p => p.Key.ToString()))}]");
+                Logger.Information($"  - 텍스트 내용: {obj.Children.Where(p => p.Key.ToString() == "__text").Select(p => p.Value.ToString()).FirstOrDefault()}");
+            }
+            
             // 중첩 객체의 각 속성을 개별 컬럼으로 매핑
             foreach (var prop in obj.Children)
             {
@@ -352,15 +386,67 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 var columnIndex = scheme.GetColumnIndex(fullKey);
                 Logger.Debug($"scheme.GetColumnIndex('{fullKey}') = {columnIndex}");
                 
+                // XML 속성 특별 디버깅
+                if (propKey.StartsWith("_Arg") || propKey == "__text")
+                {
+                    Logger.Information($"🔍🔍🔍 XML 속성 매핑 시도: '{fullKey}' -> 컬럼 인덱스 = {columnIndex}");
+                    scheme.DebugAllMappings(); // 모든 매핑 상황 출력
+                }
+                
                 if (columnIndex > 0)
                 {
                     var value = ConvertValue(prop.Value);
                     row.SetCell(columnIndex, value);
                     Logger.Information($"✓ 매핑 성공: {fullKey} -> 컬럼 {columnIndex}: {value}");
+                    
+                    if (propKey.StartsWith("_Arg") || propKey == "__text")
+                    {
+                        Logger.Information($"  ★★★ XML 속성 매핑 성공: {fullKey} -> 컬럼 {columnIndex}: {value}");
+                    }
                 }
                 else
                 {
                     Logger.Warning($"✗ 매핑 실패: {fullKey} - 컬럼 인덱스를 찾을 수 없음");
+                    
+                    // XML 속성인 경우 특별 경고
+                    if (propKey.StartsWith("_Arg") || propKey == "__text")
+                    {
+                        Logger.Warning($"  ⚠️⚠️⚠️ XML 속성 매핑 실패: {fullKey} - 스키마에서 누락된 것으로 보임");
+                    }
+                    
+                    // XML 혼재 구조인 경우 특별 처리
+                    if (isXmlMixedContent)
+                    {
+                        Logger.Information($"  🔧 XML 혼재 구조 특별 처리 시도 중...");
+                        
+                        // Step="1" SubStep="0">Starter 형태의 구조인 경우
+                        // 단일 컬럼으로 합치거나 개별 속성으로 매핑 시도
+                        if (propKey == "__text")
+                        {
+                            // 텍스트 내용을 원래 속성명으로 매핑 시도
+                            var originalColumnIndex = scheme.GetColumnIndex(objectName);
+                            if (originalColumnIndex > 0)
+                            {
+                                var value = ConvertValue(prop.Value);
+                                row.SetCell(originalColumnIndex, value);
+                                Logger.Information($"✓ XML 혼재 구조 텍스트 매핑: {objectName} -> 컬럼 {originalColumnIndex}: {value}");
+                            }
+                        }
+                        else if (propKey.StartsWith("_"))
+                        {
+                            // 속성을 별도 컬럼에 매핑 시도 (예: Type_Step, Type_SubStep)
+                            var attributeName = propKey.Substring(1); // _ 제거
+                            var attributeColumnName = $"{objectName}_{attributeName}";
+                            var attributeColumnIndex = scheme.GetColumnIndex(attributeColumnName);
+                            
+                            if (attributeColumnIndex > 0)
+                            {
+                                var value = ConvertValue(prop.Value);
+                                row.SetCell(attributeColumnIndex, value);
+                                Logger.Information($"✓ XML 속성 매핑: {attributeColumnName} -> 컬럼 {attributeColumnIndex}: {value}");
+                            }
+                        }
+                    }
                 }
             }
             

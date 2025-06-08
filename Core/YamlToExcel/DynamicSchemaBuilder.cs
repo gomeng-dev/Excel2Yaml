@@ -412,6 +412,14 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 {
                     Logger.Information($"  - 속성 목록: [{string.Join(", ", objProperties)}]");
                 }
+                
+                // XML 혼재 구조 특별 디버깅
+                if (objProp.Key.Contains("DescFormat") || objProperties.Any(p => p.StartsWith("_Arg")))
+                {
+                    Logger.Information($"🔍🔍🔍 XML 속성 구조 감지: '{objProp.Key}'");
+                    Logger.Information($"  ★ XML 관련 속성들: [{string.Join(", ", objProperties.Where(p => p.StartsWith("_Arg") || p == "__text"))}]");
+                    Logger.Information($"  ★ 모든 속성들: [{string.Join(", ", objProperties)}]");
+                }
 
                 if (objProperties.Count > 0)
                 {
@@ -438,7 +446,16 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     {
                         Logger.Information($"  - 컬럼 {propCol}: '{prop}' 속성 추가");
                         scheme.AddCell(row + 1, propCol, prop);
-                        scheme.SetColumnMapping($"{objProp.Key}.{prop}", propCol);
+                        
+                        var fullPropPath = $"{objProp.Key}.{prop}";
+                        scheme.SetColumnMapping(fullPropPath, propCol);
+                        
+                        // XML 속성 특별 디버깅
+                        if (prop.StartsWith("_Arg") || prop == "__text")
+                        {
+                            Logger.Information($"  ★★★ XML 속성 매핑: '{fullPropPath}' -> 컬럼 {propCol}");
+                        }
+                        
                         usedCells.Add((row + 1, propCol));
                         propCol++;
                     }

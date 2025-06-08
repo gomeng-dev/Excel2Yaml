@@ -382,8 +382,24 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             var properties = new List<string>();
             foreach (var kvp in objMapping.Children)
             {
-                properties.Add(kvp.Key.ToString());
+                var propName = kvp.Key.ToString();
+                properties.Add(propName);
+                
+                // XML 속성 특별 디버깅
+                if (propName.StartsWith("_Arg") || propName == "__text")
+                {
+                    Logger.Information($"🔍🔍🔍 XML 속성 추출: '{propName}' (값: {kvp.Value.ToString()})");
+                }
             }
+            
+            // XML 관련 속성이 있으면 특별 로깅
+            var xmlProps = properties.Where(p => p.StartsWith("_Arg") || p == "__text").ToList();
+            if (xmlProps.Any())
+            {
+                Logger.Information($"★★★ XML 구조 감지! 추출된 XML 속성들: [{string.Join(", ", xmlProps)}]");
+                Logger.Information($"★★★ 전체 속성들: [{string.Join(", ", properties)}]");
+            }
+            
             Logger.Debug($"ExtractObjectPropertyNames: YAML 파싱 순서대로 추출된 속성 개수 = {properties.Count}, 속성들 = [{string.Join(", ", properties)}]");
             return properties;
         }
@@ -520,8 +536,26 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                                     unified[prop.Key].ObjectProperties.Add(subProp);
                             }
                             
+                            // XML 혼재 구조 감지: _속성명과 __text가 함께 있는 경우
+                            bool hasXmlAttributes = innerObjInfo.Properties.Any(p => p.StartsWith("_") && p != "__text");
+                            bool hasTextContent = innerObjInfo.Properties.Contains("__text");
+                            
+                            if (hasXmlAttributes && hasTextContent)
+                            {
+                                Logger.Information($"🔍 XML 혼재 구조 감지: '{prop.Key}' - 속성과 텍스트 내용이 혼재됨");
+                                // 특별한 플래그나 처리 로직을 추가할 수 있음
+                                unified[prop.Key].IsObject = true; // 객체로 유지
+                            }
+                            
                             Logger.Information($"UnifySchemas: '{prop.Key}' 객체 속성 설정 완료, ObjectProperties 개수 = {unified[prop.Key].ObjectProperties?.Count ?? 0}");
                             Logger.Information($"UnifySchemas: '{prop.Key}' 객체 속성 목록 = [{string.Join(", ", unified[prop.Key].ObjectProperties)}]");
+                            
+                            // XML 구조 특별 디버깅
+                            var xmlProps = unified[prop.Key].ObjectProperties?.Where(p => p.StartsWith("_Arg") || p == "__text")?.ToList() ?? new List<string>();
+                            if (xmlProps.Any())
+                            {
+                                Logger.Information($"  🔍🔍🔍 XML 속성들이 ObjectProperties에 포함됨: [{string.Join(", ", xmlProps)}]");
+                            }
                             
                             if (prop.Key == "activation")
                             {

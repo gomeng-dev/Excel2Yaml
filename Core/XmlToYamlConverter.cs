@@ -128,7 +128,14 @@ namespace ExcelToYamlAddin.Core
             // 속성 처리 (xmlns 같은 네임스페이스 속성 제외)
             foreach (var attr in element.Attributes().Where(a => !a.IsNamespaceDeclaration))
             {
-                mapping.Add(AttributePrefix + attr.Name.LocalName, new YamlScalarNode(attr.Value));
+                var attributeName = AttributePrefix + attr.Name.LocalName;
+                mapping.Add(attributeName, new YamlScalarNode(attr.Value));
+                
+                // DescFormat 요소의 Arg 속성들 특별 디버깅
+                if (element.Name.LocalName == "DescFormat" && attr.Name.LocalName.StartsWith("Arg"))
+                {
+                    Logger.Information($"🔍 DescFormat XML 속성 변환: {attr.Name.LocalName} -> {attributeName} = '{attr.Value}'");
+                }
             }
             
             // 텍스트 내용이 있고 자식 요소가 없는 경우
