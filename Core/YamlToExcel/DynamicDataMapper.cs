@@ -466,7 +466,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             {
                 if (item is YamlScalarNode scalar)
                 {
-                    items.Add(scalar.Value);
+                    // 배열 요소의 개행문자도 이스케이프 처리
+                    items.Add(EscapeNewlines(scalar.Value));
                 }
                 else if (item is YamlMappingNode mapping)
                 {
@@ -492,6 +493,11 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             {
                 var key = kvp.Key.ToString();
                 var value = ConvertValue(kvp.Value);
+                // 개행문자 이스케이프 처리
+                if (value is string strValue)
+                {
+                    value = EscapeNewlines(strValue);
+                }
                 props.Add($"{key}: {value}");
             }
             return "{" + string.Join(", ", props) + "}";
@@ -524,6 +530,18 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
             // 기본값은 문자열 - 개행문자 이스케이프 처리
             return EscapeNewlines(value);
+        }
+
+        private string EscapeNewlines(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+            
+            // \n을 리터럴 문자로 변환
+            return value.Replace("\n", "\\n")
+                        .Replace("\r\n", "\\r\\n")
+                        .Replace("\r", "\\r")
+                        .Replace("\t", "\\t");
         }
     }
 }
