@@ -202,19 +202,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         var fullKey = $"{arrayName}[{elementIndex}].{propKey}";
                         
                         Logger.Debug($"속성 매핑 시도: {fullKey}");
-                        var columnIndex = scheme.GetColumnIndex(fullKey);
-                        Logger.Debug($"scheme.GetColumnIndex('{fullKey}') = {columnIndex}");
                         
-                        if (columnIndex > 0)
-                        {
-                            var value = ConvertValue(prop.Value);
-                            row.SetCell(columnIndex, value);
-                            Logger.Information($"✓ 매핑 성공: {fullKey} -> 컬럼 {columnIndex}: {value}");
-                        }
-                        else
-                        {
-                            Logger.Warning($"✗ 매핑 실패: {fullKey} - 컬럼 인덱스를 찾을 수 없음");
-                        }
+                        // 재귀적으로 속성 매핑
+                        MapPropertyRecursively(row, prop.Key.ToString(), prop.Value, fullKey, scheme);
                     }
                 }
                 else
@@ -373,6 +363,89 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             Logger.Information($"========== MapNestedObject 완료: {objectName} ==========");
         }
 
+        private void MapPropertyRecursively(
+            ExcelRow row,
+            string propKey,
+            YamlNode propValue,
+            string fullKey,
+            DynamicSchemaBuilder.ExcelScheme scheme)
+        {
+            if (propValue is YamlMappingNode nestedObj)
+            {
+                // 중첩된 객체 재귀적 처리
+                Logger.Debug($"→ {propKey}는 중첩된 객체");
+                foreach (var nestedProp in nestedObj.Children)
+                {
+                    var nestedKey = nestedProp.Key.ToString();
+                    var nestedFullKey = $"{fullKey}.{nestedKey}";
+                    
+                    // 재귀 호출
+                    MapPropertyRecursively(row, nestedKey, nestedProp.Value, nestedFullKey, scheme);
+                }
+            }
+            else if (propValue is YamlSequenceNode nestedArray)
+            {
+                // 중첩된 배열 처리
+                Logger.Debug($"→ {propKey}는 중첩된 배열");
+                
+                // 배열의 각 요소 처리
+                for (int i = 0; i < nestedArray.Children.Count; i++)
+                {
+                    var element = nestedArray.Children[i];
+                    var elementFullKey = $"{fullKey}[{i}]";
+                    
+                    if (element is YamlMappingNode elemMapping)
+                    {
+                        // 배열 요소가 객체인 경우 재귀적 처리
+                        foreach (var elemProp in elemMapping.Children)
+                        {
+                            var elemPropKey = elemProp.Key.ToString();
+                            var elemPropFullKey = $"{elementFullKey}.{elemPropKey}";
+                            
+                            MapPropertyRecursively(row, elemPropKey, elemProp.Value, elemPropFullKey, scheme);
+                        }
+                    }
+                    else
+                    {
+                        // 단순 배열 요소
+                        var columnIndex = scheme.GetColumnIndex(elementFullKey);
+                        if (columnIndex > 0)
+                        {
+                            var value = ConvertValue(element);
+                            row.SetCell(columnIndex, value);
+                            Logger.Information($"✓ 배열 요소 매핑: {elementFullKey} -> 컬럼 {columnIndex}: {value}");
+                        }
+                    }
+                }
+                
+                // 배열 자체도 하나의 컬럼으로 직렬화
+                var arrayColumnIndex = scheme.GetColumnIndex(fullKey);
+                if (arrayColumnIndex > 0)
+                {
+                    var value = ConvertArray(nestedArray);
+                    row.SetCell(arrayColumnIndex, value);
+                    Logger.Information($"✓ 배열 전체 매핑: {fullKey} -> 컬럼 {arrayColumnIndex}");
+                }
+            }
+            else
+            {
+                // 일반 속성 (리프 노드)
+                var columnIndex = scheme.GetColumnIndex(fullKey);
+                Logger.Debug($"scheme.GetColumnIndex('{fullKey}') = {columnIndex}");
+                
+                if (columnIndex > 0)
+                {
+                    var value = ConvertValue(propValue);
+                    row.SetCell(columnIndex, value);
+                    Logger.Information($"✓ 매핑 성공: {fullKey} -> 컬럼 {columnIndex}: {value}");
+                }
+                else
+                {
+                    Logger.Warning($"✗ 매핑 실패: {fullKey} - 컬럼 인덱스를 찾을 수 없음");
+                }
+            }
+        }
+
         private object ConvertValue(YamlNode node)
         {
             if (node is YamlScalarNode scalar)
@@ -383,6 +456,45 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 return "[Object]";
             else
                 return null;
+        }
+
+        private object ConvertArray(YamlSequenceNode sequence)
+        {
+            // 배열을 문자열로 직렬화
+            var items = new List<string>();
+            foreach (var item in sequence.Children)
+            {
+                if (item is YamlScalarNode scalar)
+                {
+                    items.Add(scalar.Value);
+                }
+                else if (item is YamlMappingNode mapping)
+                {
+                    // 중첩된 객체를 간단한 형식으로 변환
+                    var objStr = ConvertObject(mapping);
+                    items.Add(objStr.ToString());
+                }
+                else if (item is YamlSequenceNode nestedSeq)
+                {
+                    // 중첩된 배열
+                    var arrStr = ConvertArray(nestedSeq);
+                    items.Add(arrStr.ToString());
+                }
+            }
+            return "[" + string.Join(", ", items) + "]";
+        }
+
+        private object ConvertObject(YamlMappingNode mapping)
+        {
+            // 객체를 문자열로 직렬화
+            var props = new List<string>();
+            foreach (var kvp in mapping.Children)
+            {
+                var key = kvp.Key.ToString();
+                var value = ConvertValue(kvp.Value);
+                props.Add($"{key}: {value}");
+            }
+            return "{" + string.Join(", ", props) + "}";
         }
 
         private object ConvertScalar(YamlScalarNode scalar)
@@ -410,8 +522,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             if (DateTime.TryParse(value, out DateTime dateResult))
                 return dateResult;
 
-            // 기본값은 문자열
-            return value;
+            // 기본값은 문자열 - 개행문자 이스케이프 처리
+            return EscapeNewlines(value);
         }
     }
 }

@@ -249,7 +249,20 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             
             if (root is YamlSequenceNode rootSequence)
             {
-                return expander.AnalyzeHorizontalLayout(rootSequence, pattern);
+                // 루트가 배열인 경우, 전체 루트 요소를 분석
+                var layout = expander.AnalyzeHorizontalLayout(rootSequence, pattern);
+                
+                // 배열 속성들에 대해 통합 스키마 전달
+                foreach (var arrayName in pattern.Arrays.Keys)
+                {
+                    if (layout.ArrayLayouts.ContainsKey(arrayName))
+                    {
+                        // 이미 AnalyzeHorizontalLayout에서 통합 분석됨
+                        Logger.Debug($"배열 '{arrayName}'은 이미 통합 분석 완료");
+                    }
+                }
+                
+                return layout;
             }
             else if (root is YamlMappingNode rootMapping)
             {

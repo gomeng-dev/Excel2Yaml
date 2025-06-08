@@ -29,6 +29,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public bool IsObject { get; set; }
             public List<string> ObjectProperties { get; set; } = new List<string>(); // 객체의 하위 속성들
             public List<string> NestedProperties => ObjectProperties; // 별칭 추가
+            public Dictionary<string, PropertyPattern> NestedPatterns { get; set; } = new Dictionary<string, PropertyPattern>(); // 재귀적 패턴
+            public ArrayPattern ArrayPattern { get; set; } // 배열인 경우의 패턴 정보
         }
 
         public class ArrayPattern
@@ -100,18 +102,215 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
         private void AnalyzeArrayElements(YamlSequenceNode array, StructurePattern pattern)
         {
-            var elementSchemas = new List<Dictionary<string, object>>();
+            var unifiedProperties = new Dictionary<string, PropertyPattern>();
+            var nestedArrays = new Dictionary<string, ArrayPattern>();
+            var globalPropertyIndex = 0;
             
-            // 모든 배열 요소 분석
-            foreach (var element in array.Children)
+            // 모든 중첩 배열 요소들을 수집하여 통합 분석
+            var allNestedArrayElements = new Dictionary<string, List<YamlSequenceNode>>();
+            
+            // 각 요소를 순회하면서 즉시 스키마 업데이트
+            for (int elementIndex = 0; elementIndex < array.Children.Count; elementIndex++)
             {
-                var schema = ExtractElementSchema(element);
-                elementSchemas.Add(schema);
+                var element = array.Children[elementIndex];
+                if (element is YamlMappingNode mapping)
+                {
+                    UpdateSchemaFromElement(mapping, unifiedProperties, nestedArrays, 
+                                          ref globalPropertyIndex, elementIndex);
+                    
+                    // 중첩 배열 요소들을 수집
+                    CollectNestedArrays(mapping, allNestedArrayElements, "");
+                }
             }
-
-            // 동적 패턴 인식
-            pattern.Properties = UnifySchemas(elementSchemas);
-            pattern.Arrays = DetectNestedArrays(elementSchemas);
+            
+            // 수집된 모든 중첩 배열 요소들을 통합 분석
+            foreach (var kvp in allNestedArrayElements)
+            {
+                var arrayPath = kvp.Key;
+                var allArrayInstances = kvp.Value;
+                
+                Logger.Information($"중첩 배열 '{arrayPath}' 통합 분석: {allArrayInstances.Count}개 인스턴스");
+                
+                // 최상위 배열 이름 추출 (예: "events.results" -> "events")
+                var topLevelArrayName = arrayPath.Contains(".") ? arrayPath.Split('.')[0] : arrayPath;
+                
+                if (arrayPath.Contains("."))
+                {
+                    // 중첩된 배열 (예: events.results)
+                    var pathParts = arrayPath.Split('.');
+                    if (pathParts.Length >= 2 && pathParts[1] == "results")
+                    {
+                        // results 배열의 모든 요소를 통합
+                        var allElements = new List<YamlNode>();
+                        foreach (var instance in allArrayInstances)
+                        {
+                            allElements.AddRange(instance.Children);
+                        }
+                        
+                        Logger.Information($"★ results 배열 통합 분석: 총 {allElements.Count}개 요소");
+                        
+                        // 통합된 요소들로 배열 패턴 생성
+                        var unifiedResultsPattern = AnalyzeArrayFromElements("results", allElements);
+                        
+                        // events 배열의 ElementProperties에서 results 속성 업데이트
+                        if (nestedArrays.ContainsKey("events") && 
+                            nestedArrays["events"].ElementProperties != null &&
+                            nestedArrays["events"].ElementProperties.ContainsKey("results"))
+                        {
+                            nestedArrays["events"].ElementProperties["results"].ArrayPattern = unifiedResultsPattern;
+                            Logger.Information($"events.results 패턴 업데이트 완료: {unifiedResultsPattern.ElementProperties?.Count ?? 0}개 속성");
+                        }
+                    }
+                }
+                else if (nestedArrays.ContainsKey(arrayPath))
+                {
+                    // 최상위 배열
+                    var allElements = new List<YamlNode>();
+                    foreach (var instance in allArrayInstances)
+                    {
+                        allElements.AddRange(instance.Children);
+                    }
+                    
+                    // 통합된 요소들로 배열 패턴 재생성
+                    var unifiedArrayPattern = AnalyzeArrayFromElements(arrayPath, allElements);
+                    nestedArrays[arrayPath] = unifiedArrayPattern;
+                    
+                    // PropertyPattern에도 업데이트
+                    if (unifiedProperties.ContainsKey(arrayPath))
+                    {
+                        unifiedProperties[arrayPath].ArrayPattern = unifiedArrayPattern;
+                    }
+                }
+            }
+            
+            // 통계 정보 업데이트
+            foreach (var prop in unifiedProperties.Values)
+            {
+                prop.OccurrenceRatio = (double)prop.OccurrenceCount / array.Children.Count;
+                prop.IsRequired = prop.OccurrenceRatio > 0.8;
+            }
+            
+            pattern.Properties = unifiedProperties;
+            pattern.Arrays = nestedArrays;
+        }
+        
+        private void UpdateSchemaFromElement(
+            YamlMappingNode element, 
+            Dictionary<string, PropertyPattern> properties,
+            Dictionary<string, ArrayPattern> arrays,
+            ref int globalPropertyIndex,
+            int elementIndex)
+        {
+            foreach (var kvp in element.Children)
+            {
+                var propName = kvp.Key.ToString();
+                var propValue = kvp.Value;
+                
+                // 속성이 처음 나타나면 생성
+                if (!properties.ContainsKey(propName))
+                {
+                    properties[propName] = new PropertyPattern
+                    {
+                        Name = propName,
+                        FirstAppearanceIndex = globalPropertyIndex++,
+                        OccurrenceCount = 0,
+                        Types = new HashSet<Type>()
+                    };
+                    
+                    Logger.Debug($"새 속성 발견: '{propName}', FirstAppearanceIndex={properties[propName].FirstAppearanceIndex}");
+                }
+                
+                // 속성 정보 업데이트
+                var pattern = properties[propName];
+                pattern.OccurrenceCount++;
+                pattern.Types.Add(propValue.GetType());
+                
+                // 타입별 처리
+                if (propValue is YamlSequenceNode sequence)
+                {
+                    pattern.IsArray = true;
+                    if (!arrays.ContainsKey(propName))
+                    {
+                        arrays[propName] = AnalyzeArray(propName, sequence);
+                        Logger.Debug($"새 배열 패턴 생성: {propName}, ElementProperties 개수={arrays[propName].ElementProperties?.Count ?? 0}");
+                    }
+                    else
+                    {
+                        // 기존 배열 패턴과 병합하여 통합 스키마 구축
+                        MergeArrayPattern(arrays[propName], sequence);
+                        Logger.Debug($"배열 패턴 병합: {propName}, ElementProperties 개수={arrays[propName].ElementProperties?.Count ?? 0}");
+                    }
+                    pattern.ArrayPattern = arrays[propName];
+                    
+                    // results 배열 업데이트 확인
+                    if (propName == "results" && arrays[propName].ElementProperties != null)
+                    {
+                        Logger.Information($"★ results 배열 업데이트 (요소 {elementIndex}):");
+                        var hasDelay = arrays[propName].ElementProperties.ContainsKey("delay");
+                        var hasSendAll = arrays[propName].ElementProperties.ContainsKey("sendAll");
+                        Logger.Information($"  - delay 포함: {hasDelay}");
+                        Logger.Information($"  - sendAll 포함: {hasSendAll}");
+                        if (hasDelay || hasSendAll)
+                        {
+                            Logger.Information($"  - 속성 목록: [{string.Join(", ", arrays[propName].ElementProperties.Keys)}]");
+                        }
+                    }
+                    
+                    // results 배열 디버깅
+                    if (propName == "results" && arrays[propName].ElementProperties != null)
+                    {
+                        Logger.Information($"★ results 배열 업데이트 (요소 {elementIndex}):");
+                        foreach (var elemProp in arrays[propName].ElementProperties)
+                        {
+                            Logger.Information($"  - {elemProp.Key}: OccurrenceCount={elemProp.Value.OccurrenceCount}");
+                        }
+                        
+                        if (!arrays[propName].ElementProperties.ContainsKey("delay"))
+                        {
+                            Logger.Warning("  ⚠️ delay 속성이 아직 없음");
+                        }
+                        if (!arrays[propName].ElementProperties.ContainsKey("sendAll"))
+                        {
+                            Logger.Warning("  ⚠️ sendAll 속성이 아직 없음");
+                        }
+                    }
+                    
+                    // events 배열인 경우 특별 로깅
+                    if (propName == "events" && arrays[propName].ElementProperties != null)
+                    {
+                        Logger.Information($"★ events 배열 분석 결과:");
+                        foreach (var elemProp in arrays[propName].ElementProperties)
+                        {
+                            Logger.Information($"  - {elemProp.Key}: IsObject={elemProp.Value.IsObject}, OccurrenceCount={elemProp.Value.OccurrenceCount}");
+                            if (elemProp.Key == "activation")
+                            {
+                                Logger.Information($"    ★★★ activation 발견! IsObject={elemProp.Value.IsObject}, Properties=[{string.Join(", ", elemProp.Value.ObjectProperties ?? new List<string>())}]");
+                            }
+                        }
+                    }
+                }
+                else if (propValue is YamlMappingNode objMapping)
+                {
+                    pattern.IsObject = true;
+                    pattern.ObjectProperties = ExtractObjectPropertyNames(objMapping);
+                    
+                    Logger.Information($"UpdateSchemaFromElement: '{propName}' 객체 감지! (요소 {elementIndex})");
+                    Logger.Information($"  - 객체 속성 개수: {pattern.ObjectProperties?.Count ?? 0}");
+                    if (pattern.ObjectProperties?.Count > 0)
+                    {
+                        Logger.Information($"  - 객체 속성 목록: [{string.Join(", ", pattern.ObjectProperties)}]");
+                    }
+                    
+                    // 중첩된 객체도 재귀적으로 분석
+                    var nestedPattern = new StructurePattern
+                    {
+                        Properties = new Dictionary<string, PropertyPattern>(),
+                        Arrays = new Dictionary<string, ArrayPattern>()
+                    };
+                    AnalyzeObjectProperties(objMapping, nestedPattern);
+                    pattern.NestedPatterns = nestedPattern.Properties;
+                }
+            }
         }
 
         private void AnalyzeObjectProperties(YamlMappingNode mapping, StructurePattern pattern)
@@ -136,11 +335,22 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     prop.IsArray = true;
                     var arrayPattern = AnalyzeArray(key, value as YamlSequenceNode);
                     pattern.Arrays[key] = arrayPattern;
+                    prop.ArrayPattern = arrayPattern; // PropertyPattern에도 ArrayPattern 설정
                 }
                 else if (value is YamlMappingNode objMapping)
                 {
                     prop.IsObject = true;
                     prop.ObjectProperties = ExtractObjectPropertyNames(objMapping);
+                    
+                    // 재귀적으로 중첩된 패턴 분석
+                    var nestedPattern = new StructurePattern
+                    {
+                        Properties = new Dictionary<string, PropertyPattern>(),
+                        Arrays = new Dictionary<string, ArrayPattern>()
+                    };
+                    AnalyzeObjectProperties(objMapping, nestedPattern);
+                    prop.NestedPatterns = nestedPattern.Properties;
+                    
                     Logger.Information($"AnalyzeObjectProperties: '{key}' 객체 속성 분석 완료, ObjectProperties 개수 = {prop.ObjectProperties?.Count ?? 0}");
                     if (prop.ObjectProperties?.Count > 0)
                     {
@@ -159,7 +369,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             {
                 properties.Add(kvp.Key.ToString());
             }
-            Logger.Debug($"ExtractObjectPropertyNames: 추출된 속성 개수 = {properties.Count}, 속성들 = [{string.Join(", ", properties)}]");
+            Logger.Debug($"ExtractObjectPropertyNames: YAML 파싱 순서대로 추출된 속성 개수 = {properties.Count}, 속성들 = [{string.Join(", ", properties)}]");
             return properties;
         }
 
@@ -190,17 +400,14 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                             Elements = new List<Dictionary<string, object>>()
                         };
                         
-                        // 각 배열 요소의 스키마 추출
+                        // 각 배열 요소의 스키마 추출 (재귀적으로)
                         foreach (var child in sequence.Children)
                         {
-                            if (child is YamlMappingNode childMapping)
+                            // 재귀적으로 각 요소의 전체 스키마를 추출
+                            var childSchema = ExtractElementSchema(child);
+                            if (childSchema.Count > 0)
                             {
-                                var elementSchema = new Dictionary<string, object>();
-                                foreach (var childKvp in childMapping.Children)
-                                {
-                                    elementSchema[childKvp.Key.ToString()] = childKvp.Value.ToString();
-                                }
-                                arrayInfo.Elements.Add(elementSchema);
+                                arrayInfo.Elements.Add(childSchema);
                             }
                         }
                         
@@ -243,6 +450,10 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     if (prop.Value is ObjectInfo objInfo)
                     {
                         Logger.Information($"    -> ObjectInfo 감지! Type={objInfo.Type}, Properties={objInfo.Properties?.Count ?? 0}");
+                        if (prop.Key == "activation")
+                        {
+                            Logger.Information($"    ★★★ activation ObjectInfo 발견! 속성: [{string.Join(", ", objInfo.Properties)}]");
+                        }
                     }
                     if (!unified.ContainsKey(prop.Key))
                     {
@@ -263,6 +474,19 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     if (prop.Value is ArrayInfo arrayInfo)
                     {
                         unified[prop.Key].IsArray = true;
+                        
+                        // 배열 요소들의 패턴 분석
+                        if (arrayInfo.Elements != null && arrayInfo.Elements.Any())
+                        {
+                            var elementPattern = new ArrayPattern
+                            {
+                                Name = prop.Key,
+                                ElementProperties = UnifySchemas(arrayInfo.Elements),
+                                MaxSize = arrayInfo.ElementCount,
+                                MinSize = arrayInfo.ElementCount
+                            };
+                            unified[prop.Key].ArrayPattern = elementPattern;
+                        }
                     }
                     else if (prop.Value is ObjectInfo innerObjInfo)
                     {
@@ -283,6 +507,11 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                             
                             Logger.Information($"UnifySchemas: '{prop.Key}' 객체 속성 설정 완료, ObjectProperties 개수 = {unified[prop.Key].ObjectProperties?.Count ?? 0}");
                             Logger.Information($"UnifySchemas: '{prop.Key}' 객체 속성 목록 = [{string.Join(", ", unified[prop.Key].ObjectProperties)}]");
+                            
+                            if (prop.Key == "activation")
+                            {
+                                Logger.Information($"★★★ activation IsObject 설정됨! IsObject={unified[prop.Key].IsObject}");
+                            }
                         }
                     }
                     else if (prop.Value is Dictionary<string, object> dict)
@@ -403,6 +632,114 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             return arrays;
         }
 
+        private void MergeArrayPattern(ArrayPattern existingPattern, YamlSequenceNode newArray)
+        {
+            // 새 배열의 각 요소를 기존 패턴과 병합
+            for (int i = 0; i < newArray.Children.Count; i++)
+            {
+                if (newArray.Children[i] is YamlMappingNode mapping)
+                {
+                    // 해당 인덱스의 요소 속성들을 기존 패턴에 병합
+                    foreach (var kvp in mapping.Children)
+                    {
+                        var propName = kvp.Key.ToString();
+                        
+                        // ElementProperties가 null이면 초기화
+                        if (existingPattern.ElementProperties == null)
+                        {
+                            existingPattern.ElementProperties = new Dictionary<string, PropertyPattern>();
+                        }
+                        
+                        // 속성이 처음 나타나면 추가
+                        if (!existingPattern.ElementProperties.ContainsKey(propName))
+                        {
+                            existingPattern.ElementProperties[propName] = new PropertyPattern
+                            {
+                                Name = propName,
+                                OccurrenceCount = 1,
+                                Types = new HashSet<Type> { kvp.Value.GetType() },
+                                FirstAppearanceIndex = existingPattern.ElementProperties.Count
+                            };
+                            
+                            // 객체나 배열 타입 처리
+                            if (kvp.Value is YamlMappingNode objMapping)
+                            {
+                                existingPattern.ElementProperties[propName].IsObject = true;
+                                existingPattern.ElementProperties[propName].ObjectProperties = ExtractObjectPropertyNames(objMapping);
+                                
+                                Logger.Information($"MergeArrayPattern: '{propName}' 객체 감지!");
+                                Logger.Information($"  - 객체 속성: [{string.Join(", ", existingPattern.ElementProperties[propName].ObjectProperties)}]");
+                            }
+                            else if (kvp.Value is YamlSequenceNode nestedSequence)
+                            {
+                                existingPattern.ElementProperties[propName].IsArray = true;
+                                
+                                // 중첩된 배열의 패턴도 병합
+                                if (existingPattern.ElementProperties[propName].ArrayPattern == null)
+                                {
+                                    existingPattern.ElementProperties[propName].ArrayPattern = AnalyzeArray(propName, nestedSequence);
+                                }
+                                else
+                                {
+                                    // 재귀적으로 중첩 배열 병합
+                                    MergeArrayPattern(existingPattern.ElementProperties[propName].ArrayPattern, nestedSequence);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // 기존 속성 업데이트
+                            existingPattern.ElementProperties[propName].OccurrenceCount++;
+                            existingPattern.ElementProperties[propName].Types.Add(kvp.Value.GetType());
+                            
+                            // 객체 타입인 경우 속성 병합
+                            if (kvp.Value is YamlMappingNode objMapping)
+                            {
+                                // 객체 타입으로 설정 (이전에 스칼라였어도 객체로 변경)
+                                existingPattern.ElementProperties[propName].IsObject = true;
+                                
+                                // ObjectProperties가 null이면 초기화
+                                if (existingPattern.ElementProperties[propName].ObjectProperties == null)
+                                {
+                                    existingPattern.ElementProperties[propName].ObjectProperties = new List<string>();
+                                }
+                                
+                                var newProps = ExtractObjectPropertyNames(objMapping);
+                                foreach (var newProp in newProps)
+                                {
+                                    if (!existingPattern.ElementProperties[propName].ObjectProperties.Contains(newProp))
+                                    {
+                                        existingPattern.ElementProperties[propName].ObjectProperties.Add(newProp);
+                                    }
+                                }
+                                
+                                Logger.Information($"MergeArrayPattern: '{propName}' 기존 속성을 객체로 업데이트!");
+                                Logger.Information($"  - 객체 속성: [{string.Join(", ", existingPattern.ElementProperties[propName].ObjectProperties)}]");
+                            }
+                            else if (kvp.Value is YamlSequenceNode nestedSequence)
+                            {
+                                // 중첩된 배열인 경우 기존 패턴과 병합
+                                existingPattern.ElementProperties[propName].IsArray = true;
+                                
+                                if (existingPattern.ElementProperties[propName].ArrayPattern == null)
+                                {
+                                    existingPattern.ElementProperties[propName].ArrayPattern = AnalyzeArray(propName, nestedSequence);
+                                }
+                                else
+                                {
+                                    // 재귀적으로 중첩 배열 병합
+                                    MergeArrayPattern(existingPattern.ElementProperties[propName].ArrayPattern, nestedSequence);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 배열 크기 업데이트
+            existingPattern.MaxSize = Math.Max(existingPattern.MaxSize, newArray.Children.Count);
+        }
+
         private ArrayPattern AnalyzeArray(string name, YamlSequenceNode array)
         {
             var pattern = new ArrayPattern
@@ -448,7 +785,136 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
 
             pattern.RequiresMultipleRows = pattern.MaxSize > 5;
+            
+            // events 배열 후처리 - activation 확인
+            if (name == "events" && pattern.ElementProperties != null)
+            {
+                Logger.Information($"AnalyzeArray 후처리: events 배열 분석 완료");
+                foreach (var elemProp in pattern.ElementProperties)
+                {
+                    if (elemProp.Key == "activation")
+                    {
+                        Logger.Information($"  ★ activation 최종 상태: IsObject={elemProp.Value.IsObject}, " +
+                                         $"OccurrenceCount={elemProp.Value.OccurrenceCount}, " +
+                                         $"Properties=[{string.Join(", ", elemProp.Value.ObjectProperties ?? new List<string>())}]");
+                    }
+                }
+            }
 
+            return pattern;
+        }
+
+        private void CollectNestedArrays(YamlMappingNode mapping, Dictionary<string, List<YamlSequenceNode>> allNestedArrayElements, string parentPath = "")
+        {
+            foreach (var kvp in mapping.Children)
+            {
+                var key = kvp.Key.ToString();
+                var value = kvp.Value;
+                var currentPath = string.IsNullOrEmpty(parentPath) ? key : $"{parentPath}.{key}";
+                
+                if (value is YamlSequenceNode sequence)
+                {
+                    if (!allNestedArrayElements.ContainsKey(currentPath))
+                    {
+                        allNestedArrayElements[currentPath] = new List<YamlSequenceNode>();
+                    }
+                    allNestedArrayElements[currentPath].Add(sequence);
+                    
+                    // 배열의 각 요소도 재귀적으로 탐색 (results 같은 중첩 배열 찾기)
+                    foreach (var element in sequence.Children)
+                    {
+                        if (element is YamlMappingNode elementMapping)
+                        {
+                            CollectNestedArrays(elementMapping, allNestedArrayElements, currentPath);
+                        }
+                    }
+                }
+                else if (value is YamlMappingNode nestedMapping)
+                {
+                    // 재귀적으로 중첩된 배열들도 수집
+                    CollectNestedArrays(nestedMapping, allNestedArrayElements, currentPath);
+                }
+            }
+        }
+        
+        private ArrayPattern AnalyzeArrayFromElements(string name, List<YamlNode> allElements)
+        {
+            var pattern = new ArrayPattern
+            {
+                Name = name,
+                MaxSize = 0,
+                MinSize = int.MaxValue,
+                ElementProperties = new Dictionary<string, PropertyPattern>(),
+                ElementPropertyCounts = new Dictionary<string, int>(),
+                AllUniqueProperties = new List<string>()
+            };
+            
+            // 모든 요소들의 스키마 분석
+            var elementSchemas = new List<Dictionary<string, object>>();
+            foreach (var element in allElements)
+            {
+                var schema = ExtractElementSchema(element);
+                if (schema.Count > 0)
+                {
+                    elementSchemas.Add(schema);
+                }
+            }
+            
+            Logger.Information($"AnalyzeArrayFromElements: '{name}' 배열의 총 {elementSchemas.Count}개 요소 분석");
+            
+            if (elementSchemas.Any())
+            {
+                // 모든 요소의 스키마를 통합
+                pattern.ElementProperties = UnifySchemas(elementSchemas);
+                
+                // 가변 속성 분석
+                var allUniqueProps = new HashSet<string>();
+                var propCounts = new Dictionary<string, int>();
+                
+                foreach (var elem in elementSchemas)
+                {
+                    foreach (var propKey in elem.Keys)
+                    {
+                        allUniqueProps.Add(propKey);
+                        if (!propCounts.ContainsKey(propKey))
+                            propCounts[propKey] = 0;
+                        propCounts[propKey]++;
+                    }
+                }
+                
+                pattern.AllUniqueProperties = allUniqueProps.ToList();
+                pattern.ElementPropertyCounts = propCounts;
+                pattern.HasVariableProperties = allUniqueProps.Count > (elementSchemas.Count > 0 ? elementSchemas.First().Count : 0);
+                
+                // 크기 정보 업데이트
+                pattern.MaxSize = elementSchemas.Count;
+                pattern.MinSize = elementSchemas.Count;
+            }
+            
+            pattern.RequiresMultipleRows = pattern.MaxSize > 5;
+            
+            // results 배열 디버깅
+            if (name == "results" && pattern.ElementProperties != null)
+            {
+                Logger.Information($"★ results 배열 통합 분석 완료:");
+                Logger.Information($"  - 총 요소 수: {elementSchemas.Count}");
+                Logger.Information($"  - 발견된 속성들: [{string.Join(", ", pattern.AllUniqueProperties)}]");
+                foreach (var prop in pattern.ElementProperties)
+                {
+                    Logger.Information($"  - {prop.Key}: OccurrenceCount={prop.Value.OccurrenceCount}, " +
+                                     $"OccurrenceRatio={prop.Value.OccurrenceRatio:P}");
+                }
+                
+                if (!pattern.ElementProperties.ContainsKey("delay"))
+                {
+                    Logger.Warning("  ⚠️ delay 속성이 최종 스키마에 없음!");
+                }
+                if (!pattern.ElementProperties.ContainsKey("sendAll"))
+                {
+                    Logger.Warning("  ⚠️ sendAll 속성이 최종 스키마에 없음!");
+                }
+            }
+            
             return pattern;
         }
 
@@ -485,6 +951,107 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
 
             return maxChildDepth;
+        }
+        
+        private void CollectNestedArrays(YamlNode node, Dictionary<string, List<YamlSequenceNode>> collection, string currentPath)
+        {
+            if (node is YamlSequenceNode sequence)
+            {
+                // 현재 배열을 컬렉션에 추가
+                if (!collection.ContainsKey(currentPath))
+                {
+                    collection[currentPath] = new List<YamlSequenceNode>();
+                }
+                collection[currentPath].Add(sequence);
+                
+                // 배열의 각 요소도 탐색
+                foreach (var child in sequence.Children)
+                {
+                    if (child is YamlMappingNode childMapping)
+                    {
+                        CollectNestedArrays(childMapping, collection, currentPath);
+                    }
+                }
+            }
+            else if (node is YamlMappingNode mapping)
+            {
+                foreach (var kvp in mapping.Children)
+                {
+                    var key = kvp.Key.ToString();
+                    var newPath = string.IsNullOrEmpty(currentPath) ? key : $"{currentPath}.{key}";
+                    CollectNestedArrays(kvp.Value, collection, newPath);
+                }
+            }
+        }
+        
+        private ArrayPattern AnalyzeArrayFromElements(string name, List<YamlNode> elements)
+        {
+            var pattern = new ArrayPattern
+            {
+                Name = name,
+                MaxSize = elements.Count,
+                MinSize = elements.Count,
+                ElementProperties = new Dictionary<string, PropertyPattern>(),
+                ElementPropertyCounts = new Dictionary<string, int>(),
+                AllUniqueProperties = new List<string>()
+            };
+
+            // 배열 요소들의 스키마 분석
+            var elementSchemas = new List<Dictionary<string, object>>();
+            foreach (var element in elements)
+            {
+                var schema = ExtractElementSchema(element);
+                elementSchemas.Add(schema);
+            }
+
+            if (elementSchemas.Any())
+            {
+                pattern.ElementProperties = UnifySchemas(elementSchemas);
+                
+                // 가변 속성 분석
+                var allUniqueProps = new HashSet<string>();
+                var propCounts = new Dictionary<string, int>();
+                
+                foreach (var elem in elementSchemas)
+                {
+                    foreach (var propKey in elem.Keys)
+                    {
+                        allUniqueProps.Add(propKey);
+                        if (!propCounts.ContainsKey(propKey))
+                            propCounts[propKey] = 0;
+                        propCounts[propKey]++;
+                    }
+                }
+                
+                pattern.AllUniqueProperties = allUniqueProps.ToList();
+                pattern.ElementPropertyCounts = propCounts;
+                pattern.HasVariableProperties = allUniqueProps.Count > elementSchemas.First().Count;
+                
+                // results 배열의 delay/sendAll 확인
+                if (name == "results")
+                {
+                    Logger.Information($"★ results 배열 속성 분석 결과:");
+                    foreach (var prop in pattern.AllUniqueProperties)
+                    {
+                        var count = propCounts.ContainsKey(prop) ? propCounts[prop] : 0;
+                        Logger.Information($"  - {prop}: {count}/{elements.Count} 요소에서 나타남");
+                    }
+                    
+                    // delay와 sendAll이 ElementProperties에 포함되었는지 확인
+                    if (pattern.ElementProperties.ContainsKey("delay"))
+                    {
+                        Logger.Information($"  ✓ delay 속성이 스키마에 포함됨");
+                    }
+                    if (pattern.ElementProperties.ContainsKey("sendAll"))
+                    {
+                        Logger.Information($"  ✓ sendAll 속성이 스키마에 포함됨");
+                    }
+                }
+            }
+
+            pattern.RequiresMultipleRows = pattern.MaxSize > 5;
+
+            return pattern;
         }
     }
 }
