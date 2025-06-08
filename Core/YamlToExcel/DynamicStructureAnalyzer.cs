@@ -233,6 +233,21 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     {
                         arrays[propName] = AnalyzeArray(propName, sequence);
                         Logger.Debug($"새 배열 패턴 생성: {propName}, ElementProperties 개수={arrays[propName].ElementProperties?.Count ?? 0}");
+                        
+                        // Option 배열 특별 디버깅
+                        if (propName == "Option")
+                        {
+                            Logger.Information($"🔍 Option 배열 분석 결과:");
+                            Logger.Information($"  - 배열 요소 수: {sequence.Children.Count}");
+                            Logger.Information($"  - ElementProperties 개수: {arrays[propName].ElementProperties?.Count ?? 0}");
+                            if (arrays[propName].ElementProperties != null)
+                            {
+                                foreach (var elemProp in arrays[propName].ElementProperties)
+                                {
+                                    Logger.Information($"    - {elemProp.Key}: OccurrenceCount={elemProp.Value.OccurrenceCount}");
+                                }
+                            }
+                        }
                     }
                     else
                     {
@@ -443,7 +458,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             {
                 var schema = schemas[i];
                 Logger.Debug($"스키마 {i}: 속성 개수 = {schema.Count}");
-                foreach (var prop in schema.Where(p => !p.Key.StartsWith("_")))
+                foreach (var prop in schema) // ★ _ 필터 제거 - 모든 속성 포함
                 {
                     var valueType = prop.Value?.GetType()?.Name ?? "null";
                     Logger.Debug($"  속성 '{prop.Key}': 타입 = {valueType}");
@@ -742,6 +757,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
         private ArrayPattern AnalyzeArray(string name, YamlSequenceNode array)
         {
+            Logger.Information($"🔍 AnalyzeArray 시작: '{name}' 배열, 요소 수={array.Children.Count}");
+            
             var pattern = new ArrayPattern
             {
                 Name = name,
@@ -754,15 +771,39 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
             // 배열 요소들의 스키마 분석
             var elementSchemas = new List<Dictionary<string, object>>();
-            foreach (var element in array.Children)
+            for (int i = 0; i < array.Children.Count; i++)
             {
+                var element = array.Children[i];
+                Logger.Debug($"  배열 요소 [{i}] 분석 중: {element.GetType().Name}");
+                
                 var schema = ExtractElementSchema(element);
+                Logger.Debug($"  배열 요소 [{i}] 스키마 추출 완료: {schema.Count}개 속성");
+                
+                if (name == "Option")
+                {
+                    Logger.Information($"  Option 요소 [{i}] 스키마: [{string.Join(", ", schema.Keys)}]");
+                }
+                
                 elementSchemas.Add(schema);
             }
 
             if (elementSchemas.Any())
             {
+                Logger.Debug($"  UnifySchemas 호출: {elementSchemas.Count}개 스키마 통합");
                 pattern.ElementProperties = UnifySchemas(elementSchemas);
+                Logger.Debug($"  UnifySchemas 완료: {pattern.ElementProperties?.Count ?? 0}개 통합 속성");
+                
+                if (name == "Option")
+                {
+                    Logger.Information($"  Option 배열 통합 결과: {pattern.ElementProperties?.Count ?? 0}개 속성");
+                    if (pattern.ElementProperties != null)
+                    {
+                        foreach (var prop in pattern.ElementProperties)
+                        {
+                            Logger.Information($"    - {prop.Key}: OccurrenceCount={prop.Value.OccurrenceCount}");
+                        }
+                    }
+                }
                 
                 // 가변 속성 분석
                 var allUniqueProps = new HashSet<string>();

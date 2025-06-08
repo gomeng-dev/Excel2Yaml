@@ -138,12 +138,10 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var key = prop.Key.ToString();
                     Logger.Debug($"속성 처리: {key}, 타입: {prop.Value.GetType().Name}");
                     
-                    var columnIndex = scheme.GetColumnIndex(key);
-
                     if (prop.Value is YamlSequenceNode nestedArray)
                     {
                         Logger.Debug($"→ {key}는 배열 타입, MapNestedArray로 처리");
-                        // 중첩 배열은 별도 처리
+                        // 중첩 배열은 별도 처리 - 배열 자체의 컬럼 인덱스는 찾지 않음
                         MapNestedArray(row, nestedArray, key, scheme, pattern);
                     }
                     else if (prop.Value is YamlMappingNode nestedObject)
@@ -152,16 +150,22 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         // 중첩 객체는 속성들을 확장하여 매핑
                         MapNestedObject(row, nestedObject, key, scheme, pattern);
                     }
-                    else if (columnIndex > 0)
-                    {
-                        // 단순 값만 직접 매핑
-                        var value = ConvertValue(prop.Value);
-                        row.SetCell(columnIndex, value);
-                        Logger.Information($"✓ 단순 속성 매핑: {key} -> 컬럼 {columnIndex}: {value}");
-                    }
                     else
                     {
-                        Logger.Warning($"✗ {key} 속성의 컬럼 인덱스를 찾을 수 없음");
+                        // 단순 값만 직접 매핑
+                        var columnIndex = scheme.GetColumnIndex(key);
+                        Logger.Information($"🔍 단순 속성 '{key}' 컬럼 인덱스 조회 결과: {columnIndex}");
+                        
+                        if (columnIndex > 0)
+                        {
+                            var value = ConvertValue(prop.Value);
+                            row.SetCell(columnIndex, value);
+                            Logger.Information($"✓ 단순 속성 매핑: {key} -> 컬럼 {columnIndex}: {value}");
+                        }
+                        else
+                        {
+                            Logger.Warning($"✗ {key} 속성의 컬럼 인덱스를 찾을 수 없음");
+                        }
                     }
                 }
                 Logger.Information("========== MapHorizontally 속성 매핑 완료 ==========");

@@ -71,6 +71,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 // 5. Excel 스키마 생성
                 Logger.Debug("Excel 스키마 생성 중...");
                 var scheme = _schemaBuilder.BuildScheme(pattern, strategy, layoutInfo);
+                
+                // 스키마 매핑 상황 디버깅
+                scheme.DebugAllMappings();
 
                 // 6. 중복 요소 분석 및 스키마 최적화
                 if (rootNode is YamlSequenceNode rootSequence)
@@ -140,6 +143,21 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 
                 var rows = _dataMapper.MapToExcelRows(rootNode, scheme, pattern);
                 
+                // rows가 null이거나 비어있는지 확인
+                if (rows == null)
+                {
+                    Logger.Warning("MapToExcelRows가 null을 반환했습니다.");
+                    rows = new List<DynamicDataMapper.ExcelRow>();
+                }
+                else if (rows.Count == 0)
+                {
+                    Logger.Warning("MapToExcelRows가 빈 리스트를 반환했습니다.");
+                }
+                else
+                {
+                    Logger.Information($"데이터 매핑 완료: {rows.Count}개 행");
+                }
+                
                 // 실제 사용 컬럼 계산 및 스키마 업데이트
                 var actualUsedColumns = scheme.CalculateActualUsedColumns(rows);
                 _duplicateManager.UpdateSchemaMerging(scheme, actualUsedColumns, scheme.LastSchemaRow);
@@ -192,6 +210,21 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 }
                 
                 var rows = _dataMapper.MapToExcelRows(rootNode, scheme, pattern);
+                
+                // rows가 null이거나 비어있는지 확인
+                if (rows == null)
+                {
+                    Logger.Warning("MapToExcelRows가 null을 반환했습니다.");
+                    rows = new List<DynamicDataMapper.ExcelRow>();
+                }
+                else if (rows.Count == 0)
+                {
+                    Logger.Warning("MapToExcelRows가 빈 리스트를 반환했습니다.");
+                }
+                else
+                {
+                    Logger.Information($"데이터 매핑 완료: {rows.Count}개 행");
+                }
                 
                 // 실제 사용 컬럼 계산 및 스키마 업데이트
                 var actualUsedColumns = scheme.CalculateActualUsedColumns(rows);

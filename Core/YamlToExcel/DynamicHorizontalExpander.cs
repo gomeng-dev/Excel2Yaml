@@ -18,6 +18,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public int RequiredColumns { get; set; }
             public List<string> UnifiedProperties { get; set; }
             public Dictionary<string, int> PropertyColumnMap { get; set; }
+            public Dictionary<string, DynamicArrayLayout> NestedArrays { get; set; } = new Dictionary<string, DynamicArrayLayout>();
         }
 
         public class DynamicArrayLayout

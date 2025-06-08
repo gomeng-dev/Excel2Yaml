@@ -76,7 +76,19 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             {
                 columnMapping[propertyName] = column;
                 SimpleLoggerFactory.CreateLogger<ExcelScheme>()
-                    .Information($"SetColumnMapping: '{propertyName}' -> 컬럼 {column}");
+                    .Information($"★ SetColumnMapping: '{propertyName}' -> 컬럼 {column}");
+            }
+            
+            public void DebugAllMappings()
+            {
+                var logger = SimpleLoggerFactory.CreateLogger<ExcelScheme>();
+                logger.Information("========== 모든 컬럼 매핑 상황 ==========");
+                foreach (var mapping in columnMapping.OrderBy(m => m.Value))
+                {
+                    logger.Information($"  '{mapping.Key}' -> 컬럼 {mapping.Value}");
+                }
+                logger.Information($"총 {columnMapping.Count}개 매핑");
+                logger.Information("======================================");
             }
 
             public void SetArrayStartColumn(string arrayName, int column)
@@ -211,6 +223,17 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public int CalculateActualUsedColumns(List<DynamicDataMapper.ExcelRow> rows)
             {
                 int maxCol = 1;
+                
+                // rows가 null이거나 비어있으면 columnMapping에서 최대값 찾기
+                if (rows == null || rows.Count == 0)
+                {
+                    if (columnMapping.Count > 0)
+                    {
+                        maxCol = columnMapping.Values.Max();
+                    }
+                    return maxCol;
+                }
+                
                 // 데이터 행에서 사용된 최대 컬럼 찾기
                 foreach (var row in rows)
                 {
@@ -515,17 +538,34 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                                     foreach (var subProp in elemProp.Value.ObjectProperties)
                                     {
                                         scheme.AddCell(nestedRow + 1, subCol, subProp);
-                                        scheme.SetColumnMapping($"{array.Key}[0].{elemProp.Key}.{subProp}", subCol);
+                                        
+                                        // ★ 모든 배열 요소에 대해 객체 속성 매핑 생성
+                                        for (int arrayElementIndex = 0; arrayElementIndex < array.Value.ElementCount; arrayElementIndex++)
+                                        {
+                                            string objectPropPath = $"{array.Key}[{arrayElementIndex}].{elemProp.Key}.{subProp}";
+                                            scheme.SetColumnMapping(objectPropPath, subCol);
+                                            Logger.Debug($"    복잡 배열 객체 매핑: {objectPropPath} -> 컬럼 {subCol}");
+                                        }
+                                        
                                         usedCells.Add((nestedRow + 1, subCol));
                                         subCol++;
                                     }
                                     elementCol += objCols;
                                 }
-                                else if (elemProp.Value.IsArray && elemProp.Value.ArrayPattern != null)
+                                else if (elemProp.Value.IsArray)
                                 {
-                                    // results 같은 중첩 배열
+                                    // 중첩 배열 처리 (Option 배열 등)
+                                    Logger.Information($"🔧 중첩 배열 '{elemProp.Key}' 처리 시작");
+                                    
                                     var nestedArrayPattern = elemProp.Value.ArrayPattern;
-                                    if (nestedArrayPattern.ElementProperties != null && nestedArrayPattern.ElementProperties.Any())
+                                    Logger.Information($"  ArrayPattern null 여부: {nestedArrayPattern == null}");
+                                    if (nestedArrayPattern != null)
+                                    {
+                                        Logger.Information($"  ElementProperties null 여부: {nestedArrayPattern.ElementProperties == null}");
+                                        Logger.Information($"  ElementProperties 개수: {nestedArrayPattern.ElementProperties?.Count ?? 0}");
+                                    }
+                                    
+                                    if (nestedArrayPattern?.ElementProperties != null && nestedArrayPattern.ElementProperties.Any())
                                     {
                                         int arrayCols = nestedArrayPattern.ElementProperties.Count;
                                         scheme.AddMergedCell(nestedRow, elementCol, elementCol + arrayCols - 1, $"{elemProp.Key}$[]");
@@ -546,7 +586,29 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                                         foreach (var subProp in nestedArrayPattern.ElementProperties.OrderBy(p => p.Value.FirstAppearanceIndex))
                                         {
                                             scheme.AddCell(nestedRow + 2, subCol, subProp.Key);
-                                            scheme.SetColumnMapping($"{array.Key}[0].{elemProp.Key}[0].{subProp.Key}", subCol);
+                                            
+                                            // ★ 모든 상위 배열 요소에 대해 중첩 배열 속성 매핑 생성
+                                            for (int arrayElementIndex = 0; arrayElementIndex < array.Value.ElementCount; arrayElementIndex++)
+                                            {
+                                                // 중첩 배열의 모든 요소에 대해서도 매핑 생성
+                                                if (elemProp.Value.ArrayPattern?.MaxSize > 0)
+                                                {
+                                                    for (int nestedIndex = 0; nestedIndex < elemProp.Value.ArrayPattern.MaxSize; nestedIndex++)
+                                                    {
+                                                        string nestedArrayPropPath = $"{array.Key}[{arrayElementIndex}].{elemProp.Key}[{nestedIndex}].{subProp.Key}";
+                                                        scheme.SetColumnMapping(nestedArrayPropPath, subCol);
+                                                        Logger.Debug($"    복잡 배열 중첩 배열 매핑: {nestedArrayPropPath} -> 컬럼 {subCol}");
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    // 중첩 배열 요소 개수를 알 수 없는 경우 기본값으로 처리
+                                                    string nestedArrayPropPath = $"{array.Key}[{arrayElementIndex}].{elemProp.Key}[0].{subProp.Key}";
+                                                    scheme.SetColumnMapping(nestedArrayPropPath, subCol);
+                                                    Logger.Debug($"    복잡 배열 중첩 배열 기본 매핑: {nestedArrayPropPath} -> 컬럼 {subCol}");
+                                                }
+                                            }
+                                            
                                             usedCells.Add((nestedRow + 2, subCol));
                                             subCol++;
                                         }
@@ -554,9 +616,18 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                                     }
                                     else
                                     {
-                                        // 빈 배열인 경우
+                                        // 빈 배열이거나 분석되지 않은 배열인 경우
+                                        Logger.Warning($"⚠️ '{elemProp.Key}' 배열이 빈 배열로 처리됨 - 실제 구조 분석 확인 필요");
                                         scheme.AddCell(nestedRow, elementCol, elemProp.Key);
-                                        scheme.SetColumnMapping($"{array.Key}[0].{elemProp.Key}", elementCol);
+                                        
+                                        // ★ 모든 배열 요소에 대해 빈 배열 매핑 생성
+                                        for (int arrayElementIndex = 0; arrayElementIndex < array.Value.ElementCount; arrayElementIndex++)
+                                        {
+                                            string emptyArrayPath = $"{array.Key}[{arrayElementIndex}].{elemProp.Key}";
+                                            scheme.SetColumnMapping(emptyArrayPath, elementCol);
+                                            Logger.Debug($"    복잡 배열 빈 배열 매핑: {emptyArrayPath} -> 컬럼 {elementCol}");
+                                        }
+                                        
                                         usedCells.Add((nestedRow, elementCol));
                                         elementCol++;
                                     }
@@ -569,7 +640,15 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                                         Logger.Warning($"  ⚠️ activation이 단순 속성으로 처리됨! IsObject={elemProp.Value.IsObject}, ObjectProperties={elemProp.Value.ObjectProperties?.Count ?? 0}");
                                     }
                                     scheme.AddCell(nestedRow, elementCol, elemProp.Key);
-                                    scheme.SetColumnMapping($"{array.Key}[0].{elemProp.Key}", elementCol);
+                                    
+                                    // ★ 모든 배열 요소에 대해 단순 속성 매핑 생성
+                                    for (int arrayElementIndex = 0; arrayElementIndex < array.Value.ElementCount; arrayElementIndex++)
+                                    {
+                                        string simplePropPath = $"{array.Key}[{arrayElementIndex}].{elemProp.Key}";
+                                        scheme.SetColumnMapping(simplePropPath, elementCol);
+                                        Logger.Debug($"    복잡 배열 단순 속성 매핑: {simplePropPath} -> 컬럼 {elementCol}");
+                                    }
+                                    
                                     usedCells.Add((nestedRow, elementCol));
                                     elementCol++;
                                 }
@@ -615,6 +694,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             DynamicStructureAnalyzer.StructurePattern pattern = null)
         {
             Logger.Debug($"배열 요소 스키마 생성: {layout.ArrayPath}, 요소 수={layout.ElementCount}");
+            Logger.Information($"  OptimizeColumns: {layout.OptimizeColumns}");
+            Logger.Information($"  TotalColumns: {layout.TotalColumns}");
+            Logger.Information($"  Elements.Count: {layout.Elements?.Count ?? 0}");
 
             int currentCol = startCol;
 
@@ -645,6 +727,14 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     {
                         scheme.AddCell(startRow + 1, propCol, prop);
                         scheme.SetColumnMapping($"{layout.ArrayPath}[{i}].{prop}", propCol);
+                        
+                        // 중첩 배열인 경우 하위 요소들도 매핑
+                        if (element.NestedArrays != null && element.NestedArrays.ContainsKey(prop))
+                        {
+                            var nestedArray = element.NestedArrays[prop];
+                            AddNestedArrayMappings(scheme, $"{layout.ArrayPath}[{i}].{prop}", nestedArray, propCol);
+                        }
+                        
                         usedCells.Add((startRow + 1, propCol));
                         propCol++;
                     }
@@ -656,32 +746,107 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
             else if (layout.OptimizeColumns && layout.Elements.Any())
             {
-                // 기존 로직: 통합 스키마 (하위 호환성을 위해 유지)
-                foreach (var element in layout.Elements)
+                // 통합 스키마 모드: 모든 요소를 하나의 통합된 스키마로 표현
+                Logger.Debug($"통합 스키마 모드 - 모든 배열 요소에 대해 매핑 생성");
+                
+                // 첫 번째 요소를 기준으로 스키마 생성
+                var firstElement = layout.Elements[0];
+                var orderedProps = firstElement.UnifiedProperties ?? firstElement.Properties;
+                int totalRequiredColumns = firstElement.RequiredColumns;
+                
+                Logger.Information($"통합 스키마 - 기준 요소: {orderedProps.Count}개 속성, {totalRequiredColumns}개 컬럼");
+                Logger.Information($"  속성 목록: [{string.Join(", ", orderedProps)}]");
+
+                // ${} 마커
+                scheme.AddMergedCell(startRow, currentCol, currentCol + totalRequiredColumns - 1, "${}");
+                for (int c = currentCol; c < currentCol + totalRequiredColumns; c++)
                 {
-                    if (element.RequiredColumns > 0)
-                    {
-                        // ${} 마커
-                        scheme.AddMergedCell(startRow, currentCol,
-                            currentCol + element.RequiredColumns - 1, "${}");
-                        for (int c = currentCol; c < currentCol + element.RequiredColumns; c++)
-                        {
-                            usedCells.Add((startRow, c));
-                        }
-
-                        // 속성들
-                        int propCol = currentCol;
-                        var orderedProps = element.UnifiedProperties ?? element.Properties;
-                        foreach (var prop in orderedProps)
-                        {
-                            scheme.AddCell(startRow + 1, propCol, prop);
-                            usedCells.Add((startRow + 1, propCol));
-                            propCol++;
-                        }
-
-                        currentCol += element.RequiredColumns;
-                    }
+                    usedCells.Add((startRow, c));
                 }
+
+                // 속성들
+                int propCol = currentCol;
+                foreach (var prop in orderedProps)
+                {
+                    scheme.AddCell(startRow + 1, propCol, prop);
+                    
+                    // ★ 중요: 모든 배열 요소(인덱스)에 대해 매핑 생성
+                    for (int elementIndex = 0; elementIndex < layout.Elements.Count; elementIndex++)
+                    {
+                        string elementPath = $"{layout.ArrayPath}[{elementIndex}].{prop}";
+                        scheme.SetColumnMapping(elementPath, propCol);
+                        Logger.Debug($"  통합 매핑: {elementPath} -> 컬럼 {propCol}");
+                        
+                        // 중첩 배열인 경우 하위 요소들도 매핑
+                        var currentElement = layout.Elements[elementIndex];
+                        if (currentElement.NestedArrays != null && currentElement.NestedArrays.ContainsKey(prop))
+                        {
+                            var nestedArray = currentElement.NestedArrays[prop];
+                            AddNestedArrayMappings(scheme, elementPath, nestedArray, propCol);
+                        }
+                    }
+                    
+                    usedCells.Add((startRow + 1, propCol));
+                    propCol++;
+                }
+
+                currentCol += totalRequiredColumns;
+            }
+            else 
+            {
+                // 배열 요소가 없는 경우나 기타 예외 상황 처리
+                Logger.Warning($"배열 요소가 없거나 처리할 수 없는 상황: Elements={layout.Elements?.Count ?? 0}");
+                
+                // 최소한의 빈 배열 스키마라도 생성
+                scheme.AddCell(startRow, currentCol, "${}");
+                usedCells.Add((startRow, currentCol));
+                
+                // 기본 컬럼 매핑 추가
+                scheme.SetColumnMapping($"{layout.ArrayPath}[0]", currentCol);
+            }
+        }
+
+        private void AddNestedArrayMappings(ExcelScheme scheme, string arrayPath, DynamicHorizontalExpander.DynamicArrayLayout nestedArray, int columnIndex)
+        {
+            Logger.Debug($"중첩 배열 매핑 추가: {arrayPath}, 컬럼 {columnIndex}");
+            Logger.Information($"  중첩 배열 요소 수: {nestedArray.Elements?.Count ?? 0}");
+            
+            // 중첩 배열 전체를 해당 컬럼에 매핑
+            scheme.SetColumnMapping(arrayPath, columnIndex);
+            
+            // 중첩 배열의 각 요소별 세부 매핑도 추가
+            if (nestedArray.Elements != null && nestedArray.Elements.Count > 0)
+            {
+                // 모든 중첩 배열 요소에 대해 매핑 생성
+                Logger.Information($"  중첩 배열의 모든 요소({nestedArray.Elements.Count}개)에 대해 매핑 생성");
+                
+                for (int i = 0; i < nestedArray.Elements.Count; i++)
+                {
+                    var element = nestedArray.Elements[i];
+                    var properties = element.UnifiedProperties ?? element.Properties;
+                    
+                    Logger.Debug($"    요소 [{i}]: {properties.Count}개 속성");
+                    
+                    foreach (var prop in properties)
+                    {
+                        string elementPath = $"{arrayPath}[{i}].{prop}";
+                        scheme.SetColumnMapping(elementPath, columnIndex);
+                        Logger.Debug($"      중첩 요소 매핑: {elementPath} -> 컬럼 {columnIndex}");
+                    }
+                    
+                    // 중첩 배열 자체도 매핑 (예: SpawnData[0], SpawnData[1], SpawnData[2])
+                    string nestedElementPath = $"{arrayPath}[{i}]";
+                    scheme.SetColumnMapping(nestedElementPath, columnIndex);
+                    Logger.Debug($"      중첩 배열 요소 매핑: {nestedElementPath} -> 컬럼 {columnIndex}");
+                }
+            }
+            else
+            {
+                // 빈 중첩 배열인 경우에도 기본 매핑 생성
+                Logger.Debug($"  빈 중첩 배열 - 기본 매핑만 생성");
+                string defaultPath = $"{arrayPath}[0]";
+                scheme.SetColumnMapping(defaultPath, columnIndex);
+                Logger.Debug($"    기본 매핑: {defaultPath} -> 컬럼 {columnIndex}");
             }
         }
 
