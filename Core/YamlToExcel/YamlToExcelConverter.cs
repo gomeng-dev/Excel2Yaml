@@ -64,6 +64,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     // 4. 스키마 작성
                     WriteSchema(worksheet, schemaResult);
 
+                    // 4.5. 스키마 후처리: 비어있는 셀에 ^ 마커 추가
+                    PostProcessSchemaWithCaretMarkers(worksheet, schemaResult);
+
                     // 5. 데이터 매핑 및 작성 (원본 YAML 사용)
                     var dataStartRow = schemaResult.TotalRows + 1;
                     WriteData(worksheet, originalRootNode, schemaResult, dataStartRow);
@@ -121,6 +124,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var worksheet = workbook.Worksheets.Add("Sheet1");
                     WriteSchema(worksheet, schemaResult);
                     
+                    // 스키마 후처리: 비어있는 셀에 ^ 마커 추가
+                    PostProcessSchemaWithCaretMarkers(worksheet, schemaResult);
+                    
                     var dataStartRow = schemaResult.TotalRows + 1;
                     // 데이터는 원본 YAML 사용
                     WriteData(worksheet, originalRootNode, schemaResult, dataStartRow);
@@ -167,6 +173,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 var worksheet = workbook.Worksheets.Add(sheetName);
                 
                 WriteSchema(worksheet, schemaResult);
+                
+                // 스키마 후처리: 비어있는 셀에 ^ 마커 추가
+                PostProcessSchemaWithCaretMarkers(worksheet, schemaResult);
                 
                 var dataStartRow = schemaResult.TotalRows + 1;
                 // 데이터는 원본 YAML 사용
@@ -255,6 +264,84 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
 
             Logger.Information($"스키마 작성 완료: {schemaResult.TotalRows}행");
+        }
+
+        /// <summary>
+        /// 스키마 영역의 비어있는 셀에 ^ 마커를 추가하는 후처리
+        /// </summary>
+        private void PostProcessSchemaWithCaretMarkers(IXLWorksheet worksheet, ReverseSchemeBuilder.SchemeBuildResult schemaResult)
+        {
+            Logger.Information("스키마 후처리 시작: 비어있는 셀에 ^ 마커 추가");
+
+            int schemaStartRow = 2; // 1행은 주석행이므로 제외
+            int schemaEndRow = schemaResult.TotalRows - 1; // $scheme_end 행 제외
+            int totalColumns = schemaResult.TotalColumns;
+
+            int caretMarkersAdded = 0;
+
+            // 스키마 영역의 모든 셀을 검사
+            for (int row = schemaStartRow; row <= schemaEndRow; row++)
+            {
+                for (int col = 1; col <= totalColumns; col++)
+                {
+                    var cell = worksheet.Cell(row, col);
+                    
+                    // 셀이 비어있는지 확인 (null, 빈 문자열, 공백만 있는 경우)
+                    if (IsCellEmpty(cell))
+                    {
+                        // 이미 병합된 셀의 일부인지 확인
+                        if (!IsCellPartOfMergedRange(cell, schemaResult.MergedCells))
+                        {
+                            cell.Value = "^";
+                            caretMarkersAdded++;
+                            
+                            if (caretMarkersAdded <= 10) // 처음 10개만 로깅
+                            {
+                                Logger.Information($"  ^ 마커 추가: 행{row}, 열{col}");
+                            }
+                        }
+                    }
+                }
+            }
+
+            Logger.Information($"스키마 후처리 완료: ^ 마커 {caretMarkersAdded}개 추가");
+        }
+
+        /// <summary>
+        /// 셀이 비어있는지 확인
+        /// </summary>
+        private bool IsCellEmpty(IXLCell cell)
+        {
+            if (cell == null) return true;
+            
+            var value = cell.Value;
+            if (value.IsBlank) return true;
+            
+            var stringValue = value.ToString();
+            return string.IsNullOrWhiteSpace(stringValue);
+        }
+
+        /// <summary>
+        /// 셀이 병합된 범위의 일부인지 확인 (첫 번째 셀 제외)
+        /// </summary>
+        private bool IsCellPartOfMergedRange(IXLCell cell, List<(int row, int col, int colspan)> mergedCells)
+        {
+            int row = cell.Address.RowNumber;
+            int col = cell.Address.ColumnNumber;
+            
+            foreach (var merge in mergedCells)
+            {
+                if (merge.row == row && col >= merge.col && col <= merge.col + merge.colspan - 1)
+                {
+                    // 병합 범위의 첫 번째 셀이 아닌 경우
+                    if (col != merge.col)
+                    {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
         }
 
         /// <summary>

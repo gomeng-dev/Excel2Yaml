@@ -51,7 +51,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             
             var result = new SchemeBuildResult();
             
-            // 루트 노드 처리
+            // 루트 노드 처리 (병합된 YAML 사용)
             result.RootNode = ProcessRootNode(yamlRoot);
             
             // 행별로 노드 매핑
@@ -87,13 +87,22 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     OriginalYamlPath = ""
                 };
 
-                // 배열의 첫 번째 요소로 전체 구조 분석
+                // 배열의 첫 번째 요소로 전체 구조 분석 (병합된 YAML 사용)
                 if (rootSequence.Children.Count > 0 && rootSequence.Children[0] is YamlMappingNode firstMapping)
                 {
-                    var columns = CalculateObjectColumns(firstMapping);
-                    rootArrayNode.ColumnSpan = columns;
-                    rootArrayNode.IsMergedCell = columns > 1;
-                    maxColumn = columns;
+                    // 병합된 YAML로 컬럼 계산 (모든 필드가 포함된 완전한 구조)
+                    var totalColumns = CalculateObjectColumns(firstMapping);
+                    
+                    // HTML 참조에서 확인: 2행 $[]는 A-K (11컬럼), L에 ^
+                    // 따라서 totalColumns + 1이 전체 컬럼 수
+                    var fullColumnCount = totalColumns + 1;
+                    
+                    // 루트 배열 노드는 A-K 컬럼을 차지 (totalColumns 만큼)
+                    rootArrayNode.ColumnSpan = fullColumnCount;
+                    rootArrayNode.IsMergedCell = totalColumns > 1;
+                    maxColumn = fullColumnCount;
+                    
+                    Logger.Information($"루트 배열 노드 설정: ColumnSpan={totalColumns}, maxColumn={maxColumn}");
                     
                     currentRow++;
                     
@@ -105,10 +114,11 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         NodeType = SchemeNode.SchemeNodeType.IGNORE,
                         Parent = rootArrayNode,
                         RowIndex = currentRow,
-                        ColumnIndex = 1
+                        ColumnIndex = fullColumnCount  // 마지막 컬럼에 ^
                     };
                     rootArrayNode.Children.Add(caretNode);
                     
+                    // HTML 참조에서 확인: 3행 ${}는 B-K (10컬럼)
                     var elementNode = new ExcelSchemeNode
                     {
                         Key = "",
@@ -117,7 +127,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         Parent = rootArrayNode,
                         RowIndex = currentRow,
                         ColumnIndex = 2,
-                        ColumnSpan = columns - 1,
+                        ColumnSpan = totalColumns,  // B부터 K까지 (totalColumns - 1)
                         IsMergedCell = true,
                         OriginalYamlPath = "[0]"
                     };
@@ -710,6 +720,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 return node;
             }
         }
+
 
         private int CalculateObjectColumns(YamlMappingNode mapping)
         {
