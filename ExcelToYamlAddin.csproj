@@ -260,20 +260,13 @@
   -->
   <ItemGroup>
     <Compile Include="Core\ExcelToHtmlExporter.cs" />
-    <Compile Include="Core\XmlToExcelConverter.cs" />
     <Compile Include="Core\XmlToYamlConverter.cs" />
     <Compile Include="Core\XmlToExcelViaYamlConverter.cs" />
     <Compile Include="Core\YamlPostProcessors\FinalRawStringConverter.cs" />
     <Compile Include="Core\YamlPostProcessors\YamlToXmlConverter.cs" />
-    <Compile Include="Core\YamlToExcel\DynamicDataMapper.cs" />
-    <Compile Include="Core\YamlToExcel\DynamicHorizontalExpander.cs" />
-    <Compile Include="Core\YamlToExcel\DynamicPatternRecognizer.cs" />
-    <Compile Include="Core\YamlToExcel\DynamicPropertyOrderer.cs" />
-    <Compile Include="Core\YamlToExcel\DynamicSchemaBuilder.cs" />
-    <Compile Include="Core\YamlToExcel\DynamicStructureAnalyzer.cs" />
-    <Compile Include="Core\YamlToExcel\DynamicVerticalNester.cs" />
-    <Compile Include="Core\YamlToExcel\DynamicYamlToExcelConverter.cs" />
-    <Compile Include="Core\YamlToExcel\DuplicateElementManager.cs" />
+    <Compile Include="Core\YamlToExcel\ExcelDataMapper.cs" />
+    <Compile Include="Core\YamlToExcel\ReverseSchemeBuilder.cs" />
+    <Compile Include="Core\YamlToExcel\YamlToExcelConverter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

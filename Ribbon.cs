@@ -15,7 +15,7 @@ using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
 using System.Threading; // CancellationToken을 위해 추가
-using Excel = Microsoft.Office.Interop.Excel;
+using Excel = Microsoft.Office.Interop.Excel; 
 
 namespace ExcelToYamlAddin
 {
@@ -224,8 +224,23 @@ namespace ExcelToYamlAddin
                 if (result == DialogResult.No)
                 {
                     if (settingsForm != null && !settingsForm.IsDisposed) { settingsForm.Activate(); return false; }
+                    
+                    // 워크시트 이름들을 미리 추출 (COM 객체 무효화 방지)
+                    var sheetNames = new List<string>();
+                    foreach (var sheet in convertibleSheets)
+                    {
+                        try
+                        {
+                            sheetNames.Add(sheet.Name);
+                        }
+                        catch (System.Runtime.InteropServices.COMException ex)
+                        {
+                            Debug.WriteLine($"워크시트 이름 추출 실패 (COM Exception: {ex.ErrorCode:X})");
+                        }
+                    }
+                    
                     settingsForm = new Forms.SheetPathSettingsForm(convertibleSheets);
-                    settingsForm.FormClosed += (s, args) => { HandleSettingsFormClosed(convertibleSheets); settingsForm = null; };
+                    settingsForm.FormClosed += (s, args) => { HandleSettingsFormClosedSafe(sheetNames); settingsForm = null; };
                     settingsForm.StartPosition = FormStartPosition.CenterScreen; settingsForm.Show();
                     return false;
                 }
@@ -1148,6 +1163,26 @@ namespace ExcelToYamlAddin
         }
 
         /// <summary>
+        /// SheetPathSettingsForm이 닫힐 때 호출되는 안전한 핸들러입니다.
+        /// </summary>
+        /// <param name="sheetNames">시트 이름 목록입니다.</param>
+        private void HandleSettingsFormClosedSafe(List<string> sheetNames)
+        {
+            // 설정 후 다시 활성화된 시트 수 확인
+            int enabledSheetsCount = 0;
+            foreach (var sheetName in sheetNames)
+            {
+                if (SheetPathManager.Instance.IsSheetEnabled(sheetName))
+                {
+                    enabledSheetsCount++;
+                }
+            }
+
+            // 활성화된 시트가 없으면 변환 취소 메시지 (선택적)
+            if (enabledSheetsCount == 0) { /* MessageBox.Show("활성화된 시트가 없어 변환을 취소합니다.", "변환 취소", MessageBoxButtons.OK, MessageBoxIcon.Information); */ }
+        }
+
+        /// <summary>
         /// SheetPathSettingsForm이 닫힐 때 호출되는 공통 핸들러입니다.
         /// </summary>
         /// <param name="convertibleSheets">설정 폼에 전달되었던 시트 목록입니다.</param>
@@ -1157,9 +1192,24 @@ namespace ExcelToYamlAddin
             int enabledSheetsCount = 0;
             foreach (var sheet in convertibleSheets)
             {
-                if (SheetPathManager.Instance.IsSheetEnabled(sheet.Name))
+                try
                 {
-                    enabledSheetsCount++;
+                    // Excel COM 객체에 안전하게 접근
+                    string sheetName = sheet.Name;
+                    if (SheetPathManager.Instance.IsSheetEnabled(sheetName))
+                    {
+                        enabledSheetsCount++;
+                    }
+                }
+                catch (System.Runtime.InteropServices.COMException ex)
+                {
+                    // COM 객체가 무효한 경우 로그만 남기고 건너뛰기
+                    Debug.WriteLine($"워크시트 접근 실패 (COM Exception: {ex.ErrorCode:X}): 시트가 삭제되었거나 무효한 상태입니다.");
+                }
+                catch (Exception ex)
+                {
+                    // 기타 예외 처리
+                    Debug.WriteLine($"워크시트 접근 중 예외 발생: {ex.Message}");
                 }
             }
 
@@ -1616,7 +1666,7 @@ namespace ExcelToYamlAddin
                 }
                 
                 // YAML을 Excel로 변환
-                var converter = new Core.YamlToExcel.DynamicYamlToExcelConverter();
+                var converter = new Core.YamlToExcel.YamlToExcelConverter();
                 
                 // 임시 파일로 변환
                 string tempFile = Path.Combine(Path.GetTempPath(), $"temp_{Guid.NewGuid()}.xlsx");
@@ -1802,7 +1852,7 @@ namespace ExcelToYamlAddin
 
                             // 간단한 YAML to Excel 테스트
                             Debug.WriteLine("=== YAML to Excel 변환 테스트 ===");
-                            var yamlToExcel = new Core.YamlToExcel.DynamicYamlToExcelConverter();
+                            var yamlToExcel = new Core.YamlToExcel.YamlToExcelConverter();
                             var outputPath = Path.Combine(Path.GetTempPath(), $"xml_to_yaml_test_{DateTime.Now:yyyyMMddHHmmss}.xlsx");
                             
                             yamlToExcel.ConvertFromContent(rootRemovedYaml, outputPath);
