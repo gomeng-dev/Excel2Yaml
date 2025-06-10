@@ -330,18 +330,31 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             // 배열 요소가 객체인 경우만 처리
             if (sequence.Children[0] is YamlMappingNode)
             {
-                // 모든 배열 요소의 속성을 수집하여 통합된 스키마 생성
-                var mergedStructure = MergeArrayElementStructures(sequence);
-                var singleElementColumns = CalculateObjectColumns(mergedStructure);
+                Logger.Information($"배열 요소 ${{}}마커들을 행 {currentRow}에 배치 (개별 계산)");
                 
-                // 배열의 실제 요소 수 계산
-                int displayCount = sequence.Children.Count;
+                // 각 배열 요소별로 개별 컬럼 수 계산
+                var elementColumns = new List<int>();
+                var elementStructures = new List<YamlMappingNode>();
                 
-                Logger.Information($"배열 요소 ${{}}마커들을 행 {currentRow}에 배치");
+                for (int i = 0; i < sequence.Children.Count; i++)
+                {
+                    if (sequence.Children[i] is YamlMappingNode elementMapping)
+                    {
+                        // 각 요소를 개별적으로 계산
+                        var singleColumns = CalculateObjectColumns(elementMapping);
+                        elementColumns.Add(singleColumns);
+                        elementStructures.Add(elementMapping);
+                        
+                        Logger.Information($"  요소[{i}] 개별 컬럼 계산: {singleColumns}개");
+                    }
+                }
                 
                 // 각 배열 요소를 위한 ${} 마커를 한 행에 나란히 생성
-                for (int i = 0; i < displayCount; i++)
+                int currentCol = startColumn;
+                for (int i = 0; i < sequence.Children.Count; i++)
                 {
+                    var singleElementColumns = elementColumns[i];
+                    
                     var elementNode = new ExcelSchemeNode
                     {
                         Key = "",
@@ -349,38 +362,39 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         NodeType = SchemeNode.SchemeNodeType.MAP,
                         Parent = arrayNode,
                         RowIndex = currentRow,
-                        ColumnIndex = startColumn + (i * singleElementColumns),
+                        ColumnIndex = currentCol,
                         ColumnSpan = singleElementColumns,
                         IsMergedCell = singleElementColumns > 1,
                         OriginalYamlPath = $"{yamlPath}[{i}]"  // 정확한 인덱스 사용
                     };
                     arrayNode.Children.Add(elementNode);
-                    Logger.Information($"  요소[{i}] ${{}} -> 행{currentRow}, 열{elementNode.ColumnIndex}-{elementNode.ColumnIndex + singleElementColumns - 1} (경로: {elementNode.OriginalYamlPath})");
+                    Logger.Information($"  요소[{i}] ${{}} -> 행{currentRow}, 열{currentCol}-{currentCol + singleElementColumns - 1} (경로: {elementNode.OriginalYamlPath})");
+                    
+                    currentCol += singleElementColumns;
                 }
                 
                 // 다음 행에서 자식 구조 처리
                 currentRow++;
                 var childrenStartRow = currentRow;
                 
-                Logger.Information($"배열 요소들의 자식 구조를 행 {childrenStartRow}에서 처리");
+                Logger.Information($"배열 요소들의 자식 구조를 행 {childrenStartRow}에서 처리 (개별 구조 사용)");
                 
-                // 첫 번째 요소 위치에서 통합 구조 처리
-                Logger.Information($"  첫 번째 요소[0] 자식 구조 처리 시작: currentRow={currentRow}");
-                ProcessObjectProperties(arrayNode.Children[0], mergedStructure, startColumn, $"{yamlPath}[0]");
-                
-                // 첫 번째 요소 처리 후 사용된 최대 행 저장
+                // 각 요소를 개별 구조로 처리
+                currentCol = startColumn;
                 var maxRowUsed = currentRow;
-                Logger.Information($"  첫 번째 요소[0] 자식 구조 처리 완료: currentRow={currentRow}, maxRowUsed={maxRowUsed}");
                 
-                // 나머지 요소들에 대해 동일한 구조를 동일한 행에 복사
-                for (int i = 1; i < displayCount; i++)
+                for (int i = 0; i < sequence.Children.Count; i++)
                 {
-                    currentRow = childrenStartRow; // 모든 배열 요소의 자식이 같은 행에서 시작
-                    Logger.Information($"  요소[{i}] 자식 구조 복사 시작: currentRow={currentRow} (childrenStartRow로 리셋)");
-                    ProcessArrayElementCopy(arrayNode.Children[i], mergedStructure, startColumn + (i * singleElementColumns), $"{yamlPath}[{i}]");
-                    // 각 요소 처리 후 최대 행 업데이트
+                    currentRow = childrenStartRow; // 모든 요소가 같은 행에서 시작
+                    var elementStructure = elementStructures[i];
+                    var elementColumnCount = elementColumns[i];
+                    
+                    Logger.Information($"  요소[{i}] 개별 구조 처리 시작: currentRow={currentRow}, 컬럼={currentCol}");
+                    ProcessObjectProperties(arrayNode.Children[i], elementStructure, currentCol, $"{yamlPath}[{i}]");
+                    
                     maxRowUsed = Math.Max(maxRowUsed, currentRow);
-                    Logger.Information($"  요소[{i}] 자식 구조 복사 완료: currentRow={currentRow}, maxRowUsed={maxRowUsed}");
+                    currentCol += elementColumnCount;
+                    Logger.Information($"  요소[{i}] 개별 구조 처리 완료: currentRow={currentRow}, maxRowUsed={maxRowUsed}");
                 }
                 
                 // 배열 처리가 끝난 후 실제 사용된 최대 행으로 currentRow 설정
@@ -555,9 +569,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     }
                     else if (existing is YamlSequenceNode existingArray && value is YamlSequenceNode valueArray)
                     {
-                        // 둘 다 배열 - 인덱스별 병합 (변경된 로직)
-                        Logger.Information($"    🔀 배열 인덱스별 병합: [{existingArray.Children.Count}개] + [{valueArray.Children.Count}개]");
-                        result.Children[key] = MergeArraysByIndex(new List<YamlSequenceNode> { existingArray, valueArray });
+                        // 둘 다 배열 - 구조만 보고 병합 (값은 무시)
+                        Logger.Information($"    🔀 배열 구조 기반 병합: [{existingArray.Children.Count}개] + [{valueArray.Children.Count}개]");
+                        result.Children[key] = MergeArraysByStructure(new List<YamlSequenceNode> { existingArray, valueArray });
                     }
                     // 스칼라 값은 첫 번째 값 유지 (기존 값 우선 - merge_yaml_complete.py의 "first" 전략)
                 }
@@ -687,6 +701,92 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             return false;
         }
         
+        /// <summary>
+        /// 구조만 보고 배열 병합 (값은 무시하고 키 구조만 통합)
+        /// </summary>
+        private YamlSequenceNode MergeArraysByStructure(List<YamlSequenceNode> arrays)
+        {
+            if (arrays == null || arrays.Count == 0)
+                return new YamlSequenceNode();
+            
+            var validArrays = arrays.Where(arr => arr != null && arr.Children.Count > 0).ToList();
+            if (validArrays.Count == 0)
+                return new YamlSequenceNode();
+            
+            // 가장 긴 배열의 길이를 기준으로 함
+            int maxLength = validArrays.Max(arr => arr.Children.Count);
+            var result = new YamlSequenceNode();
+            
+            Logger.Information($"      📝 구조 기반 배열 병합:");
+            Logger.Information($"        - 입력 배열 개수: {validArrays.Count}");
+            Logger.Information($"        - 각 배열 길이: [{string.Join(", ", validArrays.Select(arr => arr.Children.Count))}]");
+            Logger.Information($"        - 최대 길이: {maxLength}");
+            
+            // 모든 고유한 구조를 수집
+            var allStructures = new List<YamlNode>();
+            var seenStructures = new HashSet<string>();
+            
+            foreach (var array in validArrays)
+            {
+                foreach (var element in array.Children)
+                {
+                    var structureKey = GetNodeStructureKey(element);
+                    if (!seenStructures.Contains(structureKey))
+                    {
+                        allStructures.Add(element);
+                        seenStructures.Add(structureKey);
+                        Logger.Information($"        - 고유 구조 발견: {structureKey}");
+                    }
+                }
+            }
+            
+            // 최대 길이만큼 구조 반복
+            for (int i = 0; i < maxLength; i++)
+            {
+                // 사용 가능한 구조 중에서 선택
+                var templateNode = allStructures[i % allStructures.Count];
+                var mergedNode = DeepCloneNode(templateNode);
+                result.Add(mergedNode);
+                
+                var structureInfo = templateNode is YamlMappingNode mapping ? 
+                    $"키: {string.Join(", ", mapping.Children.Keys.Take(3).Select(k => k.ToString()))}" : "단순값";
+                
+                Logger.Information($"        - 인덱스 {i}: 구조 '{GetNodeStructureKey(templateNode)}' 사용 ({structureInfo})");
+            }
+            
+            Logger.Information($"      ✅ 최종 배열 길이: {result.Children.Count} (고유 구조: {allStructures.Count}개)");
+            return result;
+        }
+        
+        /// <summary>
+        /// 노드의 구조적 특성을 나타내는 키 생성 (스키마 중복 방지용)
+        /// </summary>
+        private string GetNodeStructureKey(YamlNode node)
+        {
+            if (node is YamlMappingNode mapping)
+            {
+                // 객체의 키 구조로 고유성 판단
+                var keys = mapping.Children.Keys.Select(k => k.ToString()).OrderBy(k => k).ToList();
+                return $"Map[{string.Join(",", keys)}]";
+            }
+            else if (node is YamlSequenceNode sequence)
+            {
+                // 배열의 첫 번째 요소 구조로 고유성 판단
+                if (sequence.Children.Count > 0)
+                {
+                    return $"Array[{GetNodeStructureKey(sequence.Children[0])}]";
+                }
+                return "Array[empty]";
+            }
+            else if (node is YamlScalarNode scalar)
+            {
+                // 스칼라는 값으로 고유성 판단 (스키마에서는 타입만 중요)
+                return "Scalar";
+            }
+            
+            return node.GetType().Name;
+        }
+        
         // 기존 DeepMergeObjects 메서드 (하위 호환성을 위해 유지)
         private YamlMappingNode DeepMergeObjects(YamlMappingNode obj1, YamlMappingNode obj2)
         {
@@ -750,13 +850,27 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             if (sequence.Children.Count == 0)
                 return 1;
                 
-            if (sequence.Children[0] is YamlMappingNode firstMapping)
+            if (sequence.Children[0] is YamlMappingNode)
             {
-                // 배열 요소가 객체인 경우: 각 요소의 컬럼 수 * 표시할 요소 수
-                var mergedStructure = MergeArrayElementStructures(sequence);
-                var singleElementColumns = CalculateObjectColumns(mergedStructure);
-                int displayCount = sequence.Children.Count;
-                return singleElementColumns * displayCount;
+                // 배열 요소가 객체인 경우: 각 요소를 개별적으로 계산해서 합계
+                int totalColumns = 0;
+                
+                Logger.Information($"    배열 컬럼 계산 (개별): 요소수={sequence.Children.Count}");
+                
+                for (int i = 0; i < sequence.Children.Count; i++)
+                {
+                    if (sequence.Children[i] is YamlMappingNode elementMapping)
+                    {
+                        var elementColumns = CalculateObjectColumns(elementMapping);
+                        totalColumns += elementColumns;
+                        
+                        var keys = elementMapping.Children.Keys.Take(3).Select(k => k.ToString());
+                        Logger.Information($"      요소[{i}]: {elementColumns}개 컬럼 (키: {string.Join(", ", keys)})");
+                    }
+                }
+                
+                Logger.Information($"    배열 총 컬럼: {totalColumns}개");
+                return totalColumns;
             }
             
             // 단순 배열
