@@ -590,13 +590,6 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 return;
             }
             
-            // DateTime 변환 시도
-            if (DateTime.TryParse(yamlValue, out DateTime dateValue))
-            {
-                cell.Value = dateValue;
-                return;
-            }
-            
             // 기본값은 문자열
             cell.Value = yamlValue;
         }
