@@ -74,16 +74,16 @@ namespace ExcelToYamlAddin.Core
                                 var str = stringCellValue;
 
                                 // 문자열이 숫자만 포함하는 경우에만 숫자로 변환 시도
-                                // 공백을 포함하는 문자열을 숫자로 변환하지 않도록 함
+                                // 공백이나 쉼표를 포함하는 문자열을 숫자로 변환하지 않도록 함
                                 if (!string.IsNullOrWhiteSpace(str) && !str.Contains(" ") &&
-                                    !str.StartsWith(" ") && !str.EndsWith(" "))
+                                    !str.StartsWith(" ") && !str.EndsWith(" ") && !str.Contains(","))
                                 {
-                                    if (int.TryParse(str, out int intValue))
+                                    if (int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out int intValue))
                                     {
                                         Debug.WriteLine($"[ExcelCellValueResolver] 문자열을 정수로 변환: {intValue}");
                                         return intValue;
                                     }
-                                    if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out double doubleValue))
+                                    if (double.TryParse(str, NumberStyles.Float | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out double doubleValue))
                                     {
                                         Debug.WriteLine($"[ExcelCellValueResolver] 문자열을 실수로 변환: {doubleValue}");
                                         return doubleValue;
