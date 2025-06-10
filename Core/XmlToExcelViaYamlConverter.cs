@@ -16,12 +16,12 @@ namespace ExcelToYamlAddin.Core
         private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<XmlToExcelViaYamlConverter>();
         
         private readonly XmlToYamlConverter _xmlToYamlConverter;
-        private readonly DynamicYamlToExcelConverter _yamlToExcelConverter;
+        private readonly YamlToExcelConverter _yamlToExcelConverter;
 
         public XmlToExcelViaYamlConverter()
         {
             _xmlToYamlConverter = new XmlToYamlConverter();
-            _yamlToExcelConverter = new DynamicYamlToExcelConverter();
+            _yamlToExcelConverter = new YamlToExcelConverter();
         }
 
         /// <summary>
