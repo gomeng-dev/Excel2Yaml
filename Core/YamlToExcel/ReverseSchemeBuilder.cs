@@ -573,6 +573,43 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         Logger.Information($"    🔀 배열 구조 기반 병합: [{existingArray.Children.Count}개] + [{valueArray.Children.Count}개]");
                         result.Children[key] = MergeArraysByStructure(new List<YamlSequenceNode> { existingArray, valueArray });
                     }
+                    else if ((existing is YamlMappingNode || existing is YamlSequenceNode) && 
+                             (value is YamlMappingNode || value is YamlSequenceNode))
+                    {
+                        // 혼합 타입: 객체와 배열이 섞인 경우 - 배열로 통일
+                        Logger.Information($"    🔄 혼합 타입 감지: {existing.GetType().Name} + {value.GetType().Name} -> 배열로 통일");
+                        
+                        var mixedArray = new YamlSequenceNode();
+                        
+                        // 기존 값을 배열에 추가
+                        if (existing is YamlSequenceNode existingSeq)
+                        {
+                            foreach (var item in existingSeq.Children)
+                            {
+                                mixedArray.Add(item);
+                            }
+                        }
+                        else
+                        {
+                            mixedArray.Add(existing);
+                        }
+                        
+                        // 새 값을 배열에 추가
+                        if (value is YamlSequenceNode valueSeq)
+                        {
+                            foreach (var item in valueSeq.Children)
+                            {
+                                mixedArray.Add(item);
+                            }
+                        }
+                        else
+                        {
+                            mixedArray.Add(value);
+                        }
+                        
+                        result.Children[key] = mixedArray;
+                        Logger.Information($"    → {key} 혼합 타입 병합 완료: 총 {mixedArray.Children.Count}개 요소");
+                    }
                     // 스칼라 값은 첫 번째 값 유지 (기존 값 우선 - merge_yaml_complete.py의 "first" 전략)
                 }
             }

@@ -37,43 +37,147 @@ namespace ExcelToYamlAddin.Core.YamlPostProcessors
                 Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] Creating empty XML with root '{chosenRootNameForDebug}'.");
                 actualRootElement = new XElement(chosenRootNameForDebug);
             }
-            // 시나리오 2: YAML 데이터에 키가 하나만 있고, 그 값의 타입이 IDictionary (string 키 또는 object 키)인 경우
-            // 이 경우 YAML의 첫 번째 키를 실제 루트로 사용하고, rootElementName은 무시.
-            else if (yamlData.Count == 1 &&
-                     (yamlData.First().Value is IDictionary<string, object> || yamlData.First().Value is IDictionary))
-            {
-                var firstEntry = yamlData.First();
-                chosenRootNameForDebug = firstEntry.Key;
-                Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] YAML data has a single dictionary entry. Using its key '{chosenRootNameForDebug}' as XML root. Provided rootElementName '{rootElementName}' is ignored.");
-                actualRootElement = new XElement(chosenRootNameForDebug);
-
-                if (firstEntry.Value is IDictionary<string, object> dictStringKey)
-                {
-                    AddNodes(actualRootElement, dictStringKey);
-                }
-                else if (firstEntry.Value is IDictionary dictObjectKey) // 이것은 IDictionary<string, object>가 아닌 IDictionary를 처리
-                {
-                    ConvertAndAddNonGenericDictionary(actualRootElement, dictObjectKey);
-                }
-            }
-            // 시나리오 3: YAML 데이터가 다른 구조를 가지는 경우 (여러 키, 또는 단일 키지만 값이 딕셔너리가 아님)
-            // 이 경우 rootElementName을 사용해야 함. 만약 rootElementName이 없다면 에러.
+            // 새로운 시나리오: 항상 시트명을 루트로 사용하고, YAML 데이터의 구조에 따라 자식 처리
             else
             {
                 if (string.IsNullOrEmpty(rootElementName))
                 {
-                    Debug.WriteLine("[YamlToXmlConverter.ConvertToXmlString] Error: YAML data structure requires a rootElementName, but it's null or empty.");
-                    throw new ArgumentException("rootElementName must be provided when YAML data is multi-keyed or has a single non-dictionary entry.", nameof(rootElementName));
+                    Debug.WriteLine("[YamlToXmlConverter.ConvertToXmlString] Error: rootElementName (sheet name) is required but null or empty.");
+                    throw new ArgumentException("rootElementName (sheet name) must be provided.", nameof(rootElementName));
                 }
+                
                 chosenRootNameForDebug = rootElementName;
-                Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] YAML data is multi-keyed or single non-dictionary. Using provided rootElementName '{chosenRootNameForDebug}' as XML root.");
+                Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] Using sheet name '{chosenRootNameForDebug}' as XML root.");
                 actualRootElement = new XElement(chosenRootNameForDebug);
-                AddNodes(actualRootElement, yamlData); // 전체 yamlData를 이 루트의 자식으로 추가
+                
+                // YAML 데이터가 배열인 경우 (루트가 배열)
+                if (yamlData.Count == 1 && yamlData.First().Value is IList arrayValue)
+                {
+                    Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] YAML data contains array with {arrayValue.Count} items.");
+                    ProcessArrayAsDirectChildren(actualRootElement, arrayValue);
+                }
+                else
+                {
+                    // 기존 방식으로 처리
+                    AddNodes(actualRootElement, yamlData);
+                }
             }
 
             Debug.WriteLine($"[YamlToXmlConverter.ConvertToXmlString] Final XML document will be based on root '{chosenRootNameForDebug}'.");
             XDocument xmlDoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), actualRootElement);
             return xmlDoc.ToString();
+        }
+
+        /// <summary>
+        /// 배열의 각 아이템을 루트 요소의 직접 자식으로 처리합니다.
+        /// 각 아이템의 객체 이름(키)을 태그명으로 사용합니다.
+        /// 예: YAML의 Mission: {...} -> XML의 <Mission>...</Mission>
+        /// </summary>
+        private static void ProcessArrayAsDirectChildren(XElement rootElement, IList arrayValue)
+        {
+            foreach (var item in arrayValue)
+            {
+                // 각 배열 항목이 객체인 경우
+                if (item is IDictionary<string, object> itemDictStringKey)
+                {
+                    ProcessObjectAsDirectChild(rootElement, itemDictStringKey);
+                }
+                else if (item is IDictionary itemDictObjectKey)
+                {
+                    // Dictionary<object, object> 타입 처리
+                    var convertedDict = new Dictionary<string, object>();
+                    foreach (DictionaryEntry entry in itemDictObjectKey)
+                    {
+                        if (entry.Key != null)
+                        {
+                            convertedDict[entry.Key.ToString()] = entry.Value;
+                        }
+                    }
+                    ProcessObjectAsDirectChild(rootElement, convertedDict);
+                }
+                else
+                {
+                    // 스칼라 값인 경우 기본 처리
+                    Debug.WriteLine($"[YamlToXmlConverter.ProcessArrayAsDirectChildren] Array item is scalar: {item}");
+                    XElement itemElement = new XElement("Item");
+                    if (item != null)
+                    {
+                        itemElement.Value = item.ToString();
+                    }
+                    rootElement.Add(itemElement);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 객체를 루트의 직접 자식으로 처리합니다.
+        /// 객체의 첫 번째 키를 태그명으로 사용합니다.
+        /// </summary>
+        private static void ProcessObjectAsDirectChild(XElement rootElement, IDictionary<string, object> objectData)
+        {
+            if (objectData == null || !objectData.Any())
+            {
+                Debug.WriteLine("[YamlToXmlConverter.ProcessObjectAsDirectChild] Object data is null or empty.");
+                return;
+            }
+
+            // 객체의 첫 번째 키-값 쌍을 가져옴
+            var firstEntry = objectData.First();
+            string tagName = SanitizeXmlElementName(firstEntry.Key);
+            
+            Debug.WriteLine($"[YamlToXmlConverter.ProcessObjectAsDirectChild] Creating child element '{tagName}'");
+            
+            XElement childElement = new XElement(tagName);
+            
+            // 첫 번째 키의 값이 객체인 경우, 그 내용을 자식 요소로 추가
+            if (firstEntry.Value is IDictionary<string, object> childObjectStringKey)
+            {
+                AddNodes(childElement, childObjectStringKey);
+            }
+            else if (firstEntry.Value is IDictionary childObjectGeneric)
+            {
+                ConvertAndAddNonGenericDictionary(childElement, childObjectGeneric);
+            }
+            else if (firstEntry.Value != null)
+            {
+                // 스칼라 값인 경우
+                childElement.Value = firstEntry.Value.ToString();
+            }
+            
+            rootElement.Add(childElement);
+        }
+
+        /// <summary>
+        /// XML 요소명으로 사용할 수 없는 문자를 제거하거나 변환합니다.
+        /// </summary>
+        private static string SanitizeXmlElementName(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return "Item";
+
+            // XML 요소명에서 허용되지 않는 문자 제거/변환
+            var sanitized = name.Replace("`", "")
+                               .Replace("'", "")
+                               .Replace("\"", "")
+                               .Replace("<", "")
+                               .Replace(">", "")
+                               .Replace("&", "")
+                               .Replace(" ", "_")
+                               .Replace("\t", "_")
+                               .Replace("\n", "_")
+                               .Replace("\r", "_");
+
+            // 첫 글자가 숫자인 경우 앞에 언더스코어 추가
+            if (sanitized.Length > 0 && char.IsDigit(sanitized[0]))
+            {
+                sanitized = "_" + sanitized;
+            }
+
+            // 빈 문자열인 경우 기본값 반환
+            if (string.IsNullOrEmpty(sanitized))
+                return "Item";
+
+            return sanitized;
         }
 
         /// <summary>
