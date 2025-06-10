@@ -181,7 +181,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 // 데이터는 원본 YAML 사용
                 WriteData(worksheet, originalRootNode, schemaResult, dataStartRow);
                 
-                ApplyStyles(worksheet, schemaResult.TotalRows);
+                ApplyStyles(worksheet, schemaResult);
 
                 return workbook;
             }
@@ -396,7 +396,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         if (columnMappings.ContainsKey(fullPath))
                         {
                             var col = columnMappings[fullPath];
-                            worksheet.Cell(row, col).Value = scalar.Value;
+                            SetCellValueWithProperType(worksheet.Cell(row, col), scalar.Value);
                             Logger.Information($"  ✓ 스칼라 값 작성: {fullPath} -> Column {col}, Value: {scalar.Value}");
                         }
                         else
@@ -425,7 +425,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 if (columnMappings.ContainsKey(path))
                 {
                     var col = columnMappings[path];
-                    worksheet.Cell(row, col).Value = scalar.Value;
+                    SetCellValueWithProperType(worksheet.Cell(row, col), scalar.Value);
                     Logger.Information($"  ✓ 단일 스칼라 값 작성: {path} -> Column {col}, Value: {scalar.Value}");
                 }
                 else
@@ -467,7 +467,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                             if (columnMappings.ContainsKey(indexedPath))
                             {
                                 var col = columnMappings[indexedPath];
-                                worksheet.Cell(row, col).Value = scalar.Value;
+                                SetCellValueWithProperType(worksheet.Cell(row, col), scalar.Value);
                                 Logger.Information($"    ✓ 인덱스 경로로 데이터 작성: {indexedPath} -> Column {col}, Value: {scalar.Value}");
                             }
                             else
@@ -504,7 +504,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     if (columnMappings.ContainsKey(indexedPath))
                     {
                         var col = columnMappings[indexedPath];
-                        worksheet.Cell(row, col).Value = scalar.Value;
+                        SetCellValueWithProperType(worksheet.Cell(row, col), scalar.Value);
                         Logger.Information($"    ✓ 인덱스 경로로 스칼라 작성: {indexedPath} -> Column {col}, Value: {scalar.Value}");
                     }
                     else
@@ -556,6 +556,49 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             worksheet.Columns().AdjustToContents();
             
             Logger.Information("스타일 적용 완료");
+        }
+        
+        /// <summary>
+        /// YAML 스칼라 값을 적절한 타입으로 변환해서 Excel 셀에 설정합니다.
+        /// </summary>
+        private void SetCellValueWithProperType(IXLCell cell, string yamlValue)
+        {
+            if (string.IsNullOrEmpty(yamlValue))
+            {
+                cell.Value = "";
+                return;
+            }
+            
+            // 정수 변환 시도
+            if (int.TryParse(yamlValue, out int intValue))
+            {
+                cell.Value = intValue;
+                return;
+            }
+            
+            // 실수 변환 시도
+            if (double.TryParse(yamlValue, out double doubleValue))
+            {
+                cell.Value = doubleValue;
+                return;
+            }
+            
+            // 불린 변환 시도
+            if (bool.TryParse(yamlValue, out bool boolValue))
+            {
+                cell.Value = boolValue;
+                return;
+            }
+            
+            // DateTime 변환 시도
+            if (DateTime.TryParse(yamlValue, out DateTime dateValue))
+            {
+                cell.Value = dateValue;
+                return;
+            }
+            
+            // 기본값은 문자열
+            cell.Value = yamlValue;
         }
         
         /// <summary>

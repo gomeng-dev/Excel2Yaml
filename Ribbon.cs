@@ -2,6 +2,7 @@ using ExcelToYamlAddin.Config;
 using ExcelToYamlAddin.Core;
 using ExcelToYamlAddin.Core.YamlPostProcessors;
 using ExcelToYamlAddin.Forms;
+using ExcelToYamlAddin.Logging;
 using Microsoft.Office.Core;
 using Microsoft.Office.Interop.Excel;
 using Microsoft.Office.Tools.Ribbon;
@@ -21,6 +22,8 @@ namespace ExcelToYamlAddin
 {
     public partial class Ribbon : RibbonBase
     {
+        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<Ribbon>();
+        
         // 옵션 설정
         private bool includeEmptyFields = false;
         private bool enableHashGen = false;
@@ -74,6 +77,15 @@ namespace ExcelToYamlAddin
                 }
 
                 Debug.WriteLine("리본 UI가 로드되었습니다.");
+
+                // 디버그 모드에서만 HTML 내보내기 버튼 표시
+#if DEBUG
+                btnExportToHtml.Visible = true;
+                Debug.WriteLine("디버그 모드: HTML 내보내기 버튼 표시");
+#else
+                btnExportToHtml.Visible = false;
+                Debug.WriteLine("릴리즈 모드: HTML 내보내기 버튼 숨김");
+#endif
 
                 // 활성 시트의 설정 로드
                 try
@@ -1785,109 +1797,63 @@ namespace ExcelToYamlAddin
             }
         }
 
-        // XML to YAML 테스트 버튼 클릭
-        private void OnTestXmlToYamlClick(object sender, RibbonControlEventArgs e)
+        // JSON 가져오기 버튼 클릭
+        private void OnImportJsonClick(object sender, RibbonControlEventArgs e)
         {
             try
             {
-                // 테스트용 XML 데이터
-                string xmlContent = @"<BarbelStage>
-    <Option>StageInfo</Option>
-    <Limit>1</Limit>
-    <Icon>BarbelMedal</Icon>
-    <Item>SoulOfBarbel</Item>
-    <Item>BarbelPet</Item>
-    <SpawnData>
-        <Option>SpawnDataSingle</Option>
-        <Spawn>
-            <Option>SpawnBasic</Option>
-            <Unit>Barbel_Clone</Unit>
-        </Spawn>
-    </SpawnData>
-    <SpawnData>
-        <Option>SpawnDataSingle</Option>
-        <Spawn>
-            <Option>SpawnBasic</Option>
-            <Unit>Barbel</Unit>
-        </Spawn>
-    </SpawnData>
-</BarbelStage>";
+                Logger.Information("JSON 가져오기 버튼 클릭");
 
-                Debug.WriteLine("=== XML to YAML 변환 테스트 시작 ===");
-                Debug.WriteLine("원본 XML:");
-                Debug.WriteLine(xmlContent);
-                Debug.WriteLine("");
-
-                // XML을 YAML로 변환
-                var xmlToYaml = new Core.XmlToYamlConverter();
-                var yamlContent = xmlToYaml.ConvertToYaml(xmlContent);
-
-                Debug.WriteLine("=== 변환된 YAML ===");
-                Debug.WriteLine(yamlContent);
-                Debug.WriteLine("");
-
-                // 루트 요소 제거 테스트
-                try
+                // JSON 파일 선택
+                using (var openFileDialog = new OpenFileDialog())
                 {
-                    var yaml = new YamlDotNet.RepresentationModel.YamlStream();
-                    yaml.Load(new StringReader(yamlContent));
+                    openFileDialog.Title = "JSON 파일 선택";
+                    openFileDialog.Filter = "JSON 파일 (*.json)|*.json|모든 파일 (*.*)|*.*";
+                    openFileDialog.FilterIndex = 1;
 
-                    if (yaml.Documents.Count > 0 && yaml.Documents[0].RootNode is YamlDotNet.RepresentationModel.YamlMappingNode rootMapping)
+                    if (openFileDialog.ShowDialog() == DialogResult.OK)
                     {
-                        if (rootMapping.Children.Count == 1)
+                        string jsonPath = openFileDialog.FileName;
+                        Logger.Information($"선택된 JSON 파일: {jsonPath}");
+
+                        // JSON을 YAML로 변환 후 Excel로 변환
+                        string jsonContent = File.ReadAllText(jsonPath);
+                        
+                        // JSON을 YAML로 변환 (Newtonsoft.Json 사용)
+                        var jsonObject = Newtonsoft.Json.JsonConvert.DeserializeObject(jsonContent);
+                        var serializer = new YamlDotNet.Serialization.SerializerBuilder().Build();
+                        string yamlContent = serializer.Serialize(jsonObject);
+
+                        // YAML을 Excel로 변환
+                        var yamlToExcel = new Core.YamlToExcel.YamlToExcelConverter();
+                        string fileName = Path.GetFileNameWithoutExtension(jsonPath);
+                        string excelPath = Path.Combine(Path.GetDirectoryName(jsonPath), $"{fileName}.xlsx");
+
+                        yamlToExcel.ConvertFromContent(yamlContent, excelPath);
+
+                        Logger.Information($"JSON → Excel 변환 완료: {excelPath}");
+
+                        // 결과 알림
+                        var result = MessageBox.Show(
+                            $"JSON 파일을 Excel로 변환했습니다.\n\n생성된 파일: {excelPath}\n\n파일을 열어보시겠습니까?",
+                            "변환 완료",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Information);
+
+                        if (result == DialogResult.Yes)
                         {
-                            var rootKey = rootMapping.Children.Keys.First();
-                            var rootValue = rootMapping.Children[rootKey];
-
-                            // 루트 값을 새로운 YAML 문서로 변환
-                            var newYamlDoc = new YamlDotNet.RepresentationModel.YamlDocument(rootValue);
-                            var newYamlStream = new YamlDotNet.RepresentationModel.YamlStream(newYamlDoc);
-                            var writer = new StringWriter();
-                            newYamlStream.Save(writer, false);
-                            var rootRemovedYaml = writer.ToString();
-
-                            Debug.WriteLine($"=== 루트 요소 '{rootKey}' 제거 후 YAML ===");
-                            Debug.WriteLine(rootRemovedYaml);
-                            Debug.WriteLine("");
-
-                            // 간단한 YAML to Excel 테스트
-                            Debug.WriteLine("=== YAML to Excel 변환 테스트 ===");
-                            var yamlToExcel = new Core.YamlToExcel.YamlToExcelConverter();
-                            var outputPath = Path.Combine(Path.GetTempPath(), $"xml_to_yaml_test_{DateTime.Now:yyyyMMddHHmmss}.xlsx");
-                            
-                            yamlToExcel.ConvertFromContent(rootRemovedYaml, outputPath);
-                            Debug.WriteLine($"Excel 파일 생성 완료: {outputPath}");
-
-                            // 사용자에게 결과 알림
-                            var result = MessageBox.Show(
-                                $"XML to YAML 변환 테스트가 완료되었습니다.\n\n" +
-                                $"생성된 파일: {outputPath}\n\n" +
-                                $"파일을 열어보시겠습니까?",
-                                "변환 완료",
-                                MessageBoxButtons.YesNo,
-                                MessageBoxIcon.Information);
-
-                            if (result == DialogResult.Yes)
-                            {
-                                System.Diagnostics.Process.Start(outputPath);
-                            }
+                            System.Diagnostics.Process.Start(excelPath);
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"YAML 루트 요소 처리 중 오류: {ex.Message}");
-                    Debug.WriteLine(ex.StackTrace);
-                    MessageBox.Show($"변환 중 오류가 발생했습니다:\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"XML to YAML 테스트 중 오류: {ex.Message}");
-                Debug.WriteLine(ex.StackTrace);
-                MessageBox.Show($"테스트 중 오류가 발생했습니다:\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Logger.Error($"JSON 가져오기 중 오류 발생: {ex.Message}", ex);
+                MessageBox.Show($"JSON 가져오기 중 오류가 발생했습니다:\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
 
         // 리소스 텍스트 가져오기
         private static string GetResourceText(string resourceName)

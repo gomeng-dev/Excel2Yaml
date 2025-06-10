@@ -1,0 +1,10 @@
+<svg width="80" height="80"
+  xmlns="http://www.w3.org/2000/svg">
+    <rect width="80" height="80" rx="8" fill="#4a90e2" stroke="#357abd" stroke-width="2"/>
+    <text x="40" y="25" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">JSON</text>
+    <path d="M30 35 Q25 35 25 40 L25 50 Q25 55 30 55 M50 35 Q55 35 55 40 L55 50 Q55 55 50 55" stroke="white" stroke-width="2" fill="none"/>
+    <circle cx="35" cy="45" r="1.5" fill="white"/>
+    <circle cx="40" cy="45" r="1.5" fill="white"/>
+    <circle cx="45" cy="45" r="1.5" fill="white"/>
+    <text x="40" y="70" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8">{ }</text>
+</svg>

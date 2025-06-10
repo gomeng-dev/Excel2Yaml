@@ -1,0 +1,8 @@
+<svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+    <!-- XML 아이콘 -->
+      <rect width="80" height="80" rx="8" fill="#ff6b35" stroke="#e55a2b" stroke-width="2"/>
+      <text x="40" y="30" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">XML</text>
+      <path d="M35 40 L25 50 L35 60 M45 40 L55 50 L45 60" stroke="white" stroke-width="2" fill="none"/>
+
+      <circle cx="40" cy="65" r="2" fill="white"/>
+  </svg>
