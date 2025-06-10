@@ -576,13 +576,6 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 return;
             }
             
-            // 실수 변환 시도
-            if (double.TryParse(yamlValue, out double doubleValue))
-            {
-                cell.Value = doubleValue;
-                return;
-            }
-            
             // 불린 변환 시도
             if (bool.TryParse(yamlValue, out bool boolValue))
             {
