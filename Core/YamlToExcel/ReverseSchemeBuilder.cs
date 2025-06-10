@@ -462,30 +462,253 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
         }
         
-        // 배열의 모든 요소를 분석하여 통합된 구조 생성
+        // 변경된 merge_yaml_complete.py의 merge_items_force_with_array_index 방식으로 구조 생성
         private YamlMappingNode MergeArrayElementStructures(YamlSequenceNode sequence)
         {
-            var mergedMapping = new YamlMappingNode();
-            var allKeys = new HashSet<string>();
+            Logger.Information($"MergeArrayElementStructures 시작 (인덱스별 배열 병합): 요소 수={sequence.Children.Count}");
             
-            // 모든 요소에서 키 수집
+            if (sequence.Children.Count == 0)
+                return new YamlMappingNode();
+            
+            // merge_items_force_with_array_index 로직 구현
+            var items = new List<YamlMappingNode>();
             foreach (var element in sequence.Children)
             {
                 if (element is YamlMappingNode mapping)
                 {
-                    foreach (var kvp in mapping.Children)
-                    {
-                        var key = kvp.Key.ToString();
-                        if (!allKeys.Contains(key))
-                        {
-                            allKeys.Add(key);
-                            mergedMapping.Add(kvp.Key, kvp.Value);
-                        }
-                    }
+                    items.Add(mapping);
                 }
             }
             
-            return mergedMapping;
+            if (items.Count == 0)
+            {
+                Logger.Information("  유효한 매핑 요소가 없음, 빈 구조 반환");
+                return new YamlMappingNode();
+            }
+            
+            if (items.Count == 1)
+            {
+                Logger.Information("  단일 항목, 복사하여 반환");
+                return DeepCloneNode(items[0]) as YamlMappingNode;
+            }
+            
+            Logger.Information($"  🔄 {items.Count}개 항목 병합 시작 (모든 배열은 인덱스별 병합)");
+            
+            // 첫 번째 항목을 기준으로 모든 항목 병합
+            var merged = DeepCloneNode(items[0]) as YamlMappingNode;
+            int mergeCount = 0;
+            
+            for (int i = 1; i < items.Count; i++)
+            {
+                merged = DeepMergeObjectsComplete(merged, items[i]);
+                mergeCount++;
+            }
+            
+            var finalKeys = merged.Children.Keys.Select(k => k.ToString()).ToList();
+            Logger.Information($"  → {items.Count}개 항목을 1개로 병합 완료 (배열은 인덱스별 병합, 병합된 항목: {mergeCount}개)");
+            Logger.Information($"  최종 병합 완료: {string.Join(", ", finalKeys.Take(5))}... (총 {finalKeys.Count}개 키)");
+            Logger.Information($"MergeArrayElementStructures 완료 (인덱스별 배열 병합): 병합된 키 수={merged.Children.Count}");
+            return merged;
+        }
+        
+        // 변경된 merge_yaml_complete.py의 deep_merge_objects와 동일한 구현 (인덱스별 배열 병합)
+        private YamlMappingNode DeepMergeObjectsComplete(YamlMappingNode obj1, YamlMappingNode obj2)
+        {
+            var result = new YamlMappingNode();
+            
+            // obj1의 모든 키 복사
+            foreach (var kvp in obj1.Children)
+            {
+                result.Add(kvp.Key, DeepCloneNode(kvp.Value));
+            }
+            
+            // obj2의 키들 병합
+            foreach (var kvp in obj2.Children)
+            {
+                var key = kvp.Key;
+                var value = kvp.Value;
+                
+                if (!result.Children.ContainsKey(key))
+                {
+                    // 새로운 키 추가
+                    result.Add(key, DeepCloneNode(value));
+                }
+                else
+                {
+                    // 기존 키 병합
+                    var existing = result.Children[key];
+                    
+                    if (existing is YamlMappingNode existingObj && value is YamlMappingNode valueObj)
+                    {
+                        // 둘 다 객체 - 재귀 병합
+                        result.Children[key] = DeepMergeObjectsComplete(existingObj, valueObj);
+                    }
+                    else if (existing is YamlSequenceNode existingArray && value is YamlSequenceNode valueArray)
+                    {
+                        // 둘 다 배열 - 인덱스별 병합 (변경된 로직)
+                        Logger.Information($"    🔀 배열 인덱스별 병합: [{existingArray.Children.Count}개] + [{valueArray.Children.Count}개]");
+                        result.Children[key] = MergeArraysByIndex(new List<YamlSequenceNode> { existingArray, valueArray });
+                    }
+                    // 스칼라 값은 첫 번째 값 유지 (기존 값 우선 - merge_yaml_complete.py의 "first" 전략)
+                }
+            }
+            
+            return result;
+        }
+        
+        // 변경된 merge_yaml_complete.py의 merge_arrays_by_index와 동일한 구현
+        private YamlSequenceNode MergeArraysByIndex(List<YamlSequenceNode> arrays)
+        {
+            if (arrays == null || arrays.Count == 0)
+                return new YamlSequenceNode();
+            
+            // 빈 배열 제거
+            var validArrays = arrays.Where(arr => arr != null && arr.Children.Count > 0).ToList();
+            if (validArrays.Count == 0)
+                return new YamlSequenceNode();
+            
+            // 가장 긴 배열의 길이를 찾습니다
+            int maxLength = validArrays.Max(arr => arr.Children.Count);
+            var mergedArray = new YamlSequenceNode();
+            
+            Logger.Information($"      📝 인덱스별 배열 병합 상세:");
+            Logger.Information($"        - 입력 배열 개수: {validArrays.Count}");
+            Logger.Information($"        - 각 배열 길이: [{string.Join(", ", validArrays.Select(arr => arr.Children.Count))}]");
+            Logger.Information($"        - 최대 길이: {maxLength}");
+            
+            for (int i = 0; i < maxLength; i++)
+            {
+                // 인덱스 i에 있는 모든 항목들을 수집
+                var itemsAtIndex = new List<YamlNode>();
+                for (int j = 0; j < validArrays.Count; j++)
+                {
+                    var arr = validArrays[j];
+                    if (i < arr.Children.Count)
+                    {
+                        itemsAtIndex.Add(arr.Children[i]);
+                        var nodeType = arr.Children[i].GetType().Name;
+                        var keys = arr.Children[i] is YamlMappingNode mapping ? 
+                            string.Join(", ", mapping.Children.Keys.Take(3).Select(k => k.ToString())) : "N/A";
+                        Logger.Information($"        - 배열 {j}[{i}]: {nodeType} (키: {keys})");
+                    }
+                }
+                
+                if (itemsAtIndex.Count > 0)
+                {
+                    Logger.Information($"        - 인덱스 {i}: {itemsAtIndex.Count}개 항목 병합");
+                    
+                    // 인덱스 i의 모든 항목들을 병합
+                    var mergedItem = DeepCloneNode(itemsAtIndex[0]);
+                    for (int k = 1; k < itemsAtIndex.Count; k++)
+                    {
+                        var item = itemsAtIndex[k];
+                        Logger.Information($"          🔄 병합 중: {mergedItem.GetType().Name} + {item.GetType().Name}");
+                        mergedItem = DeepMergeObjectsAny(mergedItem, item);
+                    }
+                    mergedArray.Add(mergedItem);
+                    Logger.Information($"        - 인덱스 {i} 병합 완료: {mergedItem.GetType().Name}");
+                }
+            }
+            
+            Logger.Information($"      ✅ 최종 배열 길이: {mergedArray.Children.Count}");
+            return mergedArray;
+        }
+        
+        // 모든 타입의 YAML 노드를 병합하는 헬퍼 메서드 (Python의 deep_merge_objects와 동일)
+        private YamlNode DeepMergeObjectsAny(YamlNode obj1, YamlNode obj2)
+        {
+            if (obj1 == null) return obj2;
+            if (obj2 == null) return obj1;
+            
+            // 둘 다 딕셔너리인 경우
+            if (obj1 is YamlMappingNode mapping1 && obj2 is YamlMappingNode mapping2)
+            {
+                return DeepMergeObjectsComplete(mapping1, mapping2);
+            }
+            
+            // 둘 다 배열인 경우 - 인덱스별 병합
+            if (obj1 is YamlSequenceNode seq1 && obj2 is YamlSequenceNode seq2)
+            {
+                return MergeArraysByIndex(new List<YamlSequenceNode> { seq1, seq2 });
+            }
+            
+            // 값이 다른 경우 - 첫 번째 값 유지 (first 전략)
+            return obj1;
+        }
+        
+        // 두 YAML 노드가 같은지 비교하는 헬퍼 메서드
+        private bool NodesEqual(YamlNode node1, YamlNode node2)
+        {
+            if (node1.GetType() != node2.GetType())
+                return false;
+                
+            if (node1 is YamlScalarNode scalar1 && node2 is YamlScalarNode scalar2)
+            {
+                return scalar1.Value == scalar2.Value;
+            }
+            else if (node1 is YamlMappingNode mapping1 && node2 is YamlMappingNode mapping2)
+            {
+                if (mapping1.Children.Count != mapping2.Children.Count)
+                    return false;
+                    
+                foreach (var kvp in mapping1.Children)
+                {
+                    if (!mapping2.Children.ContainsKey(kvp.Key) || 
+                        !NodesEqual(kvp.Value, mapping2.Children[kvp.Key]))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            else if (node1 is YamlSequenceNode seq1 && node2 is YamlSequenceNode seq2)
+            {
+                if (seq1.Children.Count != seq2.Children.Count)
+                    return false;
+                    
+                for (int i = 0; i < seq1.Children.Count; i++)
+                {
+                    if (!NodesEqual(seq1.Children[i], seq2.Children[i]))
+                        return false;
+                }
+                return true;
+            }
+            
+            return false;
+        }
+        
+        // 기존 DeepMergeObjects 메서드 (하위 호환성을 위해 유지)
+        private YamlMappingNode DeepMergeObjects(YamlMappingNode obj1, YamlMappingNode obj2)
+        {
+            return DeepMergeObjectsComplete(obj1, obj2);
+        }
+        
+        // 노드 깊은 복사
+        private YamlNode DeepCloneNode(YamlNode node)
+        {
+            if (node is YamlMappingNode mapping)
+            {
+                var cloned = new YamlMappingNode();
+                foreach (var kvp in mapping.Children)
+                {
+                    cloned.Add(kvp.Key, DeepCloneNode(kvp.Value));
+                }
+                return cloned;
+            }
+            else if (node is YamlSequenceNode sequence)
+            {
+                var cloned = new YamlSequenceNode();
+                foreach (var child in sequence.Children)
+                {
+                    cloned.Add(DeepCloneNode(child));
+                }
+                return cloned;
+            }
+            else
+            {
+                // 스칼라 노드는 그대로 반환
+                return node;
+            }
         }
 
         private int CalculateObjectColumns(YamlMappingNode mapping)

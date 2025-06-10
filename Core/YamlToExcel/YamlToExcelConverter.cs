@@ -44,11 +44,14 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     throw new InvalidOperationException("YAML 파일에 문서가 없습니다.");
                 }
 
-                var rootNode = yaml.Documents[0].RootNode;
+                var originalRootNode = yaml.Documents[0].RootNode;
 
-                // 2. 스키마 생성
+                // 2. 스키마 생성용 병합된 YAML 생성
+                Logger.Information("스키마 생성을 위한 병합된 YAML 생성 중...");
+                var mergedRootNode = CreateMergedYamlForSchema(originalRootNode);
+                
                 Logger.Information("Excel 스키마 생성 중...");
-                var schemaResult = _schemeBuilder.BuildSchemaTree(rootNode);
+                var schemaResult = _schemeBuilder.BuildSchemaTree(mergedRootNode);
                 
                 // 디버깅용 스키마 트리 출력
                 _schemeBuilder.PrintSchemaTree(schemaResult.RootNode);
@@ -61,9 +64,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     // 4. 스키마 작성
                     WriteSchema(worksheet, schemaResult);
 
-                    // 5. 데이터 매핑 및 작성
+                    // 5. 데이터 매핑 및 작성 (원본 YAML 사용)
                     var dataStartRow = schemaResult.TotalRows + 1;
-                    WriteData(worksheet, rootNode, schemaResult, dataStartRow);
+                    WriteData(worksheet, originalRootNode, schemaResult, dataStartRow);
 
                     // 6. 스타일 적용
                     ApplyStyles(worksheet, schemaResult.TotalRows);
@@ -105,10 +108,12 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     throw new InvalidOperationException("YAML 내용에 문서가 없습니다.");
                 }
 
-                var rootNode = yaml.Documents[0].RootNode;
+                var originalRootNode = yaml.Documents[0].RootNode;
 
-                // 스키마 생성
-                var schemaResult = _schemeBuilder.BuildSchemaTree(rootNode);
+                // 스키마 생성용 병합된 YAML 생성
+                Logger.Information("스키마 생성을 위한 병합된 YAML 생성 중...");
+                var mergedRootNode = CreateMergedYamlForSchema(originalRootNode);
+                var schemaResult = _schemeBuilder.BuildSchemaTree(mergedRootNode);
 
                 // Excel 생성
                 using (var workbook = new XLWorkbook())
@@ -117,7 +122,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     WriteSchema(worksheet, schemaResult);
                     
                     var dataStartRow = schemaResult.TotalRows + 1;
-                    WriteData(worksheet, rootNode, schemaResult, dataStartRow);
+                    // 데이터는 원본 YAML 사용
+                    WriteData(worksheet, originalRootNode, schemaResult, dataStartRow);
                     
                     ApplyStyles(worksheet, schemaResult.TotalRows);
                     
@@ -150,8 +156,12 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     throw new InvalidOperationException("YAML 내용에 문서가 없습니다.");
                 }
 
-                var rootNode = yaml.Documents[0].RootNode;
-                var schemaResult = _schemeBuilder.BuildSchemaTree(rootNode);
+                var originalRootNode = yaml.Documents[0].RootNode;
+                
+                // 스키마 생성용 병합된 YAML 생성
+                Logger.Information("스키마 생성을 위한 병합된 YAML 생성 중...");
+                var mergedRootNode = CreateMergedYamlForSchema(originalRootNode);
+                var schemaResult = _schemeBuilder.BuildSchemaTree(mergedRootNode);
 
                 var workbook = new XLWorkbook();
                 var worksheet = workbook.Worksheets.Add(sheetName);
@@ -159,7 +169,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 WriteSchema(worksheet, schemaResult);
                 
                 var dataStartRow = schemaResult.TotalRows + 1;
-                WriteData(worksheet, rootNode, schemaResult, dataStartRow);
+                // 데이터는 원본 YAML 사용
+                WriteData(worksheet, originalRootNode, schemaResult, dataStartRow);
                 
                 ApplyStyles(worksheet, schemaResult.TotalRows);
 
@@ -416,6 +427,198 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
             // 자동 너비 조정
             worksheet.Columns().AdjustToContents();
+        }
+
+        /// <summary>
+        /// 스키마 생성을 위한 병합된 YAML 생성 (merge_yaml_complete.py 로직 활용)
+        /// </summary>
+        private YamlNode CreateMergedYamlForSchema(YamlNode originalNode)
+        {
+            Logger.Information("merge_yaml_complete.py 방식으로 스키마용 병합된 YAML 생성");
+            
+            if (originalNode is YamlSequenceNode rootSequence)
+            {
+                // 루트가 배열인 경우: 모든 요소를 병합하여 완전한 스키마 생성
+                Logger.Information($"루트 배열 병합: {rootSequence.Children.Count}개 요소");
+                
+                if (rootSequence.Children.Count == 0)
+                {
+                    return originalNode;
+                }
+                
+                if (rootSequence.Children.Count == 1)
+                {
+                    Logger.Information("단일 요소, 원본 반환");
+                    return originalNode;
+                }
+                
+                // merge_items_force_with_array_index 로직 적용
+                var mergedArray = new YamlSequenceNode();
+                var mergedItem = MergeAllSequenceElements(rootSequence);
+                mergedArray.Add(mergedItem);
+                
+                Logger.Information($"배열 병합 완료: {rootSequence.Children.Count}개 → 1개 (완전한 스키마 포함)");
+                return mergedArray;
+            }
+            else if (originalNode is YamlMappingNode rootMapping)
+            {
+                // 루트가 객체인 경우: 그대로 사용
+                Logger.Information("루트 객체, 원본 사용");
+                return originalNode;
+            }
+            
+            Logger.Information("기타 노드 타입, 원본 사용");
+            return originalNode;
+        }
+        
+        /// <summary>
+        /// 배열의 모든 요소를 병합하여 완전한 스키마를 가진 단일 요소 생성
+        /// </summary>
+        private YamlNode MergeAllSequenceElements(YamlSequenceNode sequence)
+        {
+            if (sequence.Children.Count == 0)
+                return new YamlMappingNode();
+            
+            if (sequence.Children.Count == 1)
+                return DeepCloneNode(sequence.Children[0]);
+            
+            Logger.Information($"  🔄 {sequence.Children.Count}개 배열 요소 병합 시작 (스키마용)");
+            
+            // 첫 번째 요소를 기준으로 시작
+            var merged = DeepCloneNode(sequence.Children[0]);
+            int mergeCount = 0;
+            
+            for (int i = 1; i < sequence.Children.Count; i++)
+            {
+                merged = DeepMergeNodesForSchema(merged, sequence.Children[i]);
+                mergeCount++;
+            }
+            
+            Logger.Information($"  → {sequence.Children.Count}개 요소를 1개로 병합 완료 (스키마용, 병합된 항목: {mergeCount}개)");
+            return merged;
+        }
+        
+        /// <summary>
+        /// 스키마 생성용 노드 병합 (merge_yaml_complete.py의 deep_merge_objects 로직)
+        /// </summary>
+        private YamlNode DeepMergeNodesForSchema(YamlNode node1, YamlNode node2)
+        {
+            if (node1 == null) return node2 != null ? DeepCloneNode(node2) : null;
+            if (node2 == null) return DeepCloneNode(node1);
+            
+            // 둘 다 매핑인 경우
+            if (node1 is YamlMappingNode mapping1 && node2 is YamlMappingNode mapping2)
+            {
+                var result = new YamlMappingNode();
+                
+                // node1의 모든 키 복사
+                foreach (var kvp in mapping1.Children)
+                {
+                    result.Add(kvp.Key, DeepCloneNode(kvp.Value));
+                }
+                
+                // node2의 키들 병합
+                foreach (var kvp in mapping2.Children)
+                {
+                    var key = kvp.Key;
+                    var value = kvp.Value;
+                    
+                    if (!result.Children.ContainsKey(key))
+                    {
+                        // 새로운 키 추가
+                        result.Add(key, DeepCloneNode(value));
+                    }
+                    else
+                    {
+                        // 기존 키 병합
+                        var existing = result.Children[key];
+                        result.Children[key] = DeepMergeNodesForSchema(existing, value);
+                    }
+                }
+                
+                return result;
+            }
+            
+            // 둘 다 시퀀스인 경우 - 인덱스별 병합
+            if (node1 is YamlSequenceNode seq1 && node2 is YamlSequenceNode seq2)
+            {
+                return MergeSequencesByIndexForSchema(new List<YamlSequenceNode> { seq1, seq2 });
+            }
+            
+            // 기타 경우: 첫 번째 값 유지 (스키마에서는 구조가 중요)
+            return DeepCloneNode(node1);
+        }
+        
+        /// <summary>
+        /// 스키마 생성용 시퀀스 인덱스별 병합
+        /// </summary>
+        private YamlSequenceNode MergeSequencesByIndexForSchema(List<YamlSequenceNode> sequences)
+        {
+            if (sequences == null || sequences.Count == 0)
+                return new YamlSequenceNode();
+            
+            var validSequences = sequences.Where(seq => seq != null && seq.Children.Count > 0).ToList();
+            if (validSequences.Count == 0)
+                return new YamlSequenceNode();
+            
+            int maxLength = validSequences.Max(seq => seq.Children.Count);
+            var result = new YamlSequenceNode();
+            
+            Logger.Information($"    [스키마용] 인덱스별 시퀀스 병합: 최대 길이 {maxLength}");
+            
+            for (int i = 0; i < maxLength; i++)
+            {
+                var itemsAtIndex = new List<YamlNode>();
+                foreach (var seq in validSequences)
+                {
+                    if (i < seq.Children.Count)
+                    {
+                        itemsAtIndex.Add(seq.Children[i]);
+                    }
+                }
+                
+                if (itemsAtIndex.Count > 0)
+                {
+                    var mergedItem = itemsAtIndex[0];
+                    for (int j = 1; j < itemsAtIndex.Count; j++)
+                    {
+                        mergedItem = DeepMergeNodesForSchema(mergedItem, itemsAtIndex[j]);
+                    }
+                    result.Add(mergedItem);
+                }
+            }
+            
+            return result;
+        }
+        
+        /// <summary>
+        /// YAML 노드 깊은 복사
+        /// </summary>
+        private YamlNode DeepCloneNode(YamlNode node)
+        {
+            if (node is YamlMappingNode mapping)
+            {
+                var cloned = new YamlMappingNode();
+                foreach (var kvp in mapping.Children)
+                {
+                    cloned.Add(kvp.Key, DeepCloneNode(kvp.Value));
+                }
+                return cloned;
+            }
+            else if (node is YamlSequenceNode sequence)
+            {
+                var cloned = new YamlSequenceNode();
+                foreach (var child in sequence.Children)
+                {
+                    cloned.Add(DeepCloneNode(child));
+                }
+                return cloned;
+            }
+            else
+            {
+                // 스칼라 노드는 그대로 반환
+                return node;
+            }
         }
     }
 }
