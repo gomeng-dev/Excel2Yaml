@@ -957,6 +957,21 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 // 디버깅: 매핑 추가 로깅
                 Logger.Information($"Column mapping: {node.OriginalYamlPath} -> Column {node.ColumnIndex}");
             }
+            else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY && !string.IsNullOrEmpty(node.OriginalYamlPath))
+            {
+                // 스칼라 배열인지 확인 (자식이 없거나 자식이 모두 스칼라인 경우)
+                bool isScalarArray = node.Children.Count == 0 || 
+                                   node.Children.All(child => child.NodeType == SchemeNode.SchemeNodeType.PROPERTY);
+                
+                if (isScalarArray && node.ColumnSpan == 1)
+                {
+                    // 스칼라 배열의 [0] 인덱스 경로에 대한 컬럼 매핑 생성
+                    string scalarArrayPath = $"{node.OriginalYamlPath}[0]";
+                    mappings[scalarArrayPath] = node.ColumnIndex;
+                    
+                    Logger.Information($"Column mapping (스칼라 배열): {scalarArrayPath} -> Column {node.ColumnIndex}");
+                }
+            }
             
             foreach (var child in node.Children)
             {
