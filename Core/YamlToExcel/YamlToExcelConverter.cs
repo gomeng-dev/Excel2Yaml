@@ -353,11 +353,14 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
 
             if (rootNode is YamlSequenceNode rootSequence)
             {
-                // 루트가 배열인 경우
+                // 루트가 배열인 경우 - 모든 배열 요소를 [0] 경로로 매핑하되 각각 다른 행에 작성
                 int currentRow = startRow;
-                foreach (var element in rootSequence.Children)
+                for (int i = 0; i < rootSequence.Children.Count; i++)
                 {
-                    WriteNodeData(worksheet, element, schemaResult.ColumnMappings, currentRow, "");
+                    var element = rootSequence.Children[i];
+                    Logger.Information($"배열 요소 {i} 데이터 작성: row={currentRow}, [0] 경로 사용");
+                    // 모든 배열 요소를 [0] 경로로 매핑 (통합 스키마 기반)
+                    WriteNodeData(worksheet, element, schemaResult.ColumnMappings, currentRow, "[0]");
                     currentRow++;
                 }
             }
@@ -375,6 +378,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
         /// </summary>
         private void WriteNodeData(IXLWorksheet worksheet, YamlNode node, Dictionary<string, int> columnMappings, int row, string path)
         {
+            Logger.Information($"WriteNodeData: path='{path}', nodeType={node.GetType().Name}");
+            
             if (node is YamlMappingNode mapping)
             {
                 foreach (var kvp in mapping.Children)
@@ -383,6 +388,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var value = kvp.Value;
                     var fullPath = string.IsNullOrEmpty(path) ? key : $"{path}.{key}";
 
+                    Logger.Information($"  처리 중: key={key}, fullPath={fullPath}, valueType={value.GetType().Name}");
+
                     if (value is YamlScalarNode scalar)
                     {
                         // 단순 값 작성
@@ -390,6 +397,11 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         {
                             var col = columnMappings[fullPath];
                             worksheet.Cell(row, col).Value = scalar.Value;
+                            Logger.Information($"  ✓ 스칼라 값 작성: {fullPath} -> Column {col}, Value: {scalar.Value}");
+                        }
+                        else
+                        {
+                            Logger.Warning($"  ✗ 스칼라 매핑 없음: {fullPath}");
                         }
                     }
                     else if (value is YamlMappingNode childMapping)
@@ -414,6 +426,11 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 {
                     var col = columnMappings[path];
                     worksheet.Cell(row, col).Value = scalar.Value;
+                    Logger.Information($"  ✓ 단일 스칼라 값 작성: {path} -> Column {col}, Value: {scalar.Value}");
+                }
+                else
+                {
+                    Logger.Warning($"  ✗ 단일 스칼라 매핑 없음: {path}");
                 }
             }
         }
@@ -423,70 +440,81 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
         /// </summary>
         private void WriteArrayData(IXLWorksheet worksheet, YamlSequenceNode sequence, Dictionary<string, int> columnMappings, int row, string path)
         {
-            // 배열의 각 요소를 처리
+            Logger.Information($"WriteArrayData 시작: path='{path}', 요소수={sequence.Children.Count}, row={row}");
+            
+            // 배열의 각 요소를 처리 - 인덱스별로 정확한 컬럼에 매핑
             for (int i = 0; i < sequence.Children.Count; i++)
             {
                 var element = sequence.Children[i];
+                Logger.Information($"  배열 요소 {i} 처리: {element.GetType().Name}");
                 
                 if (element is YamlMappingNode elementMapping)
                 {
-                    // 배열 요소가 객체인 경우
+                    // 배열 요소가 객체인 경우 - 정확한 인덱스 경로 사용
                     foreach (var kvp in elementMapping.Children)
                     {
                         var key = kvp.Key.ToString();
                         var value = kvp.Value;
                         
-                        // 통합 스키마 경로 사용 ([*] 대신 실제 인덱스 사용)
-                        var propPath = $"{path}[*].{key}";
-                        
-                        // 실제 데이터를 쓸 때는 정확한 인덱스 경로도 시도
+                        // 정확한 인덱스 경로 생성 (ReverseSchemeBuilder와 일치하도록)
                         var indexedPath = $"{path}[{i}].{key}";
+
+                        Logger.Information($"    배열 속성: key={key}, indexedPath={indexedPath}");
 
                         if (value is YamlScalarNode scalar)
                         {
-                            // 통합 경로로 먼저 시도
-                            if (columnMappings.ContainsKey(propPath))
-                            {
-                                var col = columnMappings[propPath];
-                                worksheet.Cell(row, col).Value = scalar.Value;
-                            }
-                            // 인덱스 경로로도 시도 (하위 호환성)
-                            else if (columnMappings.ContainsKey(indexedPath))
+                            // 정확한 인덱스 경로로 찾기
+                            if (columnMappings.ContainsKey(indexedPath))
                             {
                                 var col = columnMappings[indexedPath];
                                 worksheet.Cell(row, col).Value = scalar.Value;
+                                Logger.Information($"    ✓ 인덱스 경로로 데이터 작성: {indexedPath} -> Column {col}, Value: {scalar.Value}");
+                            }
+                            else
+                            {
+                                Logger.Warning($"    ✗ 매핑 없음: indexedPath={indexedPath}");
+                                
+                                // 사용 가능한 매핑들 중 관련된 것들 찾기
+                                var relatedMappings = columnMappings.Keys.Where(k => k.Contains(key)).ToList();
+                                if (relatedMappings.Any())
+                                {
+                                    Logger.Information($"      관련 매핑들: {string.Join(", ", relatedMappings)}");
+                                }
                             }
                         }
                         else if (value is YamlMappingNode childMapping)
                         {
-                            // 중첩 객체는 통합 경로 사용
-                            WriteNodeData(worksheet, childMapping, columnMappings, row, $"{path}[*].{key}");
+                            // 중첩 객체 - 정확한 인덱스 경로 사용
+                            WriteNodeData(worksheet, childMapping, columnMappings, row, indexedPath);
                         }
                         else if (value is YamlSequenceNode childSequence)
                         {
-                            // 중첩 배열은 통합 경로 사용
-                            WriteArrayData(worksheet, childSequence, columnMappings, row, $"{path}[*].{key}");
+                            // 중첩 배열 - 정확한 인덱스 경로 사용
+                            WriteArrayData(worksheet, childSequence, columnMappings, row, indexedPath);
                         }
                     }
                 }
                 else if (element is YamlScalarNode scalar)
                 {
                     // 배열 요소가 단순 값인 경우
-                    var propPath = $"{path}[*]";
                     var indexedPath = $"{path}[{i}]";
                     
-                    if (columnMappings.ContainsKey(propPath))
-                    {
-                        var col = columnMappings[propPath];
-                        worksheet.Cell(row, col).Value = scalar.Value;
-                    }
-                    else if (columnMappings.ContainsKey(indexedPath))
+                    Logger.Information($"    배열 스칼라: indexedPath={indexedPath}");
+                    
+                    if (columnMappings.ContainsKey(indexedPath))
                     {
                         var col = columnMappings[indexedPath];
                         worksheet.Cell(row, col).Value = scalar.Value;
+                        Logger.Information($"    ✓ 인덱스 경로로 스칼라 작성: {indexedPath} -> Column {col}, Value: {scalar.Value}");
+                    }
+                    else
+                    {
+                        Logger.Warning($"    ✗ 스칼라 매핑 없음: indexedPath={indexedPath}");
                     }
                 }
             }
+            
+            Logger.Information($"WriteArrayData 완료: path='{path}'");
         }
 
         /// <summary>

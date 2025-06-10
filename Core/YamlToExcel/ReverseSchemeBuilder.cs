@@ -352,10 +352,10 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                         ColumnIndex = startColumn + (i * singleElementColumns),
                         ColumnSpan = singleElementColumns,
                         IsMergedCell = singleElementColumns > 1,
-                        OriginalYamlPath = $"{yamlPath}[*]"  // 모든 요소가 동일한 구조
+                        OriginalYamlPath = $"{yamlPath}[{i}]"  // 정확한 인덱스 사용
                     };
                     arrayNode.Children.Add(elementNode);
-                    Logger.Information($"  요소[{i}] ${{}} -> 행{currentRow}, 열{elementNode.ColumnIndex}-{elementNode.ColumnIndex + singleElementColumns - 1}");
+                    Logger.Information($"  요소[{i}] ${{}} -> 행{currentRow}, 열{elementNode.ColumnIndex}-{elementNode.ColumnIndex + singleElementColumns - 1} (경로: {elementNode.OriginalYamlPath})");
                 }
                 
                 // 다음 행에서 자식 구조 처리
@@ -366,7 +366,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 
                 // 첫 번째 요소 위치에서 통합 구조 처리
                 Logger.Information($"  첫 번째 요소[0] 자식 구조 처리 시작: currentRow={currentRow}");
-                ProcessObjectProperties(arrayNode.Children[0], mergedStructure, startColumn, $"{yamlPath}[*]");
+                ProcessObjectProperties(arrayNode.Children[0], mergedStructure, startColumn, $"{yamlPath}[0]");
                 
                 // 첫 번째 요소 처리 후 사용된 최대 행 저장
                 var maxRowUsed = currentRow;
@@ -377,7 +377,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 {
                     currentRow = childrenStartRow; // 모든 배열 요소의 자식이 같은 행에서 시작
                     Logger.Information($"  요소[{i}] 자식 구조 복사 시작: currentRow={currentRow} (childrenStartRow로 리셋)");
-                    ProcessArrayElementCopy(arrayNode.Children[i], mergedStructure, startColumn + (i * singleElementColumns), $"{yamlPath}[*]");
+                    ProcessArrayElementCopy(arrayNode.Children[i], mergedStructure, startColumn + (i * singleElementColumns), $"{yamlPath}[{i}]");
                     // 각 요소 처리 후 최대 행 업데이트
                     maxRowUsed = Math.Max(maxRowUsed, currentRow);
                     Logger.Information($"  요소[{i}] 자식 구조 복사 완료: currentRow={currentRow}, maxRowUsed={maxRowUsed}");
