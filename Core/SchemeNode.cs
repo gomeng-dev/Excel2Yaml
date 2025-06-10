@@ -72,9 +72,10 @@ namespace ExcelToYamlAddin.Core
                 {
                     Logger.Debug("ARRAY 형식 감지: " + schemeName);
                     this.type = SchemeNodeType.ARRAY;
-                    if (string.IsNullOrEmpty(key) || this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
+                    // A열(루트)에 있는 배열은 항상 이름 없음 (YAML/JSON 표준)
+                    if (this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
                     {
-                        this.key = "";  // 명시적으로 빈 문자열 설정
+                        this.key = "";  // 루트 배열은 이름 없음
                     }
                     Logger.Debug("ARRAY 노드 생성: " + key);
                 }
@@ -103,19 +104,19 @@ namespace ExcelToYamlAddin.Core
                     {
                         case TYPE_MAP:
                             this.type = SchemeNodeType.MAP;
-                            // 루트 MAP 노드에 대한 처리
-                            if (string.IsNullOrEmpty(key) || this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
+                            // A열(루트)에 있는 맵은 항상 이름 없음 (YAML/JSON 표준)
+                            if (this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
                             {
-                                this.key = "";  // 명시적으로 빈 문자열 설정
+                                this.key = "";  // 루트 맵은 이름 없음
                             }
                             Logger.Debug("MAP 노드 생성: " + key);
                             break;
                         case TYPE_ARRAY:
                             this.type = SchemeNodeType.ARRAY;
-                            // 루트 ARRAY 노드에 대한 처리
-                            if (string.IsNullOrEmpty(key) || this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
+                            // A열(루트)에 있는 배열은 항상 이름 없음 (YAML/JSON 표준)
+                            if (this.sheet.Cell(this.schemeRowNum, this.schemeCellNum).Address.ColumnNumber == 1)
                             {
-                                this.key = "";  // 명시적으로 빈 문자열 설정
+                                this.key = "";  // 루트 배열은 이름 없음
                             }
                             Logger.Debug("ARRAY 노드 생성: " + key);
                             break;

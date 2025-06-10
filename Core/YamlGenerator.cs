@@ -250,23 +250,55 @@ namespace ExcelToYamlAddin.Core
                 if (node.NodeType == SchemeNode.SchemeNodeType.MAP)
                 {
                     YamlObject newMap = OrderedYamlFactory.CreateObject();
-                    parentArray.Add(newMap);
-                    Push(parentObject);
-                    Push(newMap);
-                    Logger.Debug($"배열에 새 MAP 객체 추가");
+                    
+                    // 배열 내부의 MAP 노드에 이름이 있는 경우 (예: Test${}, Mission${})
+                    if (!string.IsNullOrEmpty(key) && key != "{}" && key != "[]")
+                    {
+                        YamlObject wrapperMap = OrderedYamlFactory.CreateObject();
+                        wrapperMap.Add(key, newMap);
+                        parentArray.Add(wrapperMap);
+                        Logger.Debug($"배열에 이름있는 MAP 객체 추가: 키={key}");
+                        
+                        Push(parentObject);
+                        Push(newMap); // 실제 내용을 담을 객체를 스택에 추가
+                    }
+                    else
+                    {
+                        // 이름이 없는 경우 (${}): 직접 MAP 객체를 배열에 추가
+                        parentArray.Add(newMap);
+                        Logger.Debug($"배열에 직접 MAP 객체 추가 (키 없음)");
+                        
+                        Push(parentObject);
+                        Push(newMap);
+                    }
                 }
                 else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY)
                 {
-                    // JSON/YAML 표준: 배열 안에 직접 배열을 넣는 것은 권장되지 않지만 처리 가능
-                    // 경고나 중단 없이 처리함
-                    string warningMessage = "배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
-                    Logger.Warning(warningMessage); // 로그에만 기록하고 사용자에게 표시하지 않음
-
                     YamlArray newArray = OrderedYamlFactory.CreateArray();
-                    parentArray.Add(newArray);
-                    Push(parentObject);
-                    Push(newArray);
-                    Logger.Debug($"배열에 새 ARRAY 객체 추가 (비권장)");
+                    
+                    // 배열 내부의 ARRAY 노드에 이름이 있는 경우
+                    if (!string.IsNullOrEmpty(key) && key != "{}" && key != "[]")
+                    {
+                        YamlObject wrapperMap = OrderedYamlFactory.CreateObject();
+                        wrapperMap.Add(key, newArray);
+                        parentArray.Add(wrapperMap);
+                        Logger.Debug($"배열에 이름있는 ARRAY 객체 추가: 키={key}");
+                        
+                        Push(parentObject);
+                        Push(newArray); // 실제 배열을 스택에 추가
+                    }
+                    else
+                    {
+                        // JSON/YAML 표준: 배열 안에 직접 배열을 넣는 것은 권장되지 않지만 처리 가능
+                        string warningMessage = "배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
+                        Logger.Warning(warningMessage); // 로그에만 기록하고 사용자에게 표시하지 않음
+                        
+                        parentArray.Add(newArray);
+                        Logger.Debug($"배열에 직접 ARRAY 객체 추가 (키 없음, 비권장)");
+                        
+                        Push(parentObject);
+                        Push(newArray);
+                    }
                 }
             }
         }
