@@ -72,7 +72,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     WriteData(worksheet, originalRootNode, schemaResult, dataStartRow);
 
                     // 6. 스타일 적용
-                    ApplyStyles(worksheet, schemaResult.TotalRows);
+                    ApplyStyles(worksheet, schemaResult);
 
                     // 7. 저장
                     var directory = Path.GetDirectoryName(excelPath);
@@ -131,7 +131,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     // 데이터는 원본 YAML 사용
                     WriteData(worksheet, originalRootNode, schemaResult, dataStartRow);
                     
-                    ApplyStyles(worksheet, schemaResult.TotalRows);
+                    ApplyStyles(worksheet, schemaResult);
                     
                     workbook.SaveAs(excelPath);
                 }
@@ -520,28 +520,118 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
         /// <summary>
         /// 스타일 적용
         /// </summary>
-        private void ApplyStyles(IXLWorksheet worksheet, int schemaEndRow)
+        private void ApplyStyles(IXLWorksheet worksheet, ReverseSchemeBuilder.SchemeBuildResult schemaResult)
         {
-            // 스키마 영역 스타일
-            var schemaRange = worksheet.Range(1, 1, schemaEndRow, worksheet.LastColumnUsed().ColumnNumber());
-            schemaRange.Style.Fill.BackgroundColor = XLColor.LightGray;
-            schemaRange.Style.Font.Bold = true;
+            Logger.Information("스키마별 색상 스타일 적용 시작");
+            
+            // 기본 테두리 스타일 적용
+            var lastCol = worksheet.LastColumnUsed()?.ColumnNumber() ?? schemaResult.TotalColumns;
+            var schemaRange = worksheet.Range(1, 1, schemaResult.TotalRows, lastCol);
             schemaRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             schemaRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            
+            // 스키마 노드별 색상 적용
+            ApplySchemaNodeColors(worksheet, schemaResult.RootNode);
+            
+            // $scheme_end 행 특별 스타일
+            var schemeEndRange = worksheet.Range(schemaResult.TotalRows, 1, schemaResult.TotalRows, lastCol);
+            schemeEndRange.Style.Fill.BackgroundColor = XLColor.Red;
+            schemeEndRange.Style.Font.FontColor = XLColor.White;
+            schemeEndRange.Style.Font.Bold = true;
+            schemeEndRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            Logger.Information($"$scheme_end 행 스타일 적용: 행={schemaResult.TotalRows}");
 
             // 데이터 영역 테두리
-            if (worksheet.LastRowUsed() != null && worksheet.LastRowUsed().RowNumber() > schemaEndRow)
+            if (worksheet.LastRowUsed() != null && worksheet.LastRowUsed().RowNumber() > schemaResult.TotalRows)
             {
                 var dataRange = worksheet.Range(
-                    schemaEndRow + 1, 1,
+                    schemaResult.TotalRows + 1, 1,
                     worksheet.LastRowUsed().RowNumber(),
-                    worksheet.LastColumnUsed().ColumnNumber());
+                    lastCol);
                 dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
             }
 
             // 자동 너비 조정
             worksheet.Columns().AdjustToContents();
+            
+            Logger.Information("스타일 적용 완료");
+        }
+        
+        /// <summary>
+        /// 스키마 노드별로 색상을 적용합니다 (HTML 디버그 파일과 동일한 색상 체계)
+        /// </summary>
+        private void ApplySchemaNodeColors(IXLWorksheet worksheet, ReverseSchemeBuilder.ExcelSchemeNode node)
+        {
+            if (node == null) return;
+            
+            var row = node.RowIndex;
+            var col = node.ColumnIndex;
+            var colspan = node.ColumnSpan;
+            
+            // 셀 범위 결정
+            IXLRange range;
+            if (node.IsMergedCell && colspan > 1)
+            {
+                range = worksheet.Range(row, col, row, col + colspan - 1);
+            }
+            else
+            {
+                range = worksheet.Range(row, col, row, col);
+            }
+            
+            // 노드 타입별 색상 적용 (HTML 디버그 파일과 동일)
+            switch (node.NodeType)
+            {
+                case SchemeNode.SchemeNodeType.ARRAY:
+                    // 배열 마커: 밝은 녹색 (#00CC00)
+                    range.Style.Fill.BackgroundColor = XLColor.LimeGreen;
+                    range.Style.Font.Bold = true;
+                    Logger.Information($"배열 마커 색상 적용: [{row},{col}] '{node.Key}{node.SchemeMarker}'");
+                    break;
+                    
+                case SchemeNode.SchemeNodeType.MAP:
+                    // 객체 마커: 연한 녹색 (#CCFFCC)
+                    range.Style.Fill.BackgroundColor = XLColor.FromArgb(204, 255, 204);
+                    range.Style.Font.Bold = true;
+                    Logger.Information($"객체 마커 색상 적용: [{row},{col}] '{node.Key}{node.SchemeMarker}'");
+                    break;
+                    
+                case SchemeNode.SchemeNodeType.PROPERTY:
+                    // 속성: 기본 배경 (흰색)
+                    Logger.Information($"속성 기본 색상: [{row},{col}] '{node.Key}'");
+                    break;
+                    
+                case SchemeNode.SchemeNodeType.IGNORE:
+                    // ^ 마커: 기본 배경
+                    Logger.Information($"무시 마커: [{row},{col}] '{node.Key}'");
+                    break;
+            }
+            
+            // 병합된 셀인 경우 병합 처리
+            if (node.IsMergedCell && colspan > 1)
+            {
+                try
+                {
+                    range.Merge();
+                    // 병합된 셀 배경: 연한 파란색 (#e8f4fc)
+                    if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY || node.NodeType == SchemeNode.SchemeNodeType.MAP)
+                    {
+                        // 마커는 이미 색상이 적용되어 있으므로 추가 배경색 적용하지 않음
+                    }
+                    Logger.Information($"셀 병합 적용: [{row},{col}] colspan={colspan}");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"셀 병합 실패: [{row},{col}] {ex.Message}");
+                }
+            }
+            
+            // 자식 노드들 재귀 처리
+            foreach (var child in node.Children)
+            {
+                ApplySchemaNodeColors(worksheet, child);
+            }
         }
 
         /// <summary>
