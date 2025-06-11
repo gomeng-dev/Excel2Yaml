@@ -278,14 +278,14 @@ namespace ExcelToYamlAddin.Core
                 }
             }
 
-            bool containsNewline = normalizedValue.Contains('\n'); // 정규화된 값에서 개행 확인
+            bool containsNewline = normalizedValue.Contains("\n"); // 정규화된 값에서 개행 확인 (.NET Framework 4.7 이하 호환성)
 
             bool needQuotes = preserveQuotes ||
                               containsKorean ||
-                              normalizedValue.Contains(':') ||
-                              normalizedValue.Contains('%') ||
-                              normalizedValue.Contains('#') ||
-                              normalizedValue.Contains(',') ||
+                              normalizedValue.Contains(":") ||
+                              normalizedValue.Contains("%") ||
+                              normalizedValue.Contains("#") ||
+                              normalizedValue.Contains(",") ||
                               normalizedValue.StartsWith(" ") ||
                               normalizedValue.EndsWith(" ") ||
                               normalizedValue == "true" ||

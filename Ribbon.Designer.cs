@@ -42,8 +42,8 @@ namespace ExcelToYamlAddin
             this.btnConvertToXml = this.Factory.CreateRibbonButton();
             this.groupTools = this.Factory.CreateRibbonGroup();
             this.btnImportYaml = this.Factory.CreateRibbonButton();
-            this.btnImportXml = this.Factory.CreateRibbonButton();
             this.btnImportJson = this.Factory.CreateRibbonButton();
+            this.btnImportXml = this.Factory.CreateRibbonButton();
             this.btnExportToHtml = this.Factory.CreateRibbonButton();
             this.groupSettings = this.Factory.CreateRibbonGroup();
             this.btnSheetPathSettings = this.Factory.CreateRibbonButton();
@@ -127,17 +127,6 @@ namespace ExcelToYamlAddin
             this.btnImportYaml.SuperTip = "YAML 파일을 읽어서 Excel 시트로 변환합니다.";
             this.btnImportYaml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnImportYamlClick);
             // 
-            // btnImportXml
-            // 
-            this.btnImportXml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnImportXml.Image = ((System.Drawing.Image)(resources.GetObject("btnImportXml.Image")));
-            this.btnImportXml.Label = "XML 가져오기";
-            this.btnImportXml.Name = "btnImportXml";
-            this.btnImportXml.ScreenTip = "XML을 Excel로 가져오기";
-            this.btnImportXml.ShowImage = true;
-            this.btnImportXml.SuperTip = "XML 파일을 읽어서 Excel 시트로 변환합니다.";
-            this.btnImportXml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnImportXmlClick);
-            // 
             // btnImportJson
             // 
             this.btnImportJson.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
@@ -148,6 +137,17 @@ namespace ExcelToYamlAddin
             this.btnImportJson.ShowImage = true;
             this.btnImportJson.SuperTip = "JSON 파일을 읽어서 Excel 시트로 변환합니다.";
             this.btnImportJson.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnImportJsonClick);
+            // 
+            // btnImportXml
+            // 
+            this.btnImportXml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnImportXml.Image = ((System.Drawing.Image)(resources.GetObject("btnImportXml.Image")));
+            this.btnImportXml.Label = "XML 가져오기";
+            this.btnImportXml.Name = "btnImportXml";
+            this.btnImportXml.ScreenTip = "XML을 Excel로 가져오기";
+            this.btnImportXml.ShowImage = true;
+            this.btnImportXml.SuperTip = "XML 파일을 읽어서 Excel 시트로 변환합니다.";
+            this.btnImportXml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnImportXmlClick);
             // 
             // btnExportToHtml
             // 

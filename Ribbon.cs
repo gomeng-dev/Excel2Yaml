@@ -1643,11 +1643,23 @@ namespace ExcelToYamlAddin
                 }
 
                 // YAML 파일 읽기
-                string yamlContent = File.ReadAllText(yamlFilePath);
+                string yamlContent;
+                try
+                {
+                    yamlContent = File.ReadAllText(yamlFilePath);
+                    Debug.WriteLine($"[OnImportYamlClick] YAML 파일 읽기 완료: {yamlFilePath}");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"YAML 파일을 읽는 중 오류가 발생했습니다:\n\n{ex.Message}",
+                        "파일 읽기 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
                 
                 // 루트 요소가 있는 경우 제거 (XML에서 변환된 경우 처리)
                 try
                 {
+                    Debug.WriteLine("[OnImportYamlClick] YAML 구조 분석 시작");
                     var yaml = new YamlDotNet.RepresentationModel.YamlStream();
                     yaml.Load(new StringReader(yamlContent));
                     
@@ -1671,6 +1683,7 @@ namespace ExcelToYamlAddin
                             Debug.WriteLine($"[OnImportYamlClick] 루트 요소 제거 완료");
                         }
                     }
+                    Debug.WriteLine("[OnImportYamlClick] YAML 구조 분석 완료");
                 }
                 catch (Exception ex)
                 {
@@ -1678,15 +1691,52 @@ namespace ExcelToYamlAddin
                 }
                 
                 // YAML을 Excel로 변환
-                var converter = new Core.YamlToExcel.YamlToExcelConverter();
+                Core.YamlToExcel.YamlToExcelConverter converter;
+                try
+                {
+                    Debug.WriteLine("[OnImportYamlClick] YamlToExcelConverter 생성 시작");
+                    converter = new Core.YamlToExcel.YamlToExcelConverter();
+                    Debug.WriteLine("[OnImportYamlClick] YamlToExcelConverter 생성 완료");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"YAML 변환기 생성 중 오류가 발생했습니다:\n\n{ex.Message}",
+                        "변환기 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
                 
                 // 임시 파일로 변환
                 string tempFile = Path.Combine(Path.GetTempPath(), $"temp_{Guid.NewGuid()}.xlsx");
-                converter.ConvertFromContent(yamlContent, tempFile);
+                try
+                {
+                    Debug.WriteLine($"[OnImportYamlClick] YAML to Excel 변환 시작: {tempFile}");
+                    converter.ConvertFromContent(yamlContent, tempFile);
+                    Debug.WriteLine($"[OnImportYamlClick] YAML to Excel 변환 완료: {tempFile}");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"YAML을 Excel로 변환하는 중 오류가 발생했습니다:\n\n{ex.Message}",
+                        "변환 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
                 
                 // 임시 파일을 Excel에서 열기
-                var tempWorkbook = app.Workbooks.Open(tempFile);
-                var sourceSheet = tempWorkbook.Worksheets[1];
+                dynamic tempWorkbook;
+                dynamic sourceSheet;
+                try
+                {
+                    Debug.WriteLine($"[OnImportYamlClick] 임시 파일 열기 시작: {tempFile}");
+                    tempWorkbook = app.Workbooks.Open(tempFile);
+                    sourceSheet = tempWorkbook.Worksheets[1];
+                    Debug.WriteLine($"[OnImportYamlClick] 임시 파일 열기 완료");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"변환된 파일을 여는 중 오류가 발생했습니다:\n\n{ex.Message}",
+                        "파일 열기 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    try { File.Delete(tempFile); } catch { }
+                    return;
+                }
                 
                 // 새 시트 이름 생성 (중복 방지)
                 string newSheetName = $"!{fileName}";
@@ -1697,15 +1747,44 @@ namespace ExcelToYamlAddin
                 }
                 
                 // 현재 워크북에 시트 복사
-                sourceSheet.Copy(After: currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count]);
-                var newSheet = currentWorkbook.ActiveSheet;
-                newSheet.Name = newSheetName;
+                try
+                {
+                    Debug.WriteLine($"[OnImportYamlClick] 시트 복사 시작: {newSheetName}");
+                    sourceSheet.Copy(After: currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count]);
+                    var newSheet = currentWorkbook.ActiveSheet;
+                    newSheet.Name = newSheetName;
+                    Debug.WriteLine($"[OnImportYamlClick] 시트 복사 완료: {newSheetName}");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"시트를 복사하는 중 오류가 발생했습니다:\n\n{ex.Message}",
+                        "시트 복사 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    tempWorkbook.Close(false);
+                    try { File.Delete(tempFile); } catch { }
+                    return;
+                }
                 
                 // 임시 워크북 닫기
-                tempWorkbook.Close(false);
+                try
+                {
+                    Debug.WriteLine("[OnImportYamlClick] 임시 워크북 닫기");
+                    tempWorkbook.Close(false);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[OnImportYamlClick] 임시 워크북 닫기 중 오류 (무시): {ex.Message}");
+                }
                 
                 // 임시 파일 삭제
-                try { File.Delete(tempFile); } catch { }
+                try 
+                { 
+                    File.Delete(tempFile); 
+                    Debug.WriteLine($"[OnImportYamlClick] 임시 파일 삭제 완료: {tempFile}");
+                } 
+                catch (Exception ex) 
+                { 
+                    Debug.WriteLine($"[OnImportYamlClick] 임시 파일 삭제 실패 (무시): {ex.Message}");
+                }
                 
                 MessageBox.Show($"YAML 파일이 성공적으로 가져와졌습니다.\n\n시트 이름: {newSheetName}",
                     "가져오기 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);

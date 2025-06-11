@@ -520,8 +520,8 @@ namespace ExcelToYamlAddin.Core
             if (string.IsNullOrEmpty(strValue))
                 return strValue;
 
-            // 개행 문자 포함 여부 확인 및 처리
-            if (strValue.Contains('\n') || strValue.Contains('\r'))
+            // 개행 문자 포함 여부 확인 및 처리 (.NET Framework 4.7 이하 호환성을 위해 문자열로 변경)
+            if (strValue.Contains("\n") || strValue.Contains("\r"))
             {
                 // 개행 문자가 이미 이스케이프되어 있는지 확인
                 if (!strValue.Contains("\\n") && !strValue.Contains("\\r"))
