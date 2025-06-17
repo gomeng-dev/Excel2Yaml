@@ -100,11 +100,15 @@ ExcelToYaml/
 ```
 
 **To-Do List**:
-- [x] 새로운 폴더 구조 생성
-- [x] 기존 파일들을 적절한 레이어로 이동
-- [x] 네임스페이스 정리 및 업데이트
-- [x] 프로젝트 참조 관계 재설정
-- [x] 빌드 확인 및 컴파일 오류 수정
+- [x] 새로운 폴더 구조 생성 ✅
+- [x] 기존 파일들을 적절한 레이어로 이동 ✅
+- [x] 네임스페이스 정리 및 업데이트 ✅
+- [x] 프로젝트 참조 관계 재설정 ✅
+- [x] 빌드 확인 및 컴파일 오류 수정 ✅
+
+**참고사항**:
+- Application/DTOs, Domain/Interfaces, Infrastructure/Interfaces 디렉토리의 파일들은 향후 구현을 위한 준비 단계로 생성되었으나 아직 사용되지 않음
+- 실제 구현 시 이들을 활용하여 더 깔끔한 아키텍처로 전환 예정
 
 **추가 수정사항**:
 - Generator.cs: Config.ExcelToYamlConfig → ExcelToYamlConfig로 변경
@@ -754,13 +758,112 @@ namespace ExcelToYaml.Domain.Services.NodeProcessors
 ```
 
 **To-Do List**:
-- [ ] YamlGenerationService 생성 (오케스트레이션)
-- [ ] NodeTraverser 구현 (순회 로직)
-- [ ] NodeProcessor 인터페이스 및 구현체들
-- [ ] YamlBuilder 구현 (YAML 생성)
-- [ ] GenerationContext 구현
-- [ ] 스택 관리 로직 제거 및 개선
-- [ ] 각 컴포넌트별 단위 테스트
+- [x] YamlGenerationService 생성 (오케스트레이션) ✅
+- [x] NodeTraverser 구현 (순회 로직) ✅
+- [x] NodeProcessor 인터페이스 및 구현체들 ✅
+- [x] YamlBuilder 구현 (YAML 생성) ✅
+- [x] GenerationContext 구현 ✅
+- [x] YamlGenerationOptions ValueObject 생성 ✅
+- [x] 스택 관리 로직 제거 및 개선 ✅
+- [x] 기존 YamlGenerator와 통합 (YamlGeneratorAdapter 구현) ✅
+- [x] 각 컴포넌트별 단위 테스트 ✅
+  - NodeTraverserTests
+  - YamlBuilderTests
+  - NodeProcessorTests
+  - YamlGeneratorIntegrationTests
+
+### 2.2.1 기존 YamlGenerator 통합 방안
+
+**현재 상황**:
+- 기존 YamlGenerator는 복잡한 스택 기반 처리 로직 사용
+- 새로운 Generation 컴포넌트들은 명확한 책임 분리와 의존성 주입 기반
+- 점진적 마이그레이션이 필요
+
+**완료된 구현**:
+- ✅ YamlGenerationService: YAML 생성 오케스트레이션
+- ✅ NodeTraverser: 노드 순회 로직 구현
+- ✅ NodeProcessor 인터페이스 및 구현체들 (Array, Map, Property, KeyValue, Ignore)
+- ✅ YamlBuilder: YAML 구조 생성
+- ✅ GenerationContext: 상태 관리 (스택 기반에서 컨텍스트 기반으로 개선)
+- ✅ YamlGenerationOptions: 생성 옵션 값 객체
+- ✅ YamlGeneratorAdapter: 기존 시스템과의 통합 어댑터
+- ✅ 포괄적인 단위 테스트 및 통합 테스트 작성
+
+**주요 개선사항**:
+1. **스택 관리 로직 제거**: 복잡한 스택 기반 처리를 GenerationContext를 통한 명확한 상태 관리로 대체
+2. **책임 분리**: 각 컴포넌트가 단일 책임 원칙을 따르도록 설계
+3. **테스트 가능성**: 모든 컴포넌트에 대한 단위 테스트 작성
+4. **점진적 마이그레이션**: YamlGeneratorAdapter를 통한 안전한 전환 경로 제공
+
+**통합 전략**:
+
+1. **Adapter 패턴 적용**
+```csharp
+// Application/Services/YamlGeneratorAdapter.cs
+public class YamlGeneratorAdapter : IYamlGeneratorService
+{
+    private readonly IYamlGenerationService _newGenerator;
+    private readonly bool _useNewGenerator;
+    
+    public YamlGeneratorAdapter(
+        IYamlGenerationService newGenerator,
+        IConfiguration configuration)
+    {
+        _newGenerator = newGenerator;
+        _useNewGenerator = configuration.GetValue<bool>("UseNewYamlGenerator", false);
+    }
+    
+    public string Generate(Scheme scheme, IXLWorksheet sheet, ConversionOptions options)
+    {
+        if (_useNewGenerator)
+        {
+            // 새로운 생성기 사용
+            var yamlOptions = YamlGenerationOptions.FromConfig(options);
+            return _newGenerator.GenerateYaml(scheme, sheet, yamlOptions);
+        }
+        else
+        {
+            // 기존 생성기 사용 (임시)
+            return YamlGenerator.Generate(
+                scheme, 
+                sheet, 
+                options.YamlStyle, 
+                2, 
+                false, 
+                options.ShowEmptyFields);
+        }
+    }
+}
+```
+
+2. **기존 코드 점진적 제거**
+- Phase 1: Adapter를 통한 새 구현 테스트
+- Phase 2: 기존 YamlGenerator의 정적 메서드를 인스턴스 메서드로 변경
+- Phase 3: 기존 코드 완전 제거 및 새 구현으로 교체
+
+3. **호환성 레이어**
+```csharp
+// Application/Services/Generation/LegacyCompatibility.cs
+public static class LegacyCompatibility
+{
+    public static ConversionOptions ToLegacyOptions(YamlGenerationOptions options)
+    {
+        return new ConversionOptions
+        {
+            ShowEmptyFields = options.ShowEmptyFields,
+            YamlStyle = options.Style,
+            MergeKeyPaths = options.MergeKeyPaths.ToList(),
+            FlowStylePaths = options.FlowStylePaths.ToList(),
+            OutputPath = options.OutputPath,
+            OutputFormat = options.PostProcessing.OutputFormat
+        };
+    }
+    
+    public static YamlGenerationOptions FromLegacyOptions(ConversionOptions options)
+    {
+        return YamlGenerationOptions.FromConfig(options);
+    }
+}
 
 #### 2.3 Ribbon UI 분리
 

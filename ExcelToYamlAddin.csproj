@@ -328,6 +328,7 @@
     <Compile Include="Domain\ValueObjects\ConversionOptions.cs" />
     <Compile Include="Domain\ValueObjects\OutputFormat.cs" />
     <Compile Include="Domain\ValueObjects\YamlStyle.cs" />
+    <Compile Include="Domain\ValueObjects\YamlGenerationOptions.cs" />
     <Compile Include="Infrastructure\Excel\SchemeParser.cs" />
     <Compile Include="Infrastructure\Excel\Parsing\ISchemeEndMarkerFinder.cs" />
     <Compile Include="Infrastructure\Excel\Parsing\SchemeEndMarkerFinder.cs" />
@@ -337,10 +338,28 @@
     <Compile Include="Infrastructure\Excel\Parsing\ISchemeNodeBuilder.cs" />
     <Compile Include="Infrastructure\Excel\Parsing\SchemeNodeBuilder.cs" />
     <Compile Include="Infrastructure\Excel\Parsing\SchemeParserFactory.cs" />
-    <Compile Include="Infrastructure\FileSystem\OrderedJsonFactory.cs" />
     <Compile Include="Infrastructure\FileSystem\OrderedYamlFactory.cs" />
     <Compile Include="Infrastructure\Excel\ExcelCellValueResolver.cs" />
     <Compile Include="Application\Services\YamlGenerator.cs" />
+    <Compile Include="Application\Services\YamlGeneratorAdapter.cs" />
+    <!-- Application Generation Components -->
+    <Compile Include="Application\Services\Generation\GenerationContext.cs" />
+    <Compile Include="Application\Services\Generation\GenerationOptionsValidator.cs" />
+    <Compile Include="Application\Services\Generation\NodeTraverser.cs" />
+    <Compile Include="Application\Services\Generation\YamlBuilder.cs" />
+    <Compile Include="Application\Services\Generation\YamlGenerationService.cs" />
+    <!-- Generation Interfaces -->
+    <Compile Include="Application\Services\Generation\Interfaces\IGenerationOptionsValidator.cs" />
+    <Compile Include="Application\Services\Generation\Interfaces\INodeProcessor.cs" />
+    <Compile Include="Application\Services\Generation\Interfaces\INodeTraverser.cs" />
+    <Compile Include="Application\Services\Generation\Interfaces\IYamlBuilder.cs" />
+    <!-- NodeProcessors -->
+    <Compile Include="Application\Services\Generation\NodeProcessors\ArrayNodeProcessor.cs" />
+    <Compile Include="Application\Services\Generation\NodeProcessors\IgnoreNodeProcessor.cs" />
+    <Compile Include="Application\Services\Generation\NodeProcessors\KeyValueNodeProcessor.cs" />
+    <Compile Include="Application\Services\Generation\NodeProcessors\MapNodeProcessor.cs" />
+    <Compile Include="Application\Services\Generation\NodeProcessors\NodeProcessorBase.cs" />
+    <Compile Include="Application\Services\Generation\NodeProcessors\PropertyNodeProcessor.cs" />
     <Compile Include="Infrastructure\Excel\SheetAnalyzer.cs" />
     <Compile Include="Infrastructure\Configuration\ExcelConfigManager.cs" />
     <Compile Include="Infrastructure\Configuration\SheetPathManager.cs" />
@@ -357,18 +376,6 @@
     <Compile Include="Presentation\Forms\ProgressForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Tests\Common\TestAssert.cs" />
-    <Compile Include="Tests\Domain\ValueObjects\CellPositionTests.cs" />
-    <Compile Include="Tests\Domain\ValueObjects\SchemeNodeTypeTests.cs" />
-    <Compile Include="Tests\Domain\Entities\SchemeNodeTests.cs" />
-    <Compile Include="Tests\Domain\Entities\SchemeTests.cs" />
-    <Compile Include="Tests\TestRunner.cs" />
-    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeEndMarkerFinderTests.cs" />
-    <Compile Include="Tests\Infrastructure\Excel\Parsing\MergedCellHandlerTests.cs" />
-    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeNodeBuilderTests.cs" />
-    <Compile Include="Tests\Infrastructure\Excel\Parsing\ParsingContextTests.cs" />
-    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeParserIntegrationTests.cs" />
-    <Compile Include="Tests\Utilities\TestSheetGenerator.cs" />
     <!-- Domain Interfaces -->
     <Compile Include="Domain\Interfaces\IRepository.cs" />
     <Compile Include="Domain\Interfaces\ISchemeRepository.cs" />
@@ -451,6 +458,24 @@
     <EmbeddedResource Include="RibbonUI.xml">
       <LogicalName>ExcelToYamlAddin.RibbonUI.xml</LogicalName>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Tests\TestRunner.cs" />
+    <Compile Include="Tests\Utilities\TestSheetGenerator.cs" />
+    <Compile Include="Tests\Common\TestAssert.cs" />
+    <Compile Include="Tests\Integration\YamlGeneratorIntegrationTests.cs" />
+    <Compile Include="Tests\Domain\Entities\SchemeNodeTests.cs" />
+    <Compile Include="Tests\Domain\Entities\SchemeTests.cs" />
+    <Compile Include="Tests\Domain\ValueObjects\CellPositionTests.cs" />
+    <Compile Include="Tests\Domain\ValueObjects\SchemeNodeTypeTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\MergedCellHandlerTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\ParsingContextTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeEndMarkerFinderTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeNodeBuilderTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeParserIntegrationTests.cs" />
+    <Compile Include="Tests\Application\Services\Generation\NodeTraverserTests.cs" />
+    <Compile Include="Tests\Application\Services\Generation\YamlBuilderTests.cs" />
+    <Compile Include="Tests\Application\Services\Generation\NodeProcessorTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Connected Services\" />

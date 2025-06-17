@@ -12,6 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 새로운 파일을 추가하면 항상 ExcelToYamlAddin.csproj에 반영해줘
 - 리팩토링 작업을 할 때는 Docs/Excel2Yaml_리팩토링_계획서.md 를 참고하고 업데이트 하면서 작업해줘
 - 하드코딩하지말고 Domain/Constants의 상수로 작업해줘
+- 오류를 수정할때는 요청한 오류만 수정하고 추가 수정을 할때는 나에게 물어보고 수정해
+- 오류를 수정하기 전에 어떤게 원인이고 무엇을 수정해야 하는지 나에게 설명하고 수정해
+- 코드를 작성할 때, 다른 코드를 참조할 경우 실제 있는 함수인지, 실제로 있는 인터페이스인지 확인하고 작성해
 
 ## Build Commands
 
