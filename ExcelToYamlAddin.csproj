@@ -329,7 +329,14 @@
     <Compile Include="Domain\ValueObjects\OutputFormat.cs" />
     <Compile Include="Domain\ValueObjects\YamlStyle.cs" />
     <Compile Include="Infrastructure\Excel\SchemeParser.cs" />
-    <Compile Include="Application\Services\Generator.cs" />
+    <Compile Include="Infrastructure\Excel\Parsing\ISchemeEndMarkerFinder.cs" />
+    <Compile Include="Infrastructure\Excel\Parsing\SchemeEndMarkerFinder.cs" />
+    <Compile Include="Infrastructure\Excel\Parsing\IMergedCellHandler.cs" />
+    <Compile Include="Infrastructure\Excel\Parsing\MergedCellHandler.cs" />
+    <Compile Include="Infrastructure\Excel\Parsing\ParsingContext.cs" />
+    <Compile Include="Infrastructure\Excel\Parsing\ISchemeNodeBuilder.cs" />
+    <Compile Include="Infrastructure\Excel\Parsing\SchemeNodeBuilder.cs" />
+    <Compile Include="Infrastructure\Excel\Parsing\SchemeParserFactory.cs" />
     <Compile Include="Infrastructure\FileSystem\OrderedJsonFactory.cs" />
     <Compile Include="Infrastructure\FileSystem\OrderedYamlFactory.cs" />
     <Compile Include="Infrastructure\Excel\ExcelCellValueResolver.cs" />
@@ -356,6 +363,12 @@
     <Compile Include="Tests\Domain\Entities\SchemeNodeTests.cs" />
     <Compile Include="Tests\Domain\Entities\SchemeTests.cs" />
     <Compile Include="Tests\TestRunner.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeEndMarkerFinderTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\MergedCellHandlerTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeNodeBuilderTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\ParsingContextTests.cs" />
+    <Compile Include="Tests\Infrastructure\Excel\Parsing\SchemeParserIntegrationTests.cs" />
+    <Compile Include="Tests\Utilities\TestSheetGenerator.cs" />
     <!-- Domain Interfaces -->
     <Compile Include="Domain\Interfaces\IRepository.cs" />
     <Compile Include="Domain\Interfaces\ISchemeRepository.cs" />

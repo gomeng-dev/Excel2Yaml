@@ -1,85 +1,58 @@
 using ClosedXML.Excel;
 using ExcelToYamlAddin.Domain.Entities;
 using ExcelToYamlAddin.Domain.Constants;
+using ExcelToYamlAddin.Domain.ValueObjects;
 using ExcelToYamlAddin.Infrastructure.Logging;
+using ExcelToYamlAddin.Infrastructure.Excel.Parsing;
 using System;
 using System.Collections.Generic;
-using ExcelToYamlAddin.Domain.ValueObjects;
+
 namespace ExcelToYamlAddin.Infrastructure.Excel
 {
+    /// <summary>
+    /// 스키마 파서
+    /// </summary>
     public class SchemeParser
     {
-        // 로깅 방식 변경
-        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<SchemeParser>();
+        private readonly ISimpleLogger _logger;
+        private readonly ISchemeEndMarkerFinder _endMarkerFinder;
+        private readonly IMergedCellHandler _mergedCellHandler;
+        private readonly ISchemeNodeBuilder _nodeBuilder;
+        private readonly IXLWorksheet _worksheet;
 
-        private const int ILLEGAL_ROW_NUM = SchemeConstants.RowNumbers.IllegalRow;
-        private const int COMMENT_ROW_NUM = SchemeConstants.RowNumbers.CommentRow;
-        private const string SCHEME_END = SchemeConstants.Markers.SchemeEnd;
-
-        private readonly IXLWorksheet _sheet;
-        private readonly IXLRow _schemeStartRow;
-        private readonly int _firstCellNum;
-        private readonly int _lastCellNum;
-        private int _schemeEndRowNum;
-
-        public SchemeParser(IXLWorksheet sheet)
+        public SchemeParser(IXLWorksheet worksheet)
         {
-            _sheet = sheet;
-            Logger.Information($"SchemeParser initialized: sheet name={sheet.Name}");
-
-            // ClosedXML에서는 행 인덱스가 1부터 시작함
-            _schemeEndRowNum = ILLEGAL_ROW_NUM;
-
-            // 스키마 끝 마커 찾기
-            foreach (var row in _sheet.Rows())
-            {
-                Logger.Debug($"Row inspection: {row.RowNumber()}");
-
-                if (row.RowNumber() == (COMMENT_ROW_NUM + 1) || !ContainsEndMarker(row))
-                {
-                    continue;
-                }
-                _schemeEndRowNum = row.RowNumber();
-                Logger.Information($"Scheme end marker found: row={_schemeEndRowNum}");
-                break;
-            }
-
-            if (_schemeEndRowNum == ILLEGAL_ROW_NUM)
-            {
-                Logger.Error("Scheme end marker not found.");
-                throw new InvalidOperationException(ErrorMessages.Schema.SchemeEndNotFound);
-            }
-
-            // ClosedXML에서는 행 번호가 1부터 시작하므로 2번 행이 스키마 시작 행임
-            _schemeStartRow = _sheet.Row(SchemeConstants.Sheet.SchemaStartRow);
-            if (_schemeStartRow == null)
-            {
-                Logger.Error($"Scheme start row ({SchemeConstants.Sheet.SchemaStartRow}) not found.");
-                throw new InvalidOperationException(ErrorMessages.Schema.SchemeStartRowNotFound);
-            }
-
-            // ClosedXML에서는 첫 번째 셀과 마지막 셀을 다르게 찾음
-            _firstCellNum = _schemeStartRow.FirstCellUsed()?.Address.ColumnNumber ?? SchemeConstants.Position.FirstColumnIndex;
-            _lastCellNum = _schemeStartRow.LastCellUsed()?.Address.ColumnNumber ?? SchemeConstants.Position.FirstColumnIndex;
-
-            Logger.Information($"Scheme range: start={_firstCellNum}, end={_lastCellNum}");
+            _worksheet = worksheet ?? throw new ArgumentNullException(nameof(worksheet));
+            
+            // 의존성 생성 - 팩토리를 통해 생성할 수도 있음
+            _logger = SimpleLoggerFactory.CreateLogger<SchemeParser>();
+            _endMarkerFinder = new SchemeEndMarkerFinder(_logger);
+            _mergedCellHandler = new MergedCellHandler(_logger);
+            _nodeBuilder = new SchemeNodeBuilder(_logger);
+            
+            _logger.Information($"SchemeParser 초기화됨: 시트명={worksheet.Name}");
         }
 
-        private List<IXLRange> GetMergedRegionsInRow(int rowNum)
+        /// <summary>
+        /// 의존성 주입을 위한 생성자
+        /// </summary>
+        internal SchemeParser(
+            IXLWorksheet worksheet,
+            ISimpleLogger logger,
+            ISchemeEndMarkerFinder endMarkerFinder,
+            IMergedCellHandler mergedCellHandler,
+            ISchemeNodeBuilder nodeBuilder)
         {
-            List<IXLRange> regions = new List<IXLRange>();
-            foreach (var range in _sheet.MergedRanges)
-            {
-                if (range.FirstRow().RowNumber() <= rowNum && range.LastRow().RowNumber() >= rowNum)
-                {
-                    regions.Add(range);
-                    Logger.Debug($"Merged region found: {range.RangeAddress.ToString()}, row={rowNum}");
-                }
-            }
-            return regions;
+            _worksheet = worksheet ?? throw new ArgumentNullException(nameof(worksheet));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _endMarkerFinder = endMarkerFinder ?? throw new ArgumentNullException(nameof(endMarkerFinder));
+            _mergedCellHandler = mergedCellHandler ?? throw new ArgumentNullException(nameof(mergedCellHandler));
+            _nodeBuilder = nodeBuilder ?? throw new ArgumentNullException(nameof(nodeBuilder));
         }
 
-        // scheme parsing result
+        /// <summary>
+        /// 스키마 파싱 결과
+        /// </summary>
         public class SchemeParsingResult
         {
             public SchemeNode Root { get; set; }
@@ -106,131 +79,189 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
             }
         }
 
+        /// <summary>
+        /// 워크시트에서 스키마를 파싱합니다.
+        /// </summary>
         public SchemeParsingResult Parse()
         {
-            Logger.Information("Scheme parsing started");
+            _logger.Information($"스키마 파싱 시작: 시트={_worksheet.Name}");
 
-            // 자바 코드와 유사하게 단일 호출로 전체 파싱 처리
-            SchemeNode rootNode = Parse(null, _schemeStartRow.RowNumber(), _firstCellNum, _lastCellNum);
+            try
+            {
+                // 1. 파싱 컨텍스트 생성
+                var context = CreateParsingContext();
+                _logger.Debug($"파싱 컨텍스트 생성 완료: {context}");
+
+                // 2. 스키마 노드 트리 구축
+                var rootNode = BuildSchemeTree(context);
+                
+                // 3. 결과 생성
+                var result = CreateParsingResult(rootNode, context);
+                
+                _logger.Information($"스키마 파싱 완료: 루트={rootNode.Key}, 타입={rootNode.NodeType}, " +
+                                  $"데이터 시작행={result.ContentStartRowNum}, 끝행={result.EndRowNum}");
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "스키마 파싱 중 오류 발생");
+                throw;
+            }
+        }
+
+        private ParsingContext CreateParsingContext()
+        {
+            // 스키마 끝 마커 찾기
+            var schemeEndRow = _endMarkerFinder.FindSchemeEndRow(_worksheet);
+            if (schemeEndRow == SchemeConstants.RowNumbers.IllegalRow)
+            {
+                throw new InvalidOperationException(ErrorMessages.Schema.SchemeEndNotFound);
+            }
+
+            // 스키마 시작 행 가져오기
+            var schemeStartRow = _worksheet.Row(SchemeConstants.Sheet.SchemaStartRow);
+            if (schemeStartRow == null)
+            {
+                throw new InvalidOperationException(ErrorMessages.Schema.SchemeStartRowNotFound);
+            }
+
+            // 셀 범위 결정
+            var firstCell = schemeStartRow.FirstCellUsed()?.Address.ColumnNumber ?? SchemeConstants.Position.FirstColumnIndex;
+            var lastCell = schemeStartRow.LastCellUsed()?.Address.ColumnNumber ?? SchemeConstants.Position.FirstColumnIndex;
+
+            return new ParsingContext(
+                _worksheet,
+                schemeStartRow,
+                schemeEndRow,
+                schemeEndRow + SchemeConstants.Position.DataRowOffset,
+                firstCell,
+                lastCell
+            );
+        }
+
+        private SchemeNode BuildSchemeTree(ParsingContext context)
+        {
+            var parser = new SchemeTreeParser(context, _nodeBuilder, _mergedCellHandler, _logger);
+            var rootNode = parser.ParseTree();
 
             if (rootNode == null)
             {
-                Logger.Error("Root node is null. Creating default ARRAY node.");
-                try
-                {
-                    rootNode = SchemeNode.Create(SchemeConstants.NodeTypes.Array, _schemeStartRow.RowNumber(), _firstCellNum);
-                    Logger.Debug("기본 ARRAY 형식의 루트 노드 생성");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error("루트 노드 생성 중 오류: " + ex.Message);
-                    throw new InvalidOperationException("스키마 파싱 실패", ex);
-                }
+                _logger.Warning("루트 노드가 null입니다. 기본 ARRAY 노드를 생성합니다.");
+                rootNode = SchemeNode.Create(
+                    SchemeConstants.NodeTypes.Array,
+                    context.SchemeStartRow.RowNumber(),
+                    context.FirstCellNumber
+                );
             }
 
-            var result = new SchemeParsingResult
-            {
-                Root = rootNode,
-                ContentStartRowNum = _schemeEndRowNum + SchemeConstants.Position.DataRowOffset,
-                EndRowNum = _sheet.LastRowUsed()?.RowNumber() ?? _schemeEndRowNum + SchemeConstants.Position.DataRowOffset
-            };
-
-            // 결과 로깅
-            Logger.Information($"Scheme parsing completed: root={rootNode.Key}, type={rootNode.NodeType}, data start row={result.ContentStartRowNum}, end row={result.EndRowNum}");
-            Logger.Debug($"Root node child count: {rootNode.ChildCount}");
-
-            return result;
+            return rootNode;
         }
 
-        private SchemeNode Parse(SchemeNode parent, int rowNum, int startCellNum, int endCellNum)
+        private SchemeParsingResult CreateParsingResult(SchemeNode rootNode, ParsingContext context)
         {
-            Logger.Debug($"Parse called: row={rowNum}, start column={startCellNum}, end column={endCellNum}, parent={parent?.Key ?? "null"}, parent type={parent?.NodeType}");
-
-            for (int cellNum = startCellNum; cellNum <= endCellNum; cellNum++)
+            return new SchemeParsingResult
             {
-                IXLRow currentRow = _sheet.Row(rowNum);
-                if (currentRow == null) continue;
+                Root = rootNode,
+                ContentStartRowNum = context.DataStartRowNumber,
+                EndRowNum = context.GetDataEndRowNumber()
+            };
+        }
 
-                IXLCell cell = currentRow.Cell(cellNum);
+        /// <summary>
+        /// 스키마 트리를 파싱하는 내부 클래스
+        /// </summary>
+        private class SchemeTreeParser
+        {
+            private readonly ParsingContext _context;
+            private readonly ISchemeNodeBuilder _nodeBuilder;
+            private readonly IMergedCellHandler _mergedCellHandler;
+            private readonly ISimpleLogger _logger;
 
-                if (cell == null || cell.IsEmpty())
+            public SchemeTreeParser(
+                ParsingContext context,
+                ISchemeNodeBuilder nodeBuilder,
+                IMergedCellHandler mergedCellHandler,
+                ISimpleLogger logger)
+            {
+                _context = context;
+                _nodeBuilder = nodeBuilder;
+                _mergedCellHandler = mergedCellHandler;
+                _logger = logger;
+            }
+
+            public SchemeNode ParseTree()
+            {
+                return ParseRow(
+                    null,
+                    _context.SchemeStartRow.RowNumber(),
+                    _context.FirstCellNumber,
+                    _context.LastCellNumber
+                );
+            }
+
+            private SchemeNode ParseRow(SchemeNode parent, int rowNumber, int startColumn, int endColumn)
+            {
+                _logger.Debug($"행 파싱: 행={rowNumber}, 열 범위={startColumn}-{endColumn}, 부모={parent?.Key ?? "없음"}");
+
+                var currentRow = _context.Worksheet.Row(rowNumber);
+                if (currentRow == null)
+                    return parent;
+
+                for (int columnNumber = startColumn; columnNumber <= endColumn; columnNumber++)
                 {
-                    continue;
-                }
-
-                string value = cell.GetString();
-
-                if (string.IsNullOrEmpty(value) || value.Equals(SchemeConstants.Markers.Ignore, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                Logger.Debug($"Cell value processed: row={rowNum}, column={cellNum}, value={value}");
-                SchemeNode child = SchemeNode.Create(value, rowNum, cellNum);
-
-                if (parent == null)
-                {
-                    parent = child;
-                    Logger.Debug($"Parent node set: {parent.Key}, type={parent.NodeType}");
-                }
-                else
-                {
-                    // 자바 코드와 유사하게 자식 노드 추가 처리
-                    parent.AddChild(child);
-                    Logger.Debug($"Child node added: parent={parent.Key} ({parent.NodeType}), child={child.Key} ({child.NodeType})");
-
-                    // KEY 타입 노드 처리 - 즉시 다음 셀 처리로 이동
-                    if (child.NodeType == SchemeNodeType.Key)
-                    {
-                        cellNum++;
-                        Parse(child, rowNum, cellNum, cellNum);
+                    var cell = currentRow.Cell(columnNumber);
+                    var node = _nodeBuilder.BuildFromCell(cell);
+                    
+                    if (node == null)
                         continue;
-                    }
-                }
 
-                // 병합된 셀 영역 확인
-                List<IXLRange> mergedRegionsInRow = GetMergedRegionsInRow(rowNum);
+                    _logger.Debug($"노드 생성됨: 키={node.Key}, 타입={node.NodeType}, 위치=({rowNumber},{columnNumber})");
 
-                // 컨테이너 타입 노드(MAP, ARRAY) 처리
-                if (child.IsContainer)
-                {
-                    int firstCellInRange = cellNum;
-                    int lastCellInRange = cellNum;
-
-                    // 병합된 셀 영역 확인
-                    foreach (var region in mergedRegionsInRow)
+                    if (parent == null)
                     {
-                        if (region.Contains(cell))
+                        parent = node;
+                    }
+                    else
+                    {
+                        parent.AddChild(node);
+                        
+                        // KEY 타입 노드는 다음 셀을 즉시 처리
+                        if (node.NodeType == SchemeNodeType.Key)
                         {
-                            firstCellInRange = region.FirstColumn().ColumnNumber();
-                            lastCellInRange = region.LastColumn().ColumnNumber();
-                            Logger.Debug($"Merged region: {region.RangeAddress.ToString()}, first column={firstCellInRange}, last column={lastCellInRange}");
-                            break;
+                            columnNumber++;
+                            ParseRow(node, rowNumber, columnNumber, columnNumber);
+                            continue;
                         }
                     }
 
-                    // 컨테이너 노드는 항상 다음 행에서 자식 파싱 수행
-                    if (rowNum + SchemeConstants.Position.NextRowOffset < _schemeEndRowNum)
+                    // 컨테이너 노드 처리
+                    if (node.IsContainer)
                     {
-                        // 자바 코드와 유사하게 단순화된 호출로 변경
-                        Parse(child, rowNum + SchemeConstants.Position.NextRowOffset, firstCellInRange, lastCellInRange);
+                        columnNumber = ProcessContainerNode(node, rowNumber, columnNumber);
                     }
-
-                    cellNum = lastCellInRange; // 병합된 셀 영역 끝까지 이동
                 }
+
+                return parent;
             }
 
-            return parent;
-        }
+            private int ProcessContainerNode(SchemeNode containerNode, int rowNumber, int columnNumber)
+            {
+                var cell = _context.Worksheet.Row(rowNumber).Cell(columnNumber);
+                var mergedRegions = _mergedCellHandler.GetMergedRegionsInRow(_context.Worksheet, rowNumber);
+                var (startColumn, endColumn) = _mergedCellHandler.GetMergedCellRange(cell, mergedRegions);
 
-        private bool ContainsEndMarker(IXLRow row)
-        {
-            if (row == null) return false;
+                _logger.Debug($"컨테이너 노드 처리: 타입={containerNode.NodeType}, 병합 범위={startColumn}-{endColumn}");
 
-            IXLCell cell = row.Cell(SchemeConstants.Position.FirstColumnIndex);
-            return cell != null && !cell.IsEmpty() &&
-                   cell.DataType == XLDataType.Text &&
-                   cell.GetString().Equals(SCHEME_END, StringComparison.OrdinalIgnoreCase);
+                // 다음 행에서 자식 노드 파싱
+                var nextRow = rowNumber + SchemeConstants.Position.NextRowOffset;
+                if (nextRow < _context.SchemeEndRowNumber)
+                {
+                    ParseRow(containerNode, nextRow, startColumn, endColumn);
+                }
+
+                return endColumn; // 병합된 영역의 끝까지 이동
+            }
         }
     }
 }

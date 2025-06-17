@@ -44,6 +44,7 @@ namespace ExcelToYamlAddin
             this.btnImportJson = this.Factory.CreateRibbonButton();
             this.btnImportXml = this.Factory.CreateRibbonButton();
             this.btnExportToHtml = this.Factory.CreateRibbonButton();
+            this.btnRunTests = this.Factory.CreateRibbonButton();
             this.groupSettings = this.Factory.CreateRibbonGroup();
             this.btnSheetPathSettings = this.Factory.CreateRibbonButton();
             this.groupHelp = this.Factory.CreateRibbonGroup();
@@ -112,6 +113,7 @@ namespace ExcelToYamlAddin
             this.groupTools.Items.Add(this.btnImportJson);
             this.groupTools.Items.Add(this.btnImportXml);
             this.groupTools.Items.Add(this.btnExportToHtml);
+            this.groupTools.Items.Add(this.btnRunTests);
             this.groupTools.Label = "도구";
             this.groupTools.Name = "groupTools";
             // 
@@ -158,6 +160,17 @@ namespace ExcelToYamlAddin
             this.btnExportToHtml.ShowImage = true;
             this.btnExportToHtml.SuperTip = "현재 시트를 HTML 파일로 내보내서 브라우저에서 확인할 수 있습니다.";
             this.btnExportToHtml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnExportToHtmlClick);
+            // 
+            // btnRunTests
+            // 
+            this.btnRunTests.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
+            this.btnRunTests.Image = global::ExcelToYamlAddin.Properties.Resources.help;
+            this.btnRunTests.Label = "테스트 실행";
+            this.btnRunTests.Name = "btnRunTests";
+            this.btnRunTests.ScreenTip = "SchemeParser 테스트 실행";
+            this.btnRunTests.ShowImage = true;
+            this.btnRunTests.SuperTip = "리팩토링된 SchemeParser의 테스트를 실행합니다.";
+            this.btnRunTests.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnRunTestsClick);
             // 
             // groupSettings
             // 
@@ -225,6 +238,7 @@ namespace ExcelToYamlAddin
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnImportXml; // XML 가져오기 버튼 멤버 추가
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnImportJson; // JSON 가져오기 버튼 멤버 추가
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnExportToHtml; // HTML 내보내기 버튼 멤버 추가
+        internal Microsoft.Office.Tools.Ribbon.RibbonButton btnRunTests; // 테스트 실행 버튼 추가
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonButton btnSheetPathSettings;
         internal Microsoft.Office.Tools.Ribbon.RibbonGroup groupHelp;

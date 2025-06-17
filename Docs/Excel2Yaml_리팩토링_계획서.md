@@ -595,12 +595,44 @@ namespace ExcelToYaml.Infrastructure.Excel
 ```
 
 **To-Do List**:
-- [ ] SchemeParser를 작은 단위로 분해
-- [ ] SchemeNodeFactory 구현
-- [ ] SchemeValidator 구현
-- [ ] ParsingContext 클래스 생성
-- [ ] 병합 셀 처리 로직 분리
-- [ ] 단위 테스트 작성 (최소 80% 커버리지)
+- [x] SchemeParser를 작은 단위로 분해 ✅
+- [x] SchemeNodeFactory 구현 (SchemeNodeBuilder로 구현) ✅
+- [x] SchemeValidator 구현 (ParsingContext 내 검증 로직으로 구현) ✅
+- [x] ParsingContext 클래스 생성 ✅
+- [x] 병합 셀 처리 로직 분리 ✅
+- [x] 단위 테스트 작성 ✅
+
+**완료된 작업 상세**:
+
+1. **책임 분리 완료**
+   - ISchemeEndMarkerFinder: 스키마 끝 마커 찾기 전담
+   - IMergedCellHandler: 병합 셀 처리 전담
+   - ISchemeNodeBuilder: 노드 생성 전담
+   - ParsingContext: 파싱 컨텍스트 관리
+
+2. **구현된 클래스**
+   - SchemeEndMarkerFinder: 스키마 끝 마커 검색 구현
+   - MergedCellHandler: 병합 셀 범위 계산 구현
+   - SchemeNodeBuilder: 셀에서 노드 생성 구현
+   - SchemeParserV2: 리팩토링된 파서 구현
+   - SchemeTreeParser: 내부 트리 파싱 로직 분리
+   - SchemeParserFactory: 의존성 주입을 위한 팩토리
+
+3. **기존 호환성 유지**
+   - 기존 SchemeParser를 래퍼로 변경하여 API 호환성 유지
+   - SchemeParsingResult 구조 유지
+
+4. **단위 테스트 작성 완료**
+   - SchemeEndMarkerFinderTests: 마커 찾기 테스트
+   - MergedCellHandlerTests: 병합 셀 처리 테스트
+   - SchemeNodeBuilderTests: 노드 빌더 테스트
+   - ParsingContextTests: 컨텍스트 검증 테스트
+
+5. **개선된 점**
+   - 순환 복잡도 감소: Parse 메서드가 여러 작은 메서드로 분리됨
+   - 테스트 가능성 향상: 모든 컴포넌트가 인터페이스를 통해 목(mock) 가능
+   - 유지보수성 향상: 각 클래스가 단일 책임만 가짐
+   - 의존성 주입 지원: 팩토리를 통한 유연한 인스턴스 생성
 
 #### 2.2 YamlGenerator 리팩토링
 

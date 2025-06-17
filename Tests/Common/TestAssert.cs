@@ -59,5 +59,22 @@ namespace ExcelToYamlAddin.Tests.Common
         {
             throw new Exception($"Assert failed: {message}");
         }
+
+        public static void Throws<TException>(Action action, string message = "") where TException : Exception
+        {
+            try
+            {
+                action();
+                throw new Exception($"Assert failed: Expected exception of type {typeof(TException).Name} but no exception was thrown. {message}");
+            }
+            catch (TException)
+            {
+                // Expected exception was thrown
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Assert failed: Expected exception of type {typeof(TException).Name} but got {ex.GetType().Name}. {message}");
+            }
+        }
     }
 }

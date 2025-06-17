@@ -1,83 +1,279 @@
 using System;
-using ExcelToYamlAddin.Tests.Domain.ValueObjects;
-using ExcelToYamlAddin.Tests.Domain.Entities;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using ExcelToYamlAddin.Infrastructure.Logging;
+using ExcelToYamlAddin.Tests.Utilities;
+using Microsoft.Office.Interop.Excel;
 
 namespace ExcelToYamlAddin.Tests
 {
     /// <summary>
-    /// 도메인 모델 테스트 실행기
-    /// VSTO 애드인 프로젝트에서 수동으로 테스트를 실행하기 위한 클래스
+    /// 테스트 실행기
     /// </summary>
     public class TestRunner
     {
-        /// <summary>
-        /// 모든 도메인 모델 테스트를 실행합니다.
-        /// </summary>
-        public static void RunAllTests()
-        {
-            Console.WriteLine("======================================");
-            Console.WriteLine("도메인 모델 단위 테스트 실행 시작");
-            Console.WriteLine("======================================\n");
+        private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<TestRunner>();
+        private readonly List<TestResult> _results = new List<TestResult>();
 
+        public class TestResult
+        {
+            public string TestClass { get; set; }
+            public string TestMethod { get; set; }
+            public bool Success { get; set; }
+            public string ErrorMessage { get; set; }
+            public TimeSpan Duration { get; set; }
+        }
+
+        /// <summary>
+        /// 테스트 시트를 생성하고 테스트를 실행합니다.
+        /// </summary>
+        public void GenerateTestSheetsAndRun()
+        {
+            Logger.Information("\n테스트 시트 생성 및 테스트 실행 시작...");
+            
             try
             {
-                // 값 객체 테스트
-                CellPositionTests.RunAllTests();
-                SchemeNodeTypeTests.RunAllTests();
+                // 테스트 시트 생성
+                var sheets = GenerateAllTestSheets();
+                Logger.Information($"{sheets.Count}개의 테스트 시트 생성 완료");
                 
-                // 엔티티 테스트
-                SchemeNodeTests.RunAllTests();
-                SchemeTests.RunAllTests();
-
-                Console.WriteLine("\n======================================");
-                Console.WriteLine("✅ 모든 테스트가 성공적으로 완료되었습니다!");
-                Console.WriteLine("======================================");
+                // 각 시트에 대해 테스트 실행
+                foreach (var sheet in sheets)
+                {
+                    Logger.Information($"\n'{sheet.Name}' 시트로 테스트 실행 중...");
+                    sheet.Activate();
+                    RunIntegrationTests();
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("\n======================================");
-                Console.WriteLine("❌ 테스트 실행 중 오류 발생!");
-                Console.WriteLine($"오류: {ex.Message}");
-                Console.WriteLine($"스택 추적:\n{ex.StackTrace}");
-                Console.WriteLine("======================================");
+                Logger.Error(ex, "테스트 시트 생성 및 실행 중 오류");
                 throw;
             }
         }
 
         /// <summary>
-        /// 특정 테스트 스위트를 실행합니다.
+        /// 모든 테스트 시트를 생성합니다.
         /// </summary>
-        public static void RunTestSuite(string suiteName)
+        public List<Worksheet> GenerateAllTestSheets()
         {
-            Console.WriteLine($"테스트 스위트 '{suiteName}' 실행 중...\n");
-
+            var sheets = new List<Worksheet>();
+            
             try
             {
-                switch (suiteName.ToLower())
-                {
-                    case "cellposition":
-                        CellPositionTests.RunAllTests();
-                        break;
-                    case "schemenodetype":
-                        SchemeNodeTypeTests.RunAllTests();
-                        break;
-                    case "schemenode":
-                        SchemeNodeTests.RunAllTests();
-                        break;
-                    case "scheme":
-                        SchemeTests.RunAllTests();
-                        break;
-                    default:
-                        Console.WriteLine($"알 수 없는 테스트 스위트: {suiteName}");
-                        Console.WriteLine("사용 가능한 스위트: cellposition, schemenodetype, schemenode, scheme");
-                        break;
-                }
+                sheets.Add(TestSheetGenerator.CreateBasicTestSheet());
+                sheets.Add(TestSheetGenerator.CreateArrayTestSheet());
+                sheets.Add(TestSheetGenerator.CreateMapTestSheet());
+                sheets.Add(TestSheetGenerator.CreateKeyValueTestSheet());
+                sheets.Add(TestSheetGenerator.CreateComplexTestSheet());
+                
+                return sheets;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"테스트 '{suiteName}' 실행 중 오류: {ex.Message}");
+                Logger.Error(ex, "테스트 시트 생성 중 오류");
                 throw;
             }
+        }
+
+        public void RunAllTests()
+        {
+            Logger.Information("테스트 실행 시작...");
+            var startTime = DateTime.Now;
+
+            // Excel 환경 확인
+            if (!CheckExcelEnvironment())
+            {
+                Logger.Error("Excel 환경을 확인할 수 없습니다. 테스트를 중단합니다.");
+                return;
+            }
+
+            // 테스트 클래스 찾기
+            var testClasses = GetTestClasses();
+            Logger.Information($"{testClasses.Count}개의 테스트 클래스 발견");
+
+            foreach (var testClass in testClasses)
+            {
+                RunTestsInClass(testClass);
+            }
+
+            // 결과 요약
+            var totalTime = DateTime.Now - startTime;
+            PrintSummary(totalTime);
+        }
+
+        public void RunIntegrationTests()
+        {
+            Logger.Information("\n통합 테스트 실행 시작...");
+            var startTime = DateTime.Now;
+
+            // Excel 환경 확인
+            if (!CheckExcelEnvironment())
+            {
+                Logger.Error("Excel 환경을 확인할 수 없습니다. 테스트를 중단합니다.");
+                return;
+            }
+
+            // 통합 테스트만 실행
+            var integrationTestClasses = GetTestClasses()
+                .Where(t => t.Name.Contains("Integration"))
+                .ToList();
+
+            Logger.Information($"{integrationTestClasses.Count}개의 통합 테스트 클래스 발견");
+
+            foreach (var testClass in integrationTestClasses)
+            {
+                RunTestsInClass(testClass);
+            }
+
+            // 결과 요약
+            var totalTime = DateTime.Now - startTime;
+            PrintSummary(totalTime);
+        }
+
+        private bool CheckExcelEnvironment()
+        {
+            try
+            {
+                var app = Globals.ThisAddIn?.Application;
+                if (app == null)
+                {
+                    Logger.Error("Excel Application 객체를 찾을 수 없습니다.");
+                    return false;
+                }
+
+                var activeSheet = app.ActiveSheet;
+                if (activeSheet == null)
+                {
+                    Logger.Warning("활성화된 시트가 없습니다.");
+                    return false;
+                }
+
+                Logger.Information($"Excel 환경 확인 완료 - 현재 시트: {activeSheet.Name}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Excel 환경 확인 중 오류: {ex.Message}");
+                return false;
+            }
+        }
+
+        private List<Type> GetTestClasses()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            return assembly.GetTypes()
+                .Where(t => t.Namespace != null && 
+                           t.Namespace.StartsWith("ExcelToYamlAddin.Tests") &&
+                           t.Name.EndsWith("Tests") &&
+                           !t.IsAbstract &&
+                           t.IsClass)
+                .ToList();
+        }
+
+        private void RunTestsInClass(Type testClass)
+        {
+            Logger.Information($"\n--- {testClass.Name} 실행 중 ---");
+
+            var testMethods = testClass.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .Where(m => !m.IsSpecialName && m.DeclaringType == testClass)
+                .ToList();
+
+            if (testMethods.Count == 0)
+            {
+                Logger.Warning($"{testClass.Name}에 테스트 메서드가 없습니다.");
+                return;
+            }
+
+            object testInstance = null;
+            try
+            {
+                testInstance = Activator.CreateInstance(testClass);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"{testClass.Name} 인스턴스 생성 실패: {ex.Message}");
+                return;
+            }
+
+            foreach (var method in testMethods)
+            {
+                RunTestMethod(testClass, testInstance, method);
+            }
+        }
+
+        private void RunTestMethod(Type testClass, object testInstance, MethodInfo method)
+        {
+            var result = new TestResult
+            {
+                TestClass = testClass.Name,
+                TestMethod = method.Name
+            };
+
+            var startTime = DateTime.Now;
+
+            try
+            {
+                Logger.Debug($"  - {method.Name} 실행 중...");
+                method.Invoke(testInstance, null);
+                result.Success = true;
+                Logger.Information($"  ✓ {method.Name} 성공");
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                var innerEx = ex.InnerException ?? ex;
+                result.ErrorMessage = innerEx.Message;
+                Logger.Error($"  ✗ {method.Name} 실패: {innerEx.Message}");
+                if (innerEx.StackTrace != null)
+                {
+                    Logger.Debug($"    StackTrace: {innerEx.StackTrace}");
+                }
+            }
+            finally
+            {
+                result.Duration = DateTime.Now - startTime;
+                _results.Add(result);
+            }
+        }
+
+        private void PrintSummary(TimeSpan totalTime)
+        {
+            var successCount = _results.Count(r => r.Success);
+            var failCount = _results.Count(r => !r.Success);
+            var totalCount = _results.Count;
+
+            var summary = new StringBuilder();
+            summary.AppendLine("\n");
+            summary.AppendLine("=".PadRight(50, '='));
+            summary.AppendLine("테스트 결과 요약");
+            summary.AppendLine("=".PadRight(50, '='));
+            summary.AppendLine($"전체: {totalCount}개");
+            summary.AppendLine($"성공: {successCount}개");
+            summary.AppendLine($"실패: {failCount}개");
+            summary.AppendLine($"소요 시간: {totalTime.TotalSeconds:F2}초");
+
+            if (failCount > 0)
+            {
+                summary.AppendLine("\n실패한 테스트:");
+                foreach (var failed in _results.Where(r => !r.Success))
+                {
+                    summary.AppendLine($"  - {failed.TestClass}.{failed.TestMethod}: {failed.ErrorMessage}");
+                }
+            }
+
+            summary.AppendLine("=".PadRight(50, '='));
+
+            Logger.Information(summary.ToString());
+        }
+
+        public string GetResultSummary()
+        {
+            var successCount = _results.Count(r => r.Success);
+            var failCount = _results.Count(r => !r.Success);
+            return $"테스트 결과: 성공 {successCount}, 실패 {failCount}";
         }
     }
 }

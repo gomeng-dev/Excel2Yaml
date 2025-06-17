@@ -1961,5 +1961,59 @@ namespace ExcelToYamlAddin
 
             return null;
         }
+
+        /// <summary>
+        /// 테스트 실행 버튼 클릭 이벤트 핸들러
+        /// </summary>
+        private void OnRunTestsClick(object sender, RibbonControlEventArgs e)
+        {
+            try
+            {
+                Logger.Information("테스트 실행 시작");
+                
+                var runner = new Tests.TestRunner();
+                
+                // 테스트 시트 생성 및 실행 옵션
+                var result = MessageBox.Show(
+                    "테스트 시트를 생성하고 테스트를 실행하시겠습니까?\n" +
+                    "'예'를 클릭하면 테스트 시트를 생성합니다.\n" +
+                    "'아니오'를 클릭하면 현재 시트로만 테스트합니다.",
+                    "테스트 실행",
+                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxIcon.Question);
+                
+                if (result == DialogResult.Cancel)
+                {
+                    return;
+                }
+                
+                if (result == DialogResult.Yes)
+                {
+                    // 테스트 시트 생성 및 테스트 실행
+                    runner.GenerateTestSheetsAndRun();
+                }
+                else
+                {
+                    // 현재 시트로만 테스트 실행
+                    runner.RunIntegrationTests();
+                }
+                
+                var summary = runner.GetResultSummary();
+                MessageBox.Show(
+                    summary,
+                    "테스트 완료",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "테스트 실행 중 오류");
+                MessageBox.Show(
+                    $"테스트 실행 중 오류가 발생했습니다:\n{ex.Message}",
+                    "오류",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
     }
 }
