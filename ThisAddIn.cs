@@ -1,4 +1,4 @@
-using ExcelToYamlAddin.Logging;
+using ExcelToYamlAddin.Infrastructure.Logging;
 using Microsoft.Win32;
 using System;
 using System.Diagnostics;
@@ -102,13 +102,13 @@ namespace ExcelToYamlAddin
                 }
 
                 // SheetPathManager 초기화 및 설정 미리 로드
-                ExcelToYamlAddin.Config.SheetPathManager.Instance.Initialize();
+                ExcelToYamlAddin.Infrastructure.Configuration.SheetPathManager.Instance.Initialize();
 
                 // 현재 워크북 설정
                 if (this.Application.ActiveWorkbook != null)
                 {
                     string workbookPath = this.Application.ActiveWorkbook.FullName;
-                    ExcelToYamlAddin.Config.SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
+                    ExcelToYamlAddin.Infrastructure.Configuration.SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
                     Logger.Information("현재 워크북 설정: {0}", workbookPath);
                 }
 

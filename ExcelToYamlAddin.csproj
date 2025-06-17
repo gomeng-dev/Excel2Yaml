@@ -259,18 +259,18 @@
     can be found.
   -->
   <ItemGroup>
-    <Compile Include="Core\ExcelToHtmlExporter.cs" />
-    <Compile Include="Core\XmlToYamlConverter.cs" />
-    <Compile Include="Core\XmlToExcelViaYamlConverter.cs" />
-    <Compile Include="Core\YamlPostProcessors\FinalRawStringConverter.cs" />
-    <Compile Include="Core\YamlPostProcessors\YamlToXmlConverter.cs" />
-    <Compile Include="Core\YamlToExcel\ExcelDataMapper.cs" />
-    <Compile Include="Core\YamlToExcel\ReverseSchemeBuilder.cs" />
-    <Compile Include="Core\YamlToExcel\YamlToExcelConverter.cs" />
+    <Compile Include="Infrastructure\Excel\ExcelToHtmlExporter.cs" />
+    <Compile Include="Application\Services\XmlToYamlConverter.cs" />
+    <Compile Include="Application\Services\XmlToExcelViaYamlConverter.cs" />
+    <Compile Include="Application\PostProcessing\FinalRawStringConverter.cs" />
+    <Compile Include="Application\PostProcessing\YamlToXmlConverter.cs" />
+    <Compile Include="Application\Services\ExcelDataMapper.cs" />
+    <Compile Include="Application\Services\ReverseSchemeBuilder.cs" />
+    <Compile Include="Application\Services\YamlToExcelConverter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
-    <EmbeddedResource Include="Forms\SheetPathSettingsForm.resx">
+    <EmbeddedResource Include="Presentation\Forms\SheetPathSettingsForm.resx">
       <DependentUpon>SheetPathSettingsForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -306,38 +306,38 @@
       <DependentUpon>ThisAddIn.Designer.xml</DependentUpon>
     </Compile>
     <AppDesigner Include="Properties\" />
-    <Compile Include="ExcelReader.cs" />
-    <Compile Include="Ribbon.cs">
+    <Compile Include="Application\Services\ExcelReader.cs" />
+    <Compile Include="Presentation\Ribbon\Ribbon.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Ribbon.Designer.cs">
+    <Compile Include="Presentation\Ribbon\Ribbon.Designer.cs">
       <DependentUpon>Ribbon.cs</DependentUpon>
     </Compile>
-    <Compile Include="Logging\ISimpleLogger.cs" />
-    <Compile Include="Logging\SimpleLogger.cs" />
-    <Compile Include="Config\ExcelToYamlConfig.cs" />
-    <Compile Include="Core\Scheme.cs" />
-    <Compile Include="Core\SchemeNode.cs" />
-    <Compile Include="Core\SchemeParser.cs" />
-    <Compile Include="Core\Generator.cs" />
-    <Compile Include="Core\OrderedJsonFactory.cs" />
-    <Compile Include="Core\OrderedYamlFactory.cs" />
-    <Compile Include="Core\ExcelCellValueResolver.cs" />
-    <Compile Include="Core\YamlGenerator.cs" />
-    <Compile Include="Core\SheetAnalyzer.cs" />
-    <Compile Include="Core\ExcelConfigManager.cs" />
-    <Compile Include="Config\SheetPathManager.cs" />
-    <Compile Include="Forms\SheetPathSettingsForm.cs">
+    <Compile Include="Infrastructure\Logging\ISimpleLogger.cs" />
+    <Compile Include="Infrastructure\Logging\SimpleLogger.cs" />
+    <Compile Include="Domain\ValueObjects\ExcelToYamlConfig.cs" />
+    <Compile Include="Domain\Entities\Scheme.cs" />
+    <Compile Include="Domain\Entities\SchemeNode.cs" />
+    <Compile Include="Infrastructure\Excel\SchemeParser.cs" />
+    <Compile Include="Application\Services\Generator.cs" />
+    <Compile Include="Infrastructure\FileSystem\OrderedJsonFactory.cs" />
+    <Compile Include="Infrastructure\FileSystem\OrderedYamlFactory.cs" />
+    <Compile Include="Infrastructure\Excel\ExcelCellValueResolver.cs" />
+    <Compile Include="Application\Services\YamlGenerator.cs" />
+    <Compile Include="Infrastructure\Excel\SheetAnalyzer.cs" />
+    <Compile Include="Infrastructure\Configuration\ExcelConfigManager.cs" />
+    <Compile Include="Infrastructure\Configuration\SheetPathManager.cs" />
+    <Compile Include="Presentation\Forms\SheetPathSettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Forms\SheetPathSettingsForm.Designer.cs">
+    <Compile Include="Presentation\Forms\SheetPathSettingsForm.Designer.cs">
       <DependentUpon>SheetPathSettingsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Extensions\LoggingExtensions.cs" />
-    <Compile Include="Core\YamlPostProcessors\YamlMergeKeyPathsProcessor.cs" />
-    <Compile Include="Core\YamlPostProcessors\YamlFlowStyleProcessor.cs" />
-    <Compile Include="Core\YamlPostProcessors\YamlToJsonProcessor.cs" />
-    <Compile Include="Forms\ProgressForm.cs">
+    <Compile Include="Infrastructure\Logging\LoggingExtensions.cs" />
+    <Compile Include="Application\PostProcessing\YamlMergeKeyPathsProcessor.cs" />
+    <Compile Include="Application\PostProcessing\YamlFlowStyleProcessor.cs" />
+    <Compile Include="Application\PostProcessing\YamlToJsonProcessor.cs" />
+    <Compile Include="Presentation\Forms\ProgressForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Content Include="Docs\Excel2YamlExample.xlsx">
@@ -390,7 +390,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Ribbon.resx">
+    <EmbeddedResource Include="Presentation\Ribbon\Ribbon.resx">
       <DependentUpon>Ribbon.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="RibbonUI.xml">

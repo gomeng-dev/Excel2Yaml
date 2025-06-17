@@ -100,11 +100,34 @@ ExcelToYaml/
 ```
 
 **To-Do List**:
-- [ ] 새로운 폴더 구조 생성
-- [ ] 기존 파일들을 적절한 레이어로 이동
-- [ ] 네임스페이스 정리 및 업데이트
-- [ ] 프로젝트 참조 관계 재설정
-- [ ] 빌드 확인 및 컴파일 오류 수정
+- [x] 새로운 폴더 구조 생성
+- [x] 기존 파일들을 적절한 레이어로 이동
+- [x] 네임스페이스 정리 및 업데이트
+- [x] 프로젝트 참조 관계 재설정
+- [x] 빌드 확인 및 컴파일 오류 수정
+
+**추가 수정사항**:
+- Generator.cs: Config.ExcelToYamlConfig → ExcelToYamlConfig로 변경
+- Generator.cs: Config.OutputFormat → OutputFormat로 변경
+- YamlGenerator.cs: using 문 업데이트 (Domain.ValueObjects, Domain.Entities 추가)
+- OrderedYamlFactory.cs: using ExcelToYamlAddin.Config → Domain.ValueObjects로 변경
+- ExcelReader.cs: 불필요한 using 제거
+
+**완료된 작업 상세**:
+1. 클린 아키텍처 폴더 구조 생성 완료
+   - Domain, Application, Infrastructure, Presentation 레이어 생성
+2. 파일 이동 완료
+   - Domain Layer: Scheme, SchemeNode, ExcelToYamlConfig
+   - Application Layer: YamlGenerator, Generator, ExcelReader, PostProcessors, XmlToYamlConverter, XmlToExcelViaYamlConverter, YamlToExcel 관련 파일들
+   - Infrastructure Layer: SchemeParser, OrderedFactories, ConfigManagers, Logging, ExcelToHtmlExporter, SheetAnalyzer
+   - Presentation Layer: Ribbon, Forms
+3. Core 폴더 완전 제거
+4. 프로젝트 파일(.csproj) 업데이트 완료
+5. 모든 파일의 네임스페이스 업데이트 (Domain.Entities)
+6. Using 문 정리
+7. 빌드오류 해결
+
+**남은 작업**:
 
 #### 1.2 상수 및 설정 중앙화
 
