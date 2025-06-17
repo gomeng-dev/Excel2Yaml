@@ -447,11 +447,48 @@ namespace ExcelToYaml.Application.Interfaces
 ```
 
 **To-Do List**:
-- [ ] 도메인 레이어 인터페이스 정의
-- [ ] 애플리케이션 레이어 인터페이스 정의
-- [ ] 인프라 레이어 인터페이스 정의
-- [ ] DTO 및 요청/응답 모델 정의
-- [ ] 인터페이스 문서화 (XML 주석)
+- [x] 도메인 레이어 인터페이스 정의 ✅
+- [x] 애플리케이션 레이어 인터페이스 정의 ✅
+- [x] 인프라 레이어 인터페이스 정의 ✅
+- [x] DTO 및 요청/응답 모델 정의 ✅
+- [x] 인터페이스 문서화 (XML 주석) ✅
+
+**완료된 작업 상세**:
+
+1. **도메인 레이어 인터페이스 (Domain/Interfaces/)**
+   - IRepository.cs: 리포지토리 패턴의 기본 인터페이스 (CRUD 작업)
+   - ISchemeRepository.cs: 스키마 리포지토리 인터페이스
+   - IDomainService.cs: 도메인 서비스의 기본 인터페이스
+   - ISchemeValidationService.cs: 스키마 검증 서비스 인터페이스
+
+2. **애플리케이션 레이어 인터페이스 (Application/Interfaces/)**
+   - IExcelReaderService.cs: Excel 파일 읽기 서비스
+   - IYamlGeneratorService.cs: YAML 생성 서비스
+   - IJsonGeneratorService.cs: JSON 생성 서비스
+   - IPostProcessingService.cs: 후처리 서비스
+   - ISchemeBuilderService.cs: 스키마 빌더 서비스 (관련 클래스 포함)
+
+3. **인프라 레이어 인터페이스 (Infrastructure/Interfaces/)**
+   - IFileSystemService.cs: 파일 시스템 서비스
+   - IExcelService.cs: Excel 처리 서비스
+   - IConfigurationService.cs: 구성 서비스 (관련 인터페이스 포함)
+   - ILoggingService.cs: 로깅 서비스
+
+4. **DTO 및 요청/응답 모델 (Application/DTOs/)**
+   - ExcelConversionRequest.cs: Excel 변환 요청 DTO
+   - ExcelConversionResponse.cs: Excel 변환 응답 DTO (관련 클래스 포함)
+   - SchemeValidationRequest.cs: 스키마 검증 요청 DTO
+   - SchemeValidationResponse.cs: 스키마 검증 응답 DTO (관련 클래스 포함)
+   - PostProcessingRequest.cs: 후처리 요청 DTO
+   - PostProcessingResponse.cs: 후처리 응답 DTO (관련 클래스 포함)
+
+5. **문서화**
+   - 모든 인터페이스와 DTO에 XML 주석 추가 완료
+   - 메서드, 속성, 클래스에 대한 상세 설명 포함
+   - 빌더 패턴, 팩토리 메서드 등 사용 예시 포함
+
+6. **프로젝트 파일 업데이트**
+   - ExcelToYamlAddin.csproj에 모든 새 파일 추가 완료
 
 ### Phase 2: 핵심 컴포넌트 리팩토링 (2-3주)
 
