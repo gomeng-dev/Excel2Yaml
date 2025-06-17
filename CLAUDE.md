@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - VSTO 프로젝트는 내가 직접 빌드하고 테스트 해야하니까 테스트는 네가 직접 하려고 하지 말아줘 , 대신 나에게 테스트 제안을 해줘
 - 항상 한국어로 답변하고 한국어로 생각해줘
 - 하드코딩을 하지 말고 구조적으로 코딩할 수 있도록 해줘
-- 항상 한글로 답변해줘
 - 구조적 설계를 1순위로 생각해 하드코딩을 배제하고 당장 비슷한 결과가 나오는게 아니라 범용적인 사용이 가능하도록 로직을 설계해
-- 빌드는 항상 내가 직접 할게 
+- 빌드는 항상 내가 직접 할게
+- 새로운 파일을 추가하면 항상 ExcelToYamlAddin.csproj에 반영해줘
+- 리팩토링 작업을 할 때는 Docs/Excel2Yaml_리팩토링_계획서.md 를 참고하고 업데이트 하면서 작업해줘
 
 ## Build Commands
 
