@@ -34,7 +34,6 @@ namespace ExcelToYamlAddin
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Ribbon));
             this.tabExcelToYaml = this.Factory.CreateRibbonTab();
             this.groupConvert = this.Factory.CreateRibbonGroup();
             this.btnConvertToYaml = this.Factory.CreateRibbonButton();
@@ -77,7 +76,7 @@ namespace ExcelToYamlAddin
             // btnConvertToYaml
             // 
             this.btnConvertToYaml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnConvertToYaml.Image = ((System.Drawing.Image)(resources.GetObject("btnConvertToYaml.Image")));
+            this.btnConvertToYaml.Image = global::ExcelToYamlAddin.Properties.Resources.yml_copy;
             this.btnConvertToYaml.Label = "YAML 변환";
             this.btnConvertToYaml.Name = "btnConvertToYaml";
             this.btnConvertToYaml.ScreenTip = "Excel을 YAML로 변환";
@@ -88,7 +87,7 @@ namespace ExcelToYamlAddin
             // btnConvertYamlToJson
             // 
             this.btnConvertYamlToJson.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnConvertYamlToJson.Image = ((System.Drawing.Image)(resources.GetObject("btnConvertYamlToJson.Image")));
+            this.btnConvertYamlToJson.Image = global::ExcelToYamlAddin.Properties.Resources.json_copy;
             this.btnConvertYamlToJson.Label = "JSON 변환";
             this.btnConvertYamlToJson.Name = "btnConvertYamlToJson";
             this.btnConvertYamlToJson.ScreenTip = "Excel을 JSON으로 변환";
@@ -99,7 +98,7 @@ namespace ExcelToYamlAddin
             // btnConvertToXml
             // 
             this.btnConvertToXml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnConvertToXml.Image = ((System.Drawing.Image)(resources.GetObject("btnConvertToXml.Image")));
+            this.btnConvertToXml.Image = global::ExcelToYamlAddin.Properties.Resources.xml_copy;
             this.btnConvertToXml.Label = "XML 변환";
             this.btnConvertToXml.Name = "btnConvertToXml";
             this.btnConvertToXml.ScreenTip = "Excel을 XML로 변환 (YAML 경유)";
@@ -119,7 +118,7 @@ namespace ExcelToYamlAddin
             // btnImportYaml
             // 
             this.btnImportYaml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnImportYaml.Image = ((System.Drawing.Image)(resources.GetObject("btnImportYaml.Image")));
+            this.btnImportYaml.Image = global::ExcelToYamlAddin.Properties.Resources.yml_copy;
             this.btnImportYaml.Label = "YAML 가져오기";
             this.btnImportYaml.Name = "btnImportYaml";
             this.btnImportYaml.ScreenTip = "YAML을 Excel로 가져오기";
@@ -130,7 +129,7 @@ namespace ExcelToYamlAddin
             // btnImportJson
             // 
             this.btnImportJson.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnImportJson.Image = ((System.Drawing.Image)(resources.GetObject("btnImportJson.Image")));
+            this.btnImportJson.Image = global::ExcelToYamlAddin.Properties.Resources.json_copy;
             this.btnImportJson.Label = "JSON 가져오기";
             this.btnImportJson.Name = "btnImportJson";
             this.btnImportJson.ScreenTip = "JSON을 Excel로 가져오기";
@@ -141,7 +140,7 @@ namespace ExcelToYamlAddin
             // btnImportXml
             // 
             this.btnImportXml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnImportXml.Image = ((System.Drawing.Image)(resources.GetObject("btnImportXml.Image")));
+            this.btnImportXml.Image = global::ExcelToYamlAddin.Properties.Resources.xml_copy;
             this.btnImportXml.Label = "XML 가져오기";
             this.btnImportXml.Name = "btnImportXml";
             this.btnImportXml.ScreenTip = "XML을 Excel로 가져오기";
@@ -152,7 +151,7 @@ namespace ExcelToYamlAddin
             // btnExportToHtml
             // 
             this.btnExportToHtml.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnExportToHtml.Image = ((System.Drawing.Image)(resources.GetObject("btnExportToHtml.Image")));
+            this.btnExportToHtml.Image = global::ExcelToYamlAddin.Properties.Resources.help;
             this.btnExportToHtml.Label = "HTML 내보내기";
             this.btnExportToHtml.Name = "btnExportToHtml";
             this.btnExportToHtml.ScreenTip = "현재 시트를 HTML로 내보내기";
@@ -169,7 +168,7 @@ namespace ExcelToYamlAddin
             // btnSheetPathSettings
             // 
             this.btnSheetPathSettings.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnSheetPathSettings.Image = ((System.Drawing.Image)(resources.GetObject("btnSheetPathSettings.Image")));
+            this.btnSheetPathSettings.Image = global::ExcelToYamlAddin.Properties.Resources.settings;
             this.btnSheetPathSettings.Label = "설정";
             this.btnSheetPathSettings.Name = "btnSheetPathSettings";
             this.btnSheetPathSettings.ScreenTip = "시트별 경로 설정";
@@ -186,7 +185,7 @@ namespace ExcelToYamlAddin
             // btnHelp
             // 
             this.btnHelp.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnHelp.Image = ((System.Drawing.Image)(resources.GetObject("btnHelp.Image")));
+            this.btnHelp.Image = global::ExcelToYamlAddin.Properties.Resources.help;
             this.btnHelp.Label = "사용안내";
             this.btnHelp.Name = "btnHelp";
             this.btnHelp.ScreenTip = "Excel2YAML 사용 설명서";
