@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using ExcelToYamlAddin.Domain.ValueObjects;
+using ExcelToYamlAddin.Domain.Constants;
 using ExcelToYamlAddin.Infrastructure.Logging;
 using ExcelToYamlAddin.Domain.Entities;
 using ExcelToYamlAddin.Infrastructure.FileSystem;
@@ -190,13 +191,13 @@ namespace ExcelToYamlAddin.Application.Services
             // 부모가 객체이고 키가 비어있는 경우 (이는 JSON/YAML 표준에 맞지 않음)
             if (string.IsNullOrEmpty(key) && parentObject is YamlObject)
             {
-                string errorMessage = "오류: JSON/YAML 표준에서는 객체 내에 이름 없는 속성을 가질 수 없습니다. 키 값이 비어있습니다.";
+                string errorMessage = ErrorMessages.Schema.EmptyKeyError;
                 Logger.Error(errorMessage);
 
                 // 오류 창 표시
                 DialogResult result = MessageBox.Show(
                     errorMessage,
-                    "JSON/YAML 표준 오류",
+                    ErrorMessages.Schema.JsonYamlStandardError,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error,
                     MessageBoxDefaultButton.Button1,
@@ -205,7 +206,7 @@ namespace ExcelToYamlAddin.Application.Services
                 // 확인 버튼을 누른 경우 변환 과정 중단
                 if (result == DialogResult.OK)
                 {
-                    string abortMessage = "사용자 요청에 의해 변환 작업이 중단되었습니다.";
+                    string abortMessage = ErrorMessages.Conversion.UserCancelled;
                     Logger.Error(abortMessage);
                     throw new InvalidOperationException(abortMessage);
                 }
@@ -292,7 +293,7 @@ namespace ExcelToYamlAddin.Application.Services
                     else
                     {
                         // JSON/YAML 표준: 배열 안에 직접 배열을 넣는 것은 권장되지 않지만 처리 가능
-                        string warningMessage = "배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
+                        string warningMessage = ErrorMessages.Schema.NestedArrayWarning;
                         Logger.Warning(warningMessage); // 로그에만 기록하고 사용자에게 표시하지 않음
                         
                         parentArray.Add(newArray);
@@ -325,13 +326,13 @@ namespace ExcelToYamlAddin.Application.Services
             {
                 if (string.IsNullOrEmpty(key))
                 {
-                    string errorMessage = $"오류: JSON/YAML 표준에서는 객체 내에 이름 없는 값을 가질 수 없습니다. 노드 타입: {node.NodeType}";
+                    string errorMessage = $"{ErrorMessages.Schema.UnnamedValueError}{node.NodeType}";
                     Logger.Error(errorMessage);
 
                     // 오류 창 표시
                     DialogResult result = MessageBox.Show(
                         errorMessage,
-                        "JSON/YAML 표준 오류",
+                        ErrorMessages.Schema.JsonYamlStandardError,
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error,
                         MessageBoxDefaultButton.Button1,
@@ -340,7 +341,7 @@ namespace ExcelToYamlAddin.Application.Services
                     // 확인 버튼을 누른 경우 변환 과정 중단
                     if (result == DialogResult.OK)
                     {
-                        string abortMessage = "사용자 요청에 의해 변환 작업이 중단되었습니다.";
+                        string abortMessage = ErrorMessages.Conversion.UserCancelled;
                         Logger.Error(abortMessage);
                         throw new InvalidOperationException(abortMessage);
                     }
@@ -523,10 +524,10 @@ namespace ExcelToYamlAddin.Application.Services
                 return strValue;
 
             // 개행 문자 포함 여부 확인 및 처리 (.NET Framework 4.7 이하 호환성을 위해 문자열로 변경)
-            if (strValue.Contains("\n") || strValue.Contains("\r"))
+            if (strValue.Contains(SchemeConstants.SpecialCharacters.LineFeed) || strValue.Contains(SchemeConstants.SpecialCharacters.CarriageReturn))
             {
                 // 개행 문자가 이미 이스케이프되어 있는지 확인
-                if (!strValue.Contains("\\n") && !strValue.Contains("\\r"))
+                if (!strValue.Contains(SchemeConstants.SpecialCharacters.LineFeedEscape) && !strValue.Contains(SchemeConstants.SpecialCharacters.CarriageReturnEscape))
                 {
                     // 새 줄 문자를 이스케이프 처리하지 않고 보존하면
                     // YAML에서 자동으로 블록 스타일을 적용하므로 그대로 반환

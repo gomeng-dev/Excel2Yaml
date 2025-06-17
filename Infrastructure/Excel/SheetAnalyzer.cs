@@ -1,10 +1,11 @@
+using ExcelToYamlAddin.Domain.Constants;
 using ExcelToYamlAddin.Infrastructure.Logging;
 using Microsoft.Office.Interop.Excel;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace ExcelToYamlAddin.Core
+namespace ExcelToYamlAddin.Infrastructure.Excel
 {
     /// <summary>
     /// 시트 분석 및 변환 가능 여부 판단 클래스
@@ -33,8 +34,8 @@ namespace ExcelToYamlAddin.Core
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "시트 분석 중 오류 발생");
-                Debug.WriteLine($"시트 분석 중 오류 발생: {ex.Message}");
+                Logger.Error(ex, ErrorMessages.Conversion.SheetAnalysisError);
+                Debug.WriteLine($"{ErrorMessages.Conversion.SheetAnalysisError}: {ex.Message}");
             }
 
             return result;
@@ -49,12 +50,12 @@ namespace ExcelToYamlAddin.Core
 
                 // 시트 이름이 '!'로 시작하는지 확인
                 string sheetName = sheet.Name;
-                return sheetName != null && sheetName.StartsWith("!");
+                return sheetName != null && sheetName.StartsWith(SchemeConstants.Sheet.ConversionPrefix);
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "시트 분석 중 오류 발생: {0}", sheet?.Name);
-                Debug.WriteLine($"시트 분석 중 오류 발생: {ex.Message}");
+                Logger.Error(ex, ErrorMessages.Conversion.SheetAnalysisErrorWithName, sheet?.Name);
+                Debug.WriteLine($"{ErrorMessages.Conversion.SheetAnalysisError}: {ex.Message}");
                 return false;
             }
         }

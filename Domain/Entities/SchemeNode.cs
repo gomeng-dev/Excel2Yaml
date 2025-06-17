@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using ExcelToYamlAddin.Infrastructure.Excel;
+using ExcelToYamlAddin.Domain.Constants;
 using ExcelToYamlAddin.Infrastructure.Logging;
 using System;
 using System.Collections.Generic;
@@ -20,11 +21,11 @@ namespace ExcelToYamlAddin.Domain.Entities
         }
 
         // 노드 타입 구분을 위한 상수
-        private const string TYPE_MAP = "{}";
-        private const string TYPE_ARRAY = "[]";
-        private const string TYPE_KEY = "key";
-        private const string TYPE_VALUE = "value";
-        private const string TYPE_IGNORE = "^";
+        private const string TYPE_MAP = SchemeConstants.NodeTypes.Map;
+        private const string TYPE_ARRAY = SchemeConstants.NodeTypes.Array;
+        private const string TYPE_KEY = SchemeConstants.NodeTypes.Key;
+        private const string TYPE_VALUE = SchemeConstants.NodeTypes.Value;
+        private const string TYPE_IGNORE = SchemeConstants.NodeTypes.Ignore;
 
         // 로깅 방식 변경
         private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<SchemeNode>();
@@ -47,7 +48,7 @@ namespace ExcelToYamlAddin.Domain.Entities
 
             Logger.Debug("SchemeNode 생성: 이름=" + schemeName + ", 행=" + rowNum + ", 열=" + cellNum);
 
-            if (!schemeName.Contains("$"))
+            if (!schemeName.Contains(SchemeConstants.Markers.MarkerPrefix))
             {
                 this.key = schemeName;
                 this.type = SchemeNodeType.PROPERTY;
@@ -56,7 +57,7 @@ namespace ExcelToYamlAddin.Domain.Entities
             else
             {
                 // 원본 CS 코드와 동일하게 구현
-                string[] splitted = schemeName.Split(new char[] { '$' }, StringSplitOptions.RemoveEmptyEntries);
+                string[] splitted = schemeName.Split(new char[] { SchemeConstants.Markers.MarkerPrefix[0] }, StringSplitOptions.RemoveEmptyEntries);
 
                 // 키와 타입을 분리
                 if (splitted.Length > 0)
@@ -69,7 +70,7 @@ namespace ExcelToYamlAddin.Domain.Entities
                 }
 
                 // ARRAY 타입($[])인 경우 특별 처리
-                if (schemeName.Contains("$[]"))
+                if (schemeName.Contains(SchemeConstants.Markers.ArrayStart))
                 {
                     Logger.Debug("ARRAY 형식 감지: " + schemeName);
                     this.type = SchemeNodeType.ARRAY;
@@ -81,14 +82,14 @@ namespace ExcelToYamlAddin.Domain.Entities
                     Logger.Debug("ARRAY 노드 생성: " + key);
                 }
                 // KEY 타입($key)인 경우 특별 처리
-                else if (schemeName.Contains("$key"))
+                else if (schemeName.Contains(SchemeConstants.Markers.DynamicKey))
                 {
                     Logger.Debug("KEY 형식 감지: " + schemeName);
                     this.type = SchemeNodeType.KEY;
                     Logger.Debug("KEY 노드 생성: " + key);
                 }
                 // VALUE 타입($value)인 경우 특별 처리  
-                else if (schemeName.Contains("$value"))
+                else if (schemeName.Contains(SchemeConstants.Markers.DynamicValue))
                 {
                     Logger.Debug("VALUE 형식 감지: " + schemeName);
                     this.type = SchemeNodeType.VALUE;
@@ -134,7 +135,7 @@ namespace ExcelToYamlAddin.Domain.Entities
                             Logger.Debug("IGNORE 노드 생성: " + key);
                             break;
                         default:
-                            throw new InvalidOperationException("알 수 없는 노드 유형: " + typeString);
+                            throw new InvalidOperationException(ErrorMessages.Schema.UnknownNodeType + typeString);
                     }
                 }
             }

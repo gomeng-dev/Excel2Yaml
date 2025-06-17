@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using ExcelToYamlAddin.Infrastructure.Configuration;
+using ExcelToYamlAddin.Domain.Constants;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,7 +14,7 @@ namespace ExcelToYamlAddin.Application.Services
     public class ExcelReader
     {
         private readonly ExcelToYamlConfig config;
-        private const string AUTO_GEN_MARKER = "!";
+        private const string AUTO_GEN_MARKER = SchemeConstants.Sheet.ConversionPrefix;
 
         public ExcelReader(ExcelToYamlConfig config)
         {
@@ -29,7 +30,7 @@ namespace ExcelToYamlAddin.Application.Services
         {
             if (string.IsNullOrEmpty(inputPath) || !File.Exists(inputPath))
             {
-                throw new FileNotFoundException("엑셀 파일을 찾을 수 없습니다.", inputPath);
+                throw new FileNotFoundException(ErrorMessages.File.ExcelFileNotFound, inputPath);
             }
 
             try
@@ -48,7 +49,7 @@ namespace ExcelToYamlAddin.Application.Services
                         }
                         else
                         {
-                            throw new InvalidOperationException($"'{targetSheetName}' 시트를 찾을 수 없습니다.");
+                            throw new InvalidOperationException(string.Format(ErrorMessages.File.SheetNotFound, targetSheetName));
                         }
                     }
                     else
@@ -66,7 +67,7 @@ namespace ExcelToYamlAddin.Application.Services
                         // 중복 시트 검사
                         if (completedSheetNames.Contains(sheetName))
                         {
-                            throw new InvalidOperationException($"'{sheetName}' 시트가 중복되었습니다!");
+                            throw new InvalidOperationException(string.Format(ErrorMessages.File.DuplicateSheet, sheetName));
                         }
 
                         completedSheetNames.Add(sheetName);
@@ -74,7 +75,7 @@ namespace ExcelToYamlAddin.Application.Services
                         // 출력 파일 경로 설정
                         string outputDir = Path.GetDirectoryName(outputPath);
                         string baseFileName = Path.GetFileNameWithoutExtension(outputPath);
-                        string ext = config.OutputFormat == OutputFormat.Json ? ".json" : ".yaml";
+                        string ext = config.OutputFormat == OutputFormat.Json ? SchemeConstants.FileExtensions.Json : SchemeConstants.FileExtensions.Yaml;
 
                         // 시트별 출력 파일 경로
                         string sheetOutputPath;
@@ -151,7 +152,7 @@ namespace ExcelToYamlAddin.Application.Services
                             {
                                 var hash = md5.ComputeHash(stream);
                                 var hashString = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-                                File.WriteAllText($"{sheetOutputPath}.md5", hashString);
+                                File.WriteAllText($"{sheetOutputPath}{SchemeConstants.FileExtensions.Md5}", hashString);
                             }
                         }
                     }
@@ -159,7 +160,7 @@ namespace ExcelToYamlAddin.Application.Services
             }
             catch (Exception ex)
             {
-                throw new Exception($"Excel 변환 중 오류: {ex.Message}", ex);
+                throw new Exception($"{ErrorMessages.Conversion.ExcelConversionError}{ex.Message}", ex);
             }
         }
 

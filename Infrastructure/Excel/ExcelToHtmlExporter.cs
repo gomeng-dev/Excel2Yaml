@@ -2,9 +2,10 @@ using System;
 using System.IO;
 using System.Text;
 using Microsoft.Office.Interop.Excel;
+using ExcelToYamlAddin.Domain.Constants;
 using ExcelToYamlAddin.Infrastructure.Logging;
 
-namespace ExcelToYamlAddin.Core
+namespace ExcelToYamlAddin.Infrastructure.Excel
 {
     /// <summary>
     /// Excel 시트를 HTML로 내보내는 디버깅용 클래스
@@ -23,22 +24,22 @@ namespace ExcelToYamlAddin.Core
                 Logger.Information($"Excel 시트를 HTML로 내보내기 시작: {worksheet.Name}");
 
                 var html = new StringBuilder();
-                html.AppendLine("<!DOCTYPE html>");
+                html.AppendLine(HtmlStyles.HtmlTags.DocType);
                 html.AppendLine("<html>");
                 html.AppendLine("<head>");
-                html.AppendLine("<meta charset='UTF-8'>");
+                html.AppendLine(HtmlStyles.HtmlTags.Utf8Meta);
                 html.AppendLine($"<title>{worksheet.Name}</title>");
                 html.AppendLine("<style>");
-                html.AppendLine("table { border-collapse: collapse; margin: 20px; }");
-                html.AppendLine("td, th { border: 1px solid #999; padding: 8px; min-width: 80px; }");
-                html.AppendLine("th { background-color: #f2f2f2; font-weight: bold; }");
-                html.AppendLine(".merged { background-color: #e8f4fc; }");
-                html.AppendLine(".scheme-end { background-color: #ff0000; color: white; text-align: center; }");
-                html.AppendLine(".array-marker { background-color: #00CC00; }");
-                html.AppendLine(".object-marker { background-color: #CCFFCC; }");
-                html.AppendLine(".empty { background-color: #f9f9f9; }");
-                html.AppendLine(".row-header { background-color: #ddd; font-weight: bold; width: 50px; }");
-                html.AppendLine(".col-header { background-color: #ddd; font-weight: bold; height: 30px; text-align: center; }");
+                html.AppendLine($"table {{ {HtmlStyles.Table.Base} }}");
+                html.AppendLine($"td, th {{ {HtmlStyles.Table.Cell} }}");
+                html.AppendLine($"th {{ {HtmlStyles.Table.Header} }}");
+                html.AppendLine($".{HtmlStyles.CssClasses.Merged} {{ {HtmlStyles.CellBackground.Merged} }}");
+                html.AppendLine($".{HtmlStyles.CssClasses.SchemeEnd} {{ {HtmlStyles.CellBackground.SchemeEnd} }}");
+                html.AppendLine($".{HtmlStyles.CssClasses.ArrayMarker} {{ {HtmlStyles.CellBackground.ArrayMarker} }}");
+                html.AppendLine($".{HtmlStyles.CssClasses.ObjectMarker} {{ {HtmlStyles.CellBackground.ObjectMarker} }}");
+                html.AppendLine($".{HtmlStyles.CssClasses.Empty} {{ {HtmlStyles.CellBackground.Empty} }}");
+                html.AppendLine($".{HtmlStyles.CssClasses.RowHeader} {{ {HtmlStyles.CellBackground.RowHeader} }}");
+                html.AppendLine($".{HtmlStyles.CssClasses.ColHeader} {{ {HtmlStyles.CellBackground.ColHeader} }}");
                 html.AppendLine("</style>");
                 html.AppendLine("</head>");
                 html.AppendLine("<body>");
@@ -93,7 +94,7 @@ namespace ExcelToYamlAddin.Core
                             {
                                 if (colspan > 1 || rowspan > 1)
                                 {
-                                    cssClass += " merged";
+                                    cssClass += " " + HtmlStyles.CssClasses.Merged;
                                     html.Append($"<td class='{cssClass}'");
                                     if (colspan > 1) html.Append($" colspan='{colspan}'");
                                     if (rowspan > 1) html.Append($" rowspan='{rowspan}'");
@@ -123,12 +124,12 @@ namespace ExcelToYamlAddin.Core
                     html.AppendLine("</table>");
                 }
                 
-                html.AppendLine("<div style='margin: 20px;'>");
+                html.AppendLine($"<div style='{HtmlStyles.HtmlTags.LegendSectionStyle}'>");
                 html.AppendLine("<h3>범례:</h3>");
-                html.AppendLine("<p><span style='background-color: #00CC00; padding: 5px;'>$[]</span> - 배열 마커</p>");
-                html.AppendLine("<p><span style='background-color: #CCFFCC; padding: 5px;'>${}</span> - 객체 마커</p>");
-                html.AppendLine("<p><span style='background-color: #ff0000; color: white; padding: 5px;'>$scheme_end</span> - 스키마 종료</p>");
-                html.AppendLine("<p><span style='background-color: #e8f4fc; padding: 5px;'>병합된 셀</span></p>");
+                html.AppendLine($"<p><span style='{HtmlStyles.CellBackground.ArrayMarker} {HtmlStyles.HtmlTags.LegendItemStyle}'>{SchemeConstants.Markers.ArrayStart}</span> - 배열 마커</p>");
+                html.AppendLine($"<p><span style='{HtmlStyles.CellBackground.ObjectMarker} {HtmlStyles.HtmlTags.LegendItemStyle}'>{SchemeConstants.Markers.MapStart}</span> - 객체 마커</p>");
+                html.AppendLine($"<p><span style='{HtmlStyles.CellBackground.SchemeEnd} {HtmlStyles.HtmlTags.LegendItemStyle}'>{SchemeConstants.Markers.SchemeEnd}</span> - 스키마 종료</p>");
+                html.AppendLine($"<p><span style='{HtmlStyles.CellBackground.Merged} {HtmlStyles.HtmlTags.LegendItemStyle}'>병합된 셀</span></p>");
                 html.AppendLine("</div>");
                 
                 html.AppendLine("</body>");
@@ -140,7 +141,7 @@ namespace ExcelToYamlAddin.Core
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "Excel을 HTML로 내보내는 중 오류 발생");
+                Logger.Error(ex, ErrorMessages.File.HtmlExportError);
                 throw;
             }
         }
@@ -166,16 +167,16 @@ namespace ExcelToYamlAddin.Core
         private static string GetCellClass(string value, Range cell)
         {
             if (string.IsNullOrEmpty(value))
-                return "empty";
+                return HtmlStyles.CssClasses.Empty;
             
-            if (value.Contains("$scheme_end"))
-                return "scheme-end";
+            if (value.Contains(SchemeConstants.Markers.SchemeEnd))
+                return HtmlStyles.CssClasses.SchemeEnd;
             
-            if (value.Contains("$[]"))
-                return "array-marker";
+            if (value.Contains(SchemeConstants.Markers.ArrayStart))
+                return HtmlStyles.CssClasses.ArrayMarker;
             
-            if (value.Contains("${}"))
-                return "object-marker";
+            if (value.Contains(SchemeConstants.Markers.MapStart))
+                return HtmlStyles.CssClasses.ObjectMarker;
             
             // 배경색 확인
             try
@@ -190,16 +191,16 @@ namespace ExcelToYamlAddin.Core
                     int blue = (colorValue >> 16) & 0xFF;
                     
                     // 빨간색 배경 확인
-                    if (red > 200 && green < 100 && blue < 100)
-                        return "scheme-end";
+                    if (red > HtmlStyles.Colors.RedThreshold && green < HtmlStyles.Colors.LowColorThreshold && blue < HtmlStyles.Colors.LowColorThreshold)
+                        return HtmlStyles.CssClasses.SchemeEnd;
                     
                     // 초록색 배경 확인
-                    if (green > 200 && red < 100 && blue < 100)
-                        return "array-marker";
+                    if (green > HtmlStyles.Colors.GreenThreshold && red < HtmlStyles.Colors.LowColorThreshold && blue < HtmlStyles.Colors.LowColorThreshold)
+                        return HtmlStyles.CssClasses.ArrayMarker;
                     
                     // 연한 초록색 배경 확인
-                    if (green > 200 && red > 200 && blue < 100)
-                        return "object-marker";
+                    if (green > HtmlStyles.Colors.GreenThreshold && red > HtmlStyles.Colors.RedThreshold && blue < HtmlStyles.Colors.LowColorThreshold)
+                        return HtmlStyles.CssClasses.ObjectMarker;
                 }
             }
             catch { }

@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using ExcelToYamlAddin.Domain.Entities;
+using ExcelToYamlAddin.Domain.Constants;
 using ExcelToYamlAddin.Infrastructure.Logging;
 using System;
 using System.Collections.Generic;
@@ -10,9 +11,9 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
         // 로깅 방식 변경
         private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<SchemeParser>();
 
-        private const int ILLEGAL_ROW_NUM = -1;
-        private const int COMMENT_ROW_NUM = 0;
-        private const string SCHEME_END = "$scheme_end";
+        private const int ILLEGAL_ROW_NUM = SchemeConstants.RowNumbers.IllegalRow;
+        private const int COMMENT_ROW_NUM = SchemeConstants.RowNumbers.CommentRow;
+        private const string SCHEME_END = SchemeConstants.Markers.SchemeEnd;
 
         private readonly IXLWorksheet _sheet;
         private readonly IXLRow _schemeStartRow;
@@ -45,15 +46,15 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
             if (_schemeEndRowNum == ILLEGAL_ROW_NUM)
             {
                 Logger.Error("Scheme end marker not found.");
-                throw new InvalidOperationException("Scheme end marker not found.");
+                throw new InvalidOperationException(ErrorMessages.Schema.SchemeEndNotFound);
             }
 
             // ClosedXML에서는 행 번호가 1부터 시작하므로 2번 행이 스키마 시작 행임
-            _schemeStartRow = _sheet.Row(2);
+            _schemeStartRow = _sheet.Row(SchemeConstants.Sheet.SchemaStartRow);
             if (_schemeStartRow == null)
             {
                 Logger.Error("Scheme start row (2) not found.");
-                throw new InvalidOperationException("Scheme start row (2) not found.");
+                throw new InvalidOperationException(ErrorMessages.Schema.SchemeStartRowNotFound);
             }
 
             // ClosedXML에서는 첫 번째 셀과 마지막 셀을 다르게 찾음
@@ -158,7 +159,7 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
 
                 string value = cell.GetString();
 
-                if (string.IsNullOrEmpty(value) || value.Equals("^", StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrEmpty(value) || value.Equals(SchemeConstants.Markers.Ignore, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

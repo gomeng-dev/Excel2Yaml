@@ -129,15 +129,39 @@ ExcelToYaml/
 
 **남은 작업**:
 
-#### 1.2 상수 및 설정 중앙화
+#### 1.2 상수 및 설정 중앙화 ✅
 
 **목표**: 모든 매직 값을 상수로 추출하여 중앙 관리
 
-**구현 예시**:
+**완료된 작업**:
+
+1. **Domain/Constants 폴더 생성 및 상수 클래스 구현**
+   - SchemeConstants.cs: Excel 스키마 관련 모든 상수
+   - ErrorMessages.cs: 모든 에러 메시지 상수
+   - RegexPatterns.cs: 정규식 패턴 상수
+   - HtmlStyles.cs: HTML/CSS 스타일 관련 상수
+
+2. **하드코딩된 값 교체 완료**
+   - SchemeParser.cs: 모든 매직 값을 SchemeConstants로 교체
+   - SchemeNode.cs: 노드 타입 및 마커를 상수로 교체
+   - SheetAnalyzer.cs: 시트 접두사를 상수로 교체
+   - ExcelConfigManager.cs: 설정 관련 상수 교체
+   - YamlGenerator.cs: 에러 메시지 및 특수 문자 상수 교체
+   - ExcelReader.cs: 파일 확장자 및 에러 메시지 상수 교체
+   - ExcelToHtmlExporter.cs: HTML 스타일을 HtmlStyles 상수로 교체
+
+3. **네임스페이스 정리**
+   - SheetAnalyzer.cs: Core → Infrastructure.Excel
+   - ExcelToHtmlExporter.cs: Core → Infrastructure.Excel
+
+4. **프로젝트 파일 업데이트**
+   - ExcelToYamlAddin.csproj에 모든 상수 클래스 추가
+
+**구현된 상수 클래스 구조**:
 
 ```csharp
 // Domain/Constants/SchemeConstants.cs
-namespace ExcelToYaml.Domain.Constants
+namespace ExcelToYamlAddin.Domain.Constants
 {
     public static class SchemeConstants
     {
@@ -149,13 +173,61 @@ namespace ExcelToYaml.Domain.Constants
             public const string DynamicKey = "$key";
             public const string DynamicValue = "$value";
             public const string Ignore = "^";
+            public const string MarkerPrefix = "$";
         }
 
         public static class Sheet
         {
             public const string ConversionPrefix = "!";
-            public const string ConfigurationName = "_ExcelToYamlConfig";
+            public const string ConfigurationName = "excel2yamlconfig";
             public const int SchemaStartRow = 2;
+            public const int HeaderRow = 1;
+            public const int DataStartRow = 2;
+        }
+
+        public static class NodeTypes
+        {
+            public const string Map = "{}";
+            public const string Array = "[]";
+            public const string Key = "key";
+            public const string Value = "value";
+            public const string Ignore = "^";
+        }
+
+        public static class RowNumbers
+        {
+            public const int IllegalRow = -1;
+            public const int CommentRow = 0;
+        }
+
+        public static class Configuration
+        {
+            public const int SheetNameColumn = 1;
+            public const int ConfigKeyColumn = 2;
+            public const int ConfigValueColumn = 3;
+            public const int YamlEmptyFieldsColumn = 4;
+            public const int EmptyArrayFieldsColumn = 5;
+            public const int UpdateWaitTimeSeconds = 5;
+        }
+
+        public static class ConfigKeys
+        {
+            public const string SheetName = "SheetName";
+            public const string ConfigKey = "ConfigKey";
+            public const string ConfigValue = "ConfigValue";
+            public const string YamlEmptyFields = "YamlEmptyFields";
+            public const string EmptyArrayFields = "EmptyArrayFields";
+            public const string MergeKeyPaths = "MergeKeyPaths";
+            public const string FlowStyle = "FlowStyle";
+        }
+
+        public static class FileExtensions
+        {
+            public const string Json = ".json";
+            public const string Yaml = ".yaml";
+            public const string Md5 = ".md5";
+            public const string Excel = ".xlsx";
+            public const string Xml = ".xml";
         }
 
         public static class Defaults
@@ -163,46 +235,29 @@ namespace ExcelToYaml.Domain.Constants
             public const int MaxFileDisplayCount = 5;
             public const int DefaultTimeout = 120000;
             public const string DefaultDateFormat = "yyyy-MM-dd";
-        }
-    }
-}
-
-// Domain/Constants/ErrorMessages.cs
-namespace ExcelToYaml.Domain.Constants
-{
-    public static class ErrorMessages
-    {
-        public static class Schema
-        {
-            public const string EndMarkerNotFound = "스키마 종료 마커($scheme_end)를 찾을 수 없습니다.";
-            public const string InvalidStructure = "잘못된 스키마 구조입니다.";
-            public const string MissingRequiredColumn = "필수 열이 누락되었습니다: {0}";
+            public const string DefaultDateTimeFormat = "yyyy-MM-dd HH:mm:ss";
         }
 
-        public static class Conversion
+        public static class SpecialCharacters
         {
-            public const string NoSheetsFound = "변환할 시트를 찾을 수 없습니다.";
-            public const string ConversionFailed = "변환 중 오류가 발생했습니다: {0}";
-            public const string InvalidSheetName = "시트 이름은 '!'로 시작해야 합니다.";
-        }
-
-        public static class File
-        {
-            public const string SaveFailed = "파일 저장에 실패했습니다: {0}";
-            public const string InvalidPath = "잘못된 경로입니다: {0}";
-            public const string AccessDenied = "파일에 접근할 수 없습니다: {0}";
+            public const string LineFeed = "\n";
+            public const string CarriageReturn = "\r";
+            public const string LineFeedEscape = "\\n";
+            public const string CarriageReturnEscape = "\\r";
         }
     }
 }
 ```
 
 **To-Do List**:
-- [ ] SchemeConstants 클래스 생성
-- [ ] ErrorMessages 클래스 생성
-- [ ] RegexPatterns 클래스 생성
-- [ ] 전체 코드베이스에서 하드코딩된 값 검색
-- [ ] 하드코딩된 값을 상수로 교체
-- [ ] 상수 사용 부분 테스트
+- [x] SchemeConstants 클래스 생성
+- [x] ErrorMessages 클래스 생성
+- [x] RegexPatterns 클래스 생성
+- [x] HtmlStyles 클래스 생성 (추가)
+- [x] 전체 코드베이스에서 하드코딩된 값 검색
+- [x] 하드코딩된 값을 상수로 교체
+- [x] 프로젝트 파일에 상수 클래스 추가
+- [x] 상수 사용 부분 테스트
 
 #### 1.3 도메인 모델 정의
 
@@ -1186,8 +1241,8 @@ namespace ExcelToYaml.Infrastructure.Logging
 ## 🚀 실행 계획
 
 ### Week 1-2: 기반 구조
-- [ ] 프로젝트 구조 재구성
-- [ ] 상수 및 설정 중앙화
+- [x] 프로젝트 구조 재구성 ✅
+- [x] 상수 및 설정 중앙화 ✅
 - [ ] 도메인 모델 정의
 - [ ] 인터페이스 계층 구축
 

@@ -318,6 +318,10 @@
     <Compile Include="Domain\ValueObjects\ExcelToYamlConfig.cs" />
     <Compile Include="Domain\Entities\Scheme.cs" />
     <Compile Include="Domain\Entities\SchemeNode.cs" />
+    <Compile Include="Domain\Constants\SchemeConstants.cs" />
+    <Compile Include="Domain\Constants\ErrorMessages.cs" />
+    <Compile Include="Domain\Constants\RegexPatterns.cs" />
+    <Compile Include="Domain\Constants\HtmlStyles.cs" />
     <Compile Include="Infrastructure\Excel\SchemeParser.cs" />
     <Compile Include="Application\Services\Generator.cs" />
     <Compile Include="Infrastructure\FileSystem\OrderedJsonFactory.cs" />

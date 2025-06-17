@@ -1,3 +1,4 @@
+using ExcelToYamlAddin.Domain.Constants;
 using Microsoft.Office.Interop.Excel;
 using System;
 using System.Collections.Generic;
@@ -14,7 +15,7 @@ namespace ExcelToYamlAddin.Infrastructure.Configuration
         private static ExcelConfigManager _instance;
 
         // 설정 시트 이름 상수
-        public const string CONFIG_SHEET_NAME = "excel2yamlconfig";
+        public const string CONFIG_SHEET_NAME = SchemeConstants.Sheet.ConfigurationName;
 
         // 현재 워크북 경로
         private string _currentWorkbookPath;
@@ -34,17 +35,17 @@ namespace ExcelToYamlAddin.Infrastructure.Configuration
         private DateTime _lastLoadTime;
 
         // 설정 열 인덱스 
-        private const int SHEET_NAME_COL = 1;      // A열 - 시트 이름
-        private const int CONFIG_KEY_COL = 2;      // B열 - 설정 키
-        private const int CONFIG_VALUE_COL = 3;    // C열 - 설정 값
-        private const int YAML_EMPTY_FIELDS_COL = 4; // D열 - YAML 선택적 필드 설정
-        private const int EMPTY_ARRAY_FIELDS_COL = 5; // E열 - 빈 배열 필드 설정
+        private const int SHEET_NAME_COL = SchemeConstants.Configuration.SheetNameColumn;      // A열 - 시트 이름
+        private const int CONFIG_KEY_COL = SchemeConstants.Configuration.ConfigKeyColumn;      // B열 - 설정 키
+        private const int CONFIG_VALUE_COL = SchemeConstants.Configuration.ConfigValueColumn;    // C열 - 설정 값
+        private const int YAML_EMPTY_FIELDS_COL = SchemeConstants.Configuration.YamlEmptyFieldsColumn; // D열 - YAML 선택적 필드 설정
+        private const int EMPTY_ARRAY_FIELDS_COL = SchemeConstants.Configuration.EmptyArrayFieldsColumn; // E열 - 빈 배열 필드 설정
 
         // 헤더 로우 인덱스
-        private const int HEADER_ROW = 1;
+        private const int HEADER_ROW = SchemeConstants.Sheet.HeaderRow;
 
         // 데이터 시작 로우 인덱스
-        private const int DATA_START_ROW = 2;
+        private const int DATA_START_ROW = SchemeConstants.Sheet.DataStartRow;
 
         /// <summary>
         /// 싱글톤 인스턴스 가져오기
@@ -163,11 +164,11 @@ namespace ExcelToYamlAddin.Infrastructure.Configuration
                     Debug.WriteLine("[ExcelConfigManager] 새 워크시트 이름을 excel2yamlconfig로 변경 성공");
 
                     // 헤더 작성
-                    configSheet.Cells[HEADER_ROW, SHEET_NAME_COL] = "SheetName";
-                    configSheet.Cells[HEADER_ROW, CONFIG_KEY_COL] = "ConfigKey";
-                    configSheet.Cells[HEADER_ROW, CONFIG_VALUE_COL] = "ConfigValue";
-                    configSheet.Cells[HEADER_ROW, YAML_EMPTY_FIELDS_COL] = "YamlEmptyFields";
-                    configSheet.Cells[HEADER_ROW, EMPTY_ARRAY_FIELDS_COL] = "EmptyArrayFields";
+                    configSheet.Cells[HEADER_ROW, SHEET_NAME_COL] = SchemeConstants.ConfigKeys.SheetName;
+                    configSheet.Cells[HEADER_ROW, CONFIG_KEY_COL] = SchemeConstants.ConfigKeys.ConfigKey;
+                    configSheet.Cells[HEADER_ROW, CONFIG_VALUE_COL] = SchemeConstants.ConfigKeys.ConfigValue;
+                    configSheet.Cells[HEADER_ROW, YAML_EMPTY_FIELDS_COL] = SchemeConstants.ConfigKeys.YamlEmptyFields;
+                    configSheet.Cells[HEADER_ROW, EMPTY_ARRAY_FIELDS_COL] = SchemeConstants.ConfigKeys.EmptyArrayFields;
                     Debug.WriteLine("[ExcelConfigManager] 헤더 작성 완료");
 
                     // 시트 숨기기
@@ -412,7 +413,7 @@ namespace ExcelToYamlAddin.Infrastructure.Configuration
         private void EnsureConfigLoaded()
         {
             // 마지막 로드 후 5초 이상 지났거나 캐시가 비어있으면 다시 로드
-            if (_lastLoadTime.AddSeconds(5) < DateTime.Now || _sheetConfigCache.Count == 0)
+            if (_lastLoadTime.AddSeconds(SchemeConstants.Configuration.UpdateWaitTimeSeconds) < DateTime.Now || _sheetConfigCache.Count == 0)
             {
                 LoadAllSettings();
             }
@@ -480,14 +481,14 @@ namespace ExcelToYamlAddin.Infrastructure.Configuration
                     string mergeKeyPaths = sheetPathManager.GetMergeKeyPaths(sheetName);
                     if (!string.IsNullOrEmpty(mergeKeyPaths))
                     {
-                        SetConfigValue(sheetName, "MergeKeyPaths", mergeKeyPaths);
+                        SetConfigValue(sheetName, SchemeConstants.ConfigKeys.MergeKeyPaths, mergeKeyPaths);
                     }
 
                     // Flow 스타일 설정 마이그레이션
                     string flowStyleConfig = sheetPathManager.GetFlowStyleConfig(sheetName);
                     if (!string.IsNullOrEmpty(flowStyleConfig))
                     {
-                        SetConfigValue(sheetName, "FlowStyle", flowStyleConfig);
+                        SetConfigValue(sheetName, SchemeConstants.ConfigKeys.FlowStyle, flowStyleConfig);
                     }
                 }
 

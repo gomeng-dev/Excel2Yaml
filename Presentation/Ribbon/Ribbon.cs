@@ -19,6 +19,7 @@ using System.Threading; // CancellationToken을 위해 추가
 using Excel = Microsoft.Office.Interop.Excel;
 using ExcelToYamlAddin.Domain.ValueObjects;
 using ExcelToYamlAddin.Application.Services;
+using ExcelToYamlAddin.Infrastructure.Excel;
 
 namespace ExcelToYamlAddin
 {
@@ -1130,7 +1131,7 @@ namespace ExcelToYamlAddin
                 }
 
                 // 변환 가능한 시트 가져오기
-                var convertibleSheets = Core.SheetAnalyzer.GetConvertibleSheets(app.ActiveWorkbook);
+                var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(app.ActiveWorkbook);
 
                 if (convertibleSheets.Count == 0)
                 {
@@ -1516,7 +1517,7 @@ namespace ExcelToYamlAddin
 
                 if (saveDialog.ShowDialog() == DialogResult.OK)
                 {
-                    Core.ExcelToHtmlExporter.ExportToHtml(activeSheet, saveDialog.FileName);
+                    ExcelToHtmlExporter.ExportToHtml(activeSheet, saveDialog.FileName);
                     
                     // 브라우저에서 열기
                     var result = MessageBox.Show($"HTML 파일이 생성되었습니다.\n\n{saveDialog.FileName}\n\n브라우저에서 열어보시겠습니까?",
