@@ -833,7 +833,11 @@ namespace ExcelToYamlAddin
                 {
                     progressForm.RunOperation((progress, cancellationToken) =>
                     {
-                        ReportProgress(progress, 0, "YAML 파일 변환 준비 중...");
+                        progress.Report(new Forms.ProgressForm.ProgressInfo
+                        {
+                            Percentage = 0,
+                            StatusMessage = "YAML 파일 변환 준비 중..."
+                        });
 
                         // 1단계: YAML로 변환 (임시 파일에 저장)
                         var yamlResult = ConvertToYaml(convertibleSheets, useTemporaryFiles: true, "OnConvertYamlToJsonClick");
@@ -843,19 +847,36 @@ namespace ExcelToYamlAddin
 
                         try
                         {
-                            ReportProgress(progress, 10, "YAML 파일 생성 완료...");
+                            progress.Report(new Forms.ProgressForm.ProgressInfo
+                            {
+                                Percentage = 10,
+                                StatusMessage = "YAML 파일 생성 완료..."
+                            });
 
                             if (yamlFiles.Count == 0)
                             {
-                                ReportProgress(progress, 100, "변환할 YAML 파일이 없습니다.", isCompleted: true);
+                                progress.Report(new Forms.ProgressForm.ProgressInfo
+                                {
+                                    Percentage = 100,
+                                    StatusMessage = "변환할 YAML 파일이 없습니다.",
+                                    IsCompleted = true
+                                });
                                 return;
                             }
 
-                            ReportProgress(progress, 30, "YAML 후처리 진행 중...");
+                            progress.Report(new Forms.ProgressForm.ProgressInfo
+                            {
+                                Percentage = 30,
+                                StatusMessage = "YAML 후처리 진행 중..."
+                            });
                             ApplyYamlPostProcessing(yamlFiles, convertibleSheets, progress, cancellationToken, 30, 20, isForJsonConversion: true);
 
                             // 3단계: JSON 변환 준비
-                            ReportProgress(progress, 50, $"{yamlFiles.Count}개 YAML 파일 JSON 변환 준비 중...");
+                            progress.Report(new Forms.ProgressForm.ProgressInfo
+                            {
+                                Percentage = 50,
+                                StatusMessage = $"{yamlFiles.Count}개 YAML 파일 JSON 변환 준비 중..."
+                            });
 
                             // YAML 파일을 JSON으로 변환할 쌍 생성
                             foreach (var yamlFile in yamlFiles)
