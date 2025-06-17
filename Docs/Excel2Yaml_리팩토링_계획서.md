@@ -259,7 +259,7 @@ namespace ExcelToYamlAddin.Domain.Constants
 - [x] 프로젝트 파일에 상수 클래스 추가
 - [x] 상수 사용 부분 테스트
 
-#### 1.3 도메인 모델 정의
+#### 1.3 도메인 모델 정의 ✅
 
 **목표**: 비즈니스 로직의 핵심이 되는 도메인 모델 확립
 
@@ -347,12 +347,25 @@ namespace ExcelToYaml.Domain.ValueObjects
 ```
 
 **To-Do List**:
-- [ ] Scheme 엔티티 생성
-- [ ] SchemeNode 엔티티 리팩토링
-- [ ] CellPosition 값 객체 생성
-- [ ] SchemeNodeType 값 객체 생성
-- [ ] ConversionOptions 값 객체 생성
-- [ ] 도메인 모델 단위 테스트 작성
+- [x] Scheme 엔티티 생성
+- [x] SchemeNode 엔티티 리팩토링
+- [x] CellPosition 값 객체 생성
+- [x] SchemeNodeType 값 객체 생성
+- [x] ConversionOptions 값 객체 생성
+- [x] 도메인 모델 단위 테스트 작성
+
+**구현 완료 사항**:
+1. **ValueObject 기본 클래스** - 모든 값 객체의 기반이 되는 추상 클래스 구현
+2. **CellPosition** - Excel 셀 위치를 나타내는 값 객체 (행/열 변환, 네비게이션 메서드 포함)
+3. **SchemeNodeType** - 노드 타입을 나타내는 열거형 값 객체 (Property, Map, Array, Key, Value, Ignore)
+4. **ConversionOptions** - 변환 옵션을 나타내는 복합 값 객체 (Builder 패턴 적용)
+5. **OutputFormat** - 출력 형식을 나타내는 값 객체 (YAML, JSON, XML, HTML)
+6. **YamlStyle** - YAML 스타일을 나타내는 값 객체
+7. **Scheme 엔티티** - DDD 원칙에 따른 리치 도메인 모델로 리팩토링 (팩토리 메서드, 검증, 메타데이터 지원)
+8. **SchemeNode 엔티티** - 불변성과 검증 로직을 갖춘 도메인 엔티티로 리팩토링
+9. **도메인 상수 적용** - 모든 도메인 모델에 ErrorMessages와 SchemeConstants 적용
+10. **ReverseSchemeBuilder 리팩토링** - 새로운 도메인 구조에 맞춰 업데이트
+11. **도메인 모델 단위 테스트** - CellPosition, SchemeNodeType, SchemeNode, Scheme에 대한 테스트 작성
 
 #### 1.4 인터페이스 및 추상화 정의
 

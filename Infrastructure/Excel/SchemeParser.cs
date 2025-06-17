@@ -4,6 +4,7 @@ using ExcelToYamlAddin.Domain.Constants;
 using ExcelToYamlAddin.Infrastructure.Logging;
 using System;
 using System.Collections.Generic;
+using ExcelToYamlAddin.Domain.ValueObjects;
 namespace ExcelToYamlAddin.Infrastructure.Excel
 {
     public class SchemeParser
@@ -53,13 +54,13 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
             _schemeStartRow = _sheet.Row(SchemeConstants.Sheet.SchemaStartRow);
             if (_schemeStartRow == null)
             {
-                Logger.Error("Scheme start row (2) not found.");
+                Logger.Error($"Scheme start row ({SchemeConstants.Sheet.SchemaStartRow}) not found.");
                 throw new InvalidOperationException(ErrorMessages.Schema.SchemeStartRowNotFound);
             }
 
             // ClosedXML에서는 첫 번째 셀과 마지막 셀을 다르게 찾음
-            _firstCellNum = _schemeStartRow.FirstCellUsed()?.Address.ColumnNumber ?? 1;
-            _lastCellNum = _schemeStartRow.LastCellUsed()?.Address.ColumnNumber ?? 1;
+            _firstCellNum = _schemeStartRow.FirstCellUsed()?.Address.ColumnNumber ?? SchemeConstants.Position.FirstColumnIndex;
+            _lastCellNum = _schemeStartRow.LastCellUsed()?.Address.ColumnNumber ?? SchemeConstants.Position.FirstColumnIndex;
 
             Logger.Information($"Scheme range: start={_firstCellNum}, end={_lastCellNum}");
         }
@@ -117,7 +118,7 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
                 Logger.Error("Root node is null. Creating default ARRAY node.");
                 try
                 {
-                    rootNode = new SchemeNode(_sheet, _schemeStartRow.RowNumber(), _firstCellNum, "$[]");
+                    rootNode = SchemeNode.Create(SchemeConstants.NodeTypes.Array, _schemeStartRow.RowNumber(), _firstCellNum);
                     Logger.Debug("기본 ARRAY 형식의 루트 노드 생성");
                 }
                 catch (Exception ex)
@@ -130,8 +131,8 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
             var result = new SchemeParsingResult
             {
                 Root = rootNode,
-                ContentStartRowNum = _schemeEndRowNum + 1,
-                EndRowNum = _sheet.LastRowUsed()?.RowNumber() ?? _schemeEndRowNum + 1
+                ContentStartRowNum = _schemeEndRowNum + SchemeConstants.Position.DataRowOffset,
+                EndRowNum = _sheet.LastRowUsed()?.RowNumber() ?? _schemeEndRowNum + SchemeConstants.Position.DataRowOffset
             };
 
             // 결과 로깅
@@ -165,7 +166,7 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
                 }
 
                 Logger.Debug($"Cell value processed: row={rowNum}, column={cellNum}, value={value}");
-                SchemeNode child = new SchemeNode(_sheet, rowNum, cellNum, value);
+                SchemeNode child = SchemeNode.Create(value, rowNum, cellNum);
 
                 if (parent == null)
                 {
@@ -176,11 +177,10 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
                 {
                     // 자바 코드와 유사하게 자식 노드 추가 처리
                     parent.AddChild(child);
-                    child.SetParent(parent);
                     Logger.Debug($"Child node added: parent={parent.Key} ({parent.NodeType}), child={child.Key} ({child.NodeType})");
 
                     // KEY 타입 노드 처리 - 즉시 다음 셀 처리로 이동
-                    if (child.NodeType == SchemeNode.SchemeNodeType.KEY)
+                    if (child.NodeType == SchemeNodeType.Key)
                     {
                         cellNum++;
                         Parse(child, rowNum, cellNum, cellNum);
@@ -210,10 +210,10 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
                     }
 
                     // 컨테이너 노드는 항상 다음 행에서 자식 파싱 수행
-                    if (rowNum + 1 < _schemeEndRowNum)
+                    if (rowNum + SchemeConstants.Position.NextRowOffset < _schemeEndRowNum)
                     {
                         // 자바 코드와 유사하게 단순화된 호출로 변경
-                        Parse(child, rowNum + 1, firstCellInRange, lastCellInRange);
+                        Parse(child, rowNum + SchemeConstants.Position.NextRowOffset, firstCellInRange, lastCellInRange);
                     }
 
                     cellNum = lastCellInRange; // 병합된 셀 영역 끝까지 이동
@@ -227,7 +227,7 @@ namespace ExcelToYamlAddin.Infrastructure.Excel
         {
             if (row == null) return false;
 
-            IXLCell cell = row.Cell(1);
+            IXLCell cell = row.Cell(SchemeConstants.Position.FirstColumnIndex);
             return cell != null && !cell.IsEmpty() &&
                    cell.DataType == XLDataType.Text &&
                    cell.GetString().Equals(SCHEME_END, StringComparison.OrdinalIgnoreCase);

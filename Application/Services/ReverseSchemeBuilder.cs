@@ -4,8 +4,10 @@ using System.Linq;
 using YamlDotNet.RepresentationModel;
 using ExcelToYamlAddin.Infrastructure.Logging;
 using ExcelToYamlAddin.Domain.Entities;
+using ExcelToYamlAddin.Domain.ValueObjects;
+using ExcelToYamlAddin.Domain.Constants;
 
-namespace ExcelToYamlAddin.Core.YamlToExcel
+namespace ExcelToYamlAddin.Application.Services
 {
     /// <summary>
     /// YAML 구조를 분석하여 Excel 스키마 트리를 생성하는 역 스키마 빌더 (개선된 버전)
@@ -18,7 +20,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
         {
             public string Key { get; set; }
             public string SchemeMarker { get; set; }
-            public SchemeNode.SchemeNodeType NodeType { get; set; }
+            public SchemeNodeType NodeType { get; set; }
             public int RowIndex { get; set; }
             public int ColumnIndex { get; set; }
             public int ColumnSpan { get; set; } = 1;
@@ -38,16 +40,14 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             public Dictionary<string, int> ColumnMappings { get; set; } = new Dictionary<string, int>();
         }
 
-        private int currentRow = 2;
-        private int currentColumn = 1;
+        private int currentRow = SchemeConstants.Sheet.SchemaStartRow;
         private int maxColumn = 0;
 
         public SchemeBuildResult BuildSchemaTree(YamlNode yamlRoot)
         {
             Logger.Information("========== 스키마 빌드 시작 (v2) ==========");
             
-            currentRow = 2;
-            currentColumn = 1;
+            currentRow = SchemeConstants.Sheet.SchemaStartRow;
             maxColumn = 0;
             
             var result = new SchemeBuildResult();
@@ -81,10 +81,10 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 var rootArrayNode = new ExcelSchemeNode
                 {
                     Key = "",
-                    SchemeMarker = "$[]",
-                    NodeType = SchemeNode.SchemeNodeType.ARRAY,
+                    SchemeMarker = SchemeConstants.Markers.ArrayStart,
+                    NodeType = SchemeNodeType.Array,
                     RowIndex = currentRow,
-                    ColumnIndex = 1,
+                    ColumnIndex = SchemeConstants.Position.RootNodeColumn,
                     OriginalYamlPath = ""
                 };
 
@@ -110,9 +110,9 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     // ^ 마커와 ${} 추가
                     var caretNode = new ExcelSchemeNode
                     {
-                        Key = "^",
+                        Key = SchemeConstants.Markers.Ignore,
                         SchemeMarker = "",
-                        NodeType = SchemeNode.SchemeNodeType.IGNORE,
+                        NodeType = SchemeNodeType.Ignore,
                         Parent = rootArrayNode,
                         RowIndex = currentRow,
                         ColumnIndex = fullColumnCount  // 마지막 컬럼에 ^
@@ -123,8 +123,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var elementNode = new ExcelSchemeNode
                     {
                         Key = "",
-                        SchemeMarker = "${}",
-                        NodeType = SchemeNode.SchemeNodeType.MAP,
+                        SchemeMarker = SchemeConstants.Markers.MapStart,
+                        NodeType = SchemeNodeType.Map,
                         Parent = rootArrayNode,
                         RowIndex = currentRow,
                         ColumnIndex = 2,
@@ -148,10 +148,10 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 var rootObjectNode = new ExcelSchemeNode
                 {
                     Key = "",
-                    SchemeMarker = "${}",
-                    NodeType = SchemeNode.SchemeNodeType.MAP,
+                    SchemeMarker = SchemeConstants.Markers.MapStart,
+                    NodeType = SchemeNodeType.Map,
                     RowIndex = currentRow,
-                    ColumnIndex = 1,
+                    ColumnIndex = SchemeConstants.Position.RootNodeColumn,
                     OriginalYamlPath = ""
                 };
                 
@@ -161,7 +161,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 maxColumn = columns;
                 
                 currentRow++;
-                ProcessObjectProperties(rootObjectNode, rootMapping, 1, "");
+                ProcessObjectProperties(rootObjectNode, rootMapping, SchemeConstants.Position.RootNodeColumn, "");
                 
                 return rootObjectNode;
             }
@@ -177,18 +177,18 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             
             // 루트 배열의 요소인 경우 ^ 마커 추가
             if (parentNode.Parent != null && 
-                parentNode.Parent.NodeType == SchemeNode.SchemeNodeType.ARRAY &&
+                parentNode.Parent.NodeType == SchemeNodeType.Array &&
                 parentNode.Parent.Parent == null &&
-                startColumn > 1)
+                startColumn > SchemeConstants.Position.RootNodeColumn)
             {
                 var caretNode = new ExcelSchemeNode
                 {
-                    Key = "^",
+                    Key = SchemeConstants.Markers.Ignore,
                     SchemeMarker = "",
-                    NodeType = SchemeNode.SchemeNodeType.IGNORE,
+                    NodeType = SchemeNodeType.Ignore,
                     Parent = parentNode,
                     RowIndex = currentRow,
-                    ColumnIndex = 1
+                    ColumnIndex = SchemeConstants.Position.RootNodeColumn
                 };
                 parentNode.Children.Add(caretNode);
             }
@@ -212,7 +212,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     {
                         Key = key,
                         SchemeMarker = "",
-                        NodeType = SchemeNode.SchemeNodeType.PROPERTY,
+                        NodeType = SchemeNodeType.Property,
                         Parent = parentNode,
                         RowIndex = baseRow,
                         ColumnIndex = col++,
@@ -229,8 +229,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var arrayNode = new ExcelSchemeNode
                     {
                         Key = key,
-                        SchemeMarker = "$[]",
-                        NodeType = SchemeNode.SchemeNodeType.ARRAY,
+                        SchemeMarker = SchemeConstants.Markers.ArrayStart,
+                        NodeType = SchemeNodeType.Array,
                         Parent = parentNode,
                         RowIndex = baseRow,
                         ColumnIndex = col,
@@ -257,8 +257,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var objectNode = new ExcelSchemeNode
                     {
                         Key = key,
-                        SchemeMarker = "${}",
-                        NodeType = SchemeNode.SchemeNodeType.MAP,
+                        SchemeMarker = SchemeConstants.Markers.MapStart,
+                        NodeType = SchemeNodeType.Map,
                         Parent = parentNode,
                         RowIndex = baseRow,
                         ColumnIndex = col,
@@ -359,8 +359,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var elementNode = new ExcelSchemeNode
                     {
                         Key = "",
-                        SchemeMarker = "${}",
-                        NodeType = SchemeNode.SchemeNodeType.MAP,
+                        SchemeMarker = SchemeConstants.Markers.MapStart,
+                        NodeType = SchemeNodeType.Map,
                         Parent = arrayNode,
                         RowIndex = currentRow,
                         ColumnIndex = currentCol,
@@ -422,7 +422,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     {
                         Key = key,
                         SchemeMarker = "",
-                        NodeType = SchemeNode.SchemeNodeType.PROPERTY,
+                        NodeType = SchemeNodeType.Property,
                         Parent = parentNode,
                         RowIndex = currentRow,
                         ColumnIndex = col++,
@@ -438,8 +438,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var arrayNode = new ExcelSchemeNode
                     {
                         Key = key,
-                        SchemeMarker = "$[]",
-                        NodeType = SchemeNode.SchemeNodeType.ARRAY,
+                        SchemeMarker = SchemeConstants.Markers.ArrayStart,
+                        NodeType = SchemeNodeType.Array,
                         Parent = parentNode,
                         RowIndex = currentRow,
                         ColumnIndex = col,
@@ -467,8 +467,8 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                     var objectNode = new ExcelSchemeNode
                     {
                         Key = key,
-                        SchemeMarker = "${}",
-                        NodeType = SchemeNode.SchemeNodeType.MAP,
+                        SchemeMarker = SchemeConstants.Markers.MapStart,
+                        NodeType = SchemeNodeType.Map,
                         Parent = parentNode,
                         RowIndex = currentRow,
                         ColumnIndex = col,
@@ -945,24 +945,24 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             // $scheme_end 행 병합
             if (result.TotalColumns > 0)
             {
-                result.MergedCells.Add((result.TotalRows, 1, result.TotalColumns));
+                result.MergedCells.Add((result.TotalRows, SchemeConstants.Position.RootNodeColumn, result.TotalColumns));
             }
         }
 
         private void BuildColumnMappings(ExcelSchemeNode node, Dictionary<string, int> mappings)
         {
-            if (node.NodeType == SchemeNode.SchemeNodeType.PROPERTY && !string.IsNullOrEmpty(node.OriginalYamlPath))
+            if (node.NodeType == SchemeNodeType.Property && !string.IsNullOrEmpty(node.OriginalYamlPath))
             {
                 mappings[node.OriginalYamlPath] = node.ColumnIndex;
                 
                 // 디버깅: 매핑 추가 로깅
                 Logger.Information($"Column mapping: {node.OriginalYamlPath} -> Column {node.ColumnIndex}");
             }
-            else if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY && !string.IsNullOrEmpty(node.OriginalYamlPath))
+            else if (node.NodeType == SchemeNodeType.Array && !string.IsNullOrEmpty(node.OriginalYamlPath))
             {
                 // 스칼라 배열인지 확인 (자식이 없거나 자식이 모두 스칼라인 경우)
                 bool isScalarArray = node.Children.Count == 0 || 
-                                   node.Children.All(child => child.NodeType == SchemeNode.SchemeNodeType.PROPERTY);
+                                   node.Children.All(child => child.NodeType == SchemeNodeType.Property);
                 
                 if (isScalarArray && node.ColumnSpan == 1)
                 {

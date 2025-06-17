@@ -170,8 +170,14 @@ namespace ExcelToYamlAddin.Infrastructure.FileSystem
             return false;
         }
 
-        public static string SerializeToYaml(object obj, int indentSize = 2, YamlStyle style = YamlStyle.Block, bool preserveQuotes = false, bool includeEmptyFields = false)
+        public static string SerializeToYaml(object obj, int indentSize = 2, YamlStyle style = null, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
+            // 기본값 설정
+            if (style == null)
+            {
+                style = YamlStyle.Block;
+            }
+            
             // 디버깅 로그 추가
             Debug.WriteLine($"[OrderedYamlFactory] SerializeToYaml 시작, includeEmptyFields: {includeEmptyFields}, 객체 타입: {(obj != null ? obj.GetType().Name : "null")}");
             Debug.WriteLine($"[OrderedYamlFactory] *** 중요 *** includeEmptyFields 값 확인: {includeEmptyFields}, 스택 트레이스: {Environment.StackTrace}");
@@ -207,10 +213,28 @@ namespace ExcelToYamlAddin.Infrastructure.FileSystem
             return sb.ToString();
         }
 
-        public static void SaveToYaml(object obj, string filePath, int indentSize = 2, YamlStyle style = YamlStyle.Block, bool preserveQuotes = false, bool includeEmptyFields = false)
+        public static void SaveToYaml(object obj, string filePath, int indentSize = 2, YamlStyle style = null, bool preserveQuotes = false, bool includeEmptyFields = false)
         {
+            // 기본값 설정
+            if (style == null)
+            {
+                style = YamlStyle.Block;
+            }
+            
             string yaml = SerializeToYaml(obj, indentSize, style, preserveQuotes, includeEmptyFields);
             File.WriteAllText(filePath, yaml);
+        }
+
+        // 오버로드: 기본 파라미터를 사용하는 간단한 버전
+        public static string SerializeToYaml(object obj)
+        {
+            return SerializeToYaml(obj, 2, YamlStyle.Block, false, false);
+        }
+
+        // 오버로드: indentSize만 지정하는 버전
+        public static string SerializeToYaml(object obj, int indentSize)
+        {
+            return SerializeToYaml(obj, indentSize, YamlStyle.Block, false, false);
         }
 
         private static void SerializeObject(object obj, StringBuilder sb, int level, int indentSize, YamlStyle style, bool preserveQuotes)

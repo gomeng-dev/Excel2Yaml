@@ -9,7 +9,8 @@
       "Bash(rm:*)",
       "Bash(mv:*)",
       "Bash(ls:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

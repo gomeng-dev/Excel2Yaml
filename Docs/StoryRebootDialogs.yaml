@@ -1,0 +1,2714 @@
+- id: 1
+  type: Dialog
+  name: PresidentTeacher
+  content: _SCENE_LOBBY_TUTORIAL_1
+  triggers:
+    - {key: Character, value: 1}
+    - {key: Bubble, value: 1}
+- id: 2
+  type: Narration
+  content: _SCENE_LOBBY_TUTORIAL_2
+- id: 3
+  type: Dialog
+  name: PresidentTeacher
+  content: _SCENE_LOBBY_TUTORIAL_3
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 2}
+- id: 4
+  type: Dialog
+  name: PresidentTeacher
+  content: _SCENE_LOBBY_TUTORIAL_4
+  triggers:
+    - {key: Character, value: 3}
+    - {key: Bubble, value: 3}
+- id: 5
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "대사 이렇게 쓰면 되나요"
+  image: dongjin
+  triggers:
+    - {key: Character, value: 1}
+    - {key: Bubble, value: 1}
+  next: 6
+- id: 6
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "테스트"
+  image: yuri
+  triggers:
+    - {key: Character, value: 1}
+    - {key: Bubble, value: 1}
+- id: 7
+  type: Narration
+  content: "이건 나레이션이다."
+- id: 101
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "유리야, 준호야, 예슬아! 다들 괜찮아?"
+  image: dongjin
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 102
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "야, 김준호! 빨리 일어나 봐!"
+  image: yeseul
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+  autoSkipTime: 10
+- id: 103
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "으… 뭐야? 여기 어디야?"
+  image: junho
+  faceId: 2
+  triggers:
+    - {key: Character, value: 1}
+  next: 104
+  autoSkipTime: 10
+- id: 104
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "나도 잘 모르겠어. 정신 차려보니 여기에…"
+  image: dongjin
+  faceId: 2
+  autoSkipTime: 10
+- id: 105
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "우리 일단 밖으로 나가보자."
+  image: yuri
+  faceId: 2
+  autoSkipTime: 10
+- id: 106
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "이럴 수가… 학교가…!"
+  image: dongjin
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 107
+  autoSkipTime: 10
+- id: 107
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "말도 안 돼…!"
+  image: yeseul
+  faceId: 2
+  next: 108
+  autoSkipTime: 5
+- id: 108
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "와, 씨, 저게 다 좀비야?"
+  image: junho
+  faceId: 3
+  next: 109
+  autoSkipTime: 10
+- id: 109
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "이래선… 다른 친구들도 위험할 텐데…"
+  image: yuri
+  faceId: 5
+  autoSkipTime: 10
+- id: 110
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "어! 저거 정동석 아냐?!"
+  image: yeseul
+  faceId: 5
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  next: 111
+  autoSkipTime: 10
+- id: 111
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "동석아!"
+  image: dongjin
+  faceId: 6
+  autoSkipTime: 5
+- id: 112
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: ……!
+  image: dongsuk_2
+  triggers:
+    - {key: Character, value: 1}
+  autoSkipTime: 5
+- id: 113
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "야, 아직 멀었어!?"
+  image: junho
+  faceId: 6
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  next: 114
+  autoSkipTime: 10
+- id: 114
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "문이, 안 열려…!"
+  image: dongjin
+  faceId: 5
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 115
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "아씨, 가스 다 떨어졌네……."
+  image: junho
+  faceId: 3
+  autoSkipTime: 10
+- id: 116
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "고나래!?"
+  image: yeseul
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 117
+  autoSkipTime: 5
+- id: 117
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "빨리 안으로 들어와!"
+  image: narae
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+  autoSkipTime: 10
+- id: 118
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "정동석!"
+  image: narae
+  faceId: 5
+  autoSkipTime: 5
+- id: 119
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "동진아, 괜찮아?"
+  image: yuri
+  faceId: 1
+  next: 120
+  autoSkipTime: 10
+- id: 120
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "나, 난 괜찮아……!"
+  image: dongjin
+  faceId: 2
+  triggers:
+    - {key: Character, value: 4}
+  next: 121
+  autoSkipTime: 10
+- id: 121
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "쟤 왜 저래!?"
+  image: junho
+  faceId: 5
+  next: 122
+  autoSkipTime: 10
+- id: 122
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "쟤도 좀비된 거 아냐!?"
+  image: yeseul
+  faceId: 6
+  triggers:
+    - {key: Character, value: 2}
+  autoSkipTime: 10
+- id: 123
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "뭔가… 괴로워 보여……."
+  image: narae
+  faceId: 4
+  next: 124
+  autoSkipTime: 10
+- id: 124
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "동석이를 진정시키자! 저대로 놔둘 순 없어!"
+  image: dongjin
+  faceId: 8
+  autoSkipTime: 10
+- id: 125
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: "으윽…"
+  image: dongsuk_2
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+  next: 126
+  autoSkipTime: 5
+- id: 126
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "동석아!"
+  image: dongjin
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 5
+- id: 127
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: …….
+  image: dongsuk_2
+  triggers:
+    - {key: Character, value: 1}
+  autoSkipTime: 5
+- id: 128
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "정신이 들어? 여긴 본관이야."
+  image: yuri
+  next: 129
+  autoSkipTime: 10
+- id: 129
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "야, 쟤 안전한 거 맞아? 또 난리치는 거 아냐?"
+  image: junho
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+  autoSkipTime: 10
+- id: 130
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "그럼 또 때려눕히지 뭐~ 냐핫!"
+  image: yeseul
+  triggers:
+    - {key: Character, value: 3}
+    - {key: Bubble, value: 4}
+  next: 131
+  autoSkipTime: 10
+- id: 131
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "일단… 괜찮아 보이니까 치료해주자."
+  image: narae
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 3}
+  autoSkipTime: 10
+- id: 132
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "이제 얘기 좀 해 봐! 대체 무슨 일이 있었던 거야?"
+  image: yeseul
+  faceId: 1
+  next: 133
+  autoSkipTime: 10
+- id: 133
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "후… 우리 한밤중에 본관에 숨어들었다가 사고가 생겨서 뿔뿔이 흩어졌던 건 기억나?"
+  image: narae
+  next: 134
+  autoSkipTime: 20
+- id: 134
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "음… 그랬던 거 같기도……."
+  image: junho
+  next: 135
+  autoSkipTime: 10
+- id: 135
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "나랑 동석이는 너희랑 다른 방향으로 도망갔어."
+  image: narae
+  faceId: 1
+  next: 136
+  autoSkipTime: 10
+- id: 136
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "이상한 기계들이 잔뜩 들어차 있는 곳에 도착해서… 동석이가 뭔갈 조작했는데…"
+  image: narae
+  faceId: 2
+  next: 137
+  autoSkipTime: 15
+- id: 137
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "그랬더니 안쪽 문이 열리고 거기에 너희들이 쓰러져 있었던 거야!"
+  image: narae
+  faceId: 6
+  next: 138
+  autoSkipTime: 10
+- id: 138
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "거기에 두면 위험할 것 같아서 너흴 옮기려 했더니, 동석이가 그 낡은 교실을 찾아내서 데려다줬어."
+  image: narae
+  faceId: 5
+  next: 139
+  autoSkipTime: 20
+- id: 139
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "엥, 정동석은 거길 어케암?"
+  image: junho
+  next: 140
+  autoSkipTime: 10
+- id: 140
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "헐~ 우리 뭐 실험같은 거 당한 거 아냐?"
+  image: yeseul
+  faceId: 6
+  triggers:
+    - {key: Character, value: 2}
+  next: 141
+  autoSkipTime: 10
+- id: 141
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "학교에 숨겨진 비밀은 대체 뭘까…?"
+  image: dongjin
+  faceId: 4
+  autoSkipTime: 10
+- id: 142
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: "…을……"
+  image: dongsuk_2
+  faceId: 1
+  triggers:
+    - {key: Character, value: 1}
+  next: 143
+  autoSkipTime: 5
+- id: 143
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "응?"
+  image: dongjin
+  faceId: 9
+  autoSkipTime: 5
+- id: 144
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "왜, 뭐래?"
+  image: junho
+  triggers:
+    - {key: Character, value: 2}
+  next: 145
+  autoSkipTime: 2
+- id: 145
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "뭐라 했어?"
+  image: yeseul
+  faceId: 5
+  triggers:
+    - {key: Character, value: 2}
+  next: 146
+  autoSkipTime: 2
+- id: 146
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "조용히 해 봐!"
+  image: narae
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+  autoSkipTime: 5
+- id: 147
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: "…교장…을……"
+  image: dongsuk_2
+  next: 148
+  autoSkipTime: 5
+- id: 148
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: "교장을… 막아야 해……!"
+  image: dongsuk_2
+  autoSkipTime: 10
+- id: 201
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "그게 무슨 소리야? 교장을 막아야 한다니……"
+  image: dongjin
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 202
+  autoSkipTime: 10
+- id: 202
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "사무엘 교장 선생님을 말하는 거야?"
+  image: yuri
+  faceId: 1
+  next: 203
+  autoSkipTime: 10
+- id: 203
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "좀 더 자세히 말해봐!"
+  image: yeseul
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 204
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: "그래. 사무엘… 그 자가, 모든 일의 원흉이야."
+  image: dongsuk_2
+  next: 205
+  autoSkipTime: 10
+- id: 205
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: "그 녀석이… 학교를 실험장으로… 만들었어."
+  image: dongsuk_2
+  next: 206
+  autoSkipTime: 10
+- id: 206
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "넌 그걸 막으려다 그렇게 다친 거야?"
+  image: narae
+  faceId: 4
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 207
+  autoSkipTime: 10
+- id: 207
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: …….
+  image: dongsuk_2
+  next: 208
+  autoSkipTime: 5
+- id: 208
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "야, 그럼 본관 지하에 있던 그 실험실같은 곳도 교장이 만든 거야?"
+  image: junho
+  faceId: 1
+  autoSkipTime: 15
+- id: 209
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "교장 미친 거 아냐?!"
+  image: yeseul
+  faceId: 6
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  next: 210
+  autoSkipTime: 10
+- id: 210
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "교장 선생님은 항상 학생들을 생각해주고, 아껴 주셨어… 좋은 분이라 생각했는데……."
+  image: yuri
+  faceId: 5
+  autoSkipTime: 20
+- id: 211
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "얘들아, 지금 이 순간에도 위험에 처한 친구들이 있을지 몰라."
+  image: dongjin
+  faceId: 1
+  next: 212
+  autoSkipTime: 15
+- id: 212
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "만약 동석이의 말이 사실이라면, 우리가 교장 선생님을 막아야 해!"
+  image: dongjin
+  faceId: 8
+  autoSkipTime: 15
+- id: 213
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: "교장은… 교장실로 갔을 거야. 거기에… 연구 자료들이 있을 테니까……"
+  image: dongsuk_2
+  next: 214
+  autoSkipTime: 20
+- id: 214
+  type: Dialog
+  name: "정동석"
+  subName: "수수께끼의 전학생"
+  content: "부탁한다."
+  image: dongsuk_2
+  faceId: 1
+  autoSkipTime: 5
+- id: 215
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "좋아! 이 정예슬님이 나서주지~ 냐핫!"
+  image: yeseul
+  faceId: 3
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 4}
+  next: 216
+  autoSkipTime: 10
+- id: 216
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "그런데 동석이 혼자 두면 위험할 텐데……."
+  image: yuri
+  faceId: 1
+  autoSkipTime: 10
+- id: 217
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "내가 남아 있을게."
+  image: narae
+  next: 218
+  autoSkipTime: 10
+- id: 218
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "응. 나래야 부탁해!"
+  image: dongjin
+  next: 219
+  autoSkipTime: 10
+- id: 219
+  type: Dialog
+  name: "고나래"
+  subName: "미술부장"
+  content: "너희들… 조심해야 해!"
+  image: narae
+  faceId: 1
+  autoSkipTime: 10
+- id: 220
+  type: Dialog
+  name: "정예슬"
+  subName: "몇 시간 전"
+  content: "현지가 돌아오지 않고 있어요! 무슨 일 있는거면 어떡해요?"
+  next: 221
+  autoSkipTime: 10
+- id: 221
+  type: Dialog
+  name: "장대한"
+  subName: "몇 시간 전"
+  content: "예슬아, 일단 진정하고. 학교 안인데 무슨 일이야 있겠니?"
+  next: 222
+  autoSkipTime: 10
+- id: 222
+  type: Dialog
+  name: "정예슬"
+  subName: "몇 시간 전"
+  content: "하지만 불안하다구요! 제가 보건실 잠깐만 갔다오면 안 돼요?"
+  autoSkipTime: 10
+- id: 223
+  type: Dialog
+  name: "장대한"
+  subName: "몇 시간 전"
+  content: "아이고~ 알았다, 알았어!"
+  next: 224
+  autoSkipTime: 10
+- id: 224
+  type: Dialog
+  name: "장대한"
+  subName: "몇 시간 전"
+  content: "선생님이 가볼테니까, 너희는 기다리고 있으렴."
+  next: 225
+  autoSkipTime: 10
+- id: 225
+  type: Dialog
+  name: "장대한"
+  subName: "몇 시간 전"
+  content: "보건선생님께 말씀드려보고 현지 데려올게. 알겠지?"
+  autoSkipTime: 10
+- id: 226
+  type: Dialog
+  name: "정예슬"
+  subName: "몇 시간 전"
+  content: "으으으~~~"
+  autoSkipTime: 5
+- id: 227
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "…라고 말씀하셨으면서 완전 무슨 일 났잖아! 대한쌤 믿는 게 아니었어!"
+  image: yeseul
+  faceId: 6
+  triggers:
+    - {key: Character, value: 4}
+  next: 228
+  autoSkipTime: 15
+- id: 228
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "불평은 나중에 하고 출발이나 하자고."
+  image: junho
+  autoSkipTime: 10
+- id: 229
+  type: Dialog
+  name: ???
+  content: "꺄아아아아악!!!!"
+  autoSkipTime: 5
+- id: 230
+  type: Dialog
+  name: "학생A"
+  content: "어떡해요, 쌤!!"
+  next: 231
+  autoSkipTime: 5
+- id: 231
+  type: Dialog
+  name: "학생B"
+  content: "히이이이익!!"
+  next: 232
+  autoSkipTime: 5
+- id: 232
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "얘얘얘얘들아~~! 당황하지 말고 침착해봐!"
+  image: dohyung
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 2}
+  autoSkipTime: 10
+- id: 233
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "위험해!"
+  image: dongjin
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 5
+- id: 234
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "야, 교장은?!"
+  image: junho
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 5
+- id: 235
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "물론 교장선생님을 찾아가는 게 가장 중요하지만……"
+  image: dongjin
+  faceId: 1
+  next: 236
+  autoSkipTime: 15
+- id: 236
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "눈앞에서 위험에 처한 친구들을 내버려둘 순 없어!"
+  image: dongjin
+  faceId: 8
+  autoSkipTime: 15
+- id: 237
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "얘들아! 이쪽으로!"
+  image: dohyung
+  faceId: 2
+  triggers:
+    - {key: Character, value: 2}
+  autoSkipTime: 5
+- id: 238
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "정말 고마워! 덕분에 살았구나, 흑흑흑~"
+  image: dohyung
+  faceId: 3
+  next: 239
+  autoSkipTime: 10
+- id: 239
+  type: Dialog
+  name: "학생A"
+  content: "너희… 교실동으로 가던 거야? 교실동은 안전해?"
+  next: 240
+  autoSkipTime: 10
+- id: 240
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "그건 모르겠어. 하지만 우리는 교장선생님을 찾으러 가야 해!"
+  image: dongjin
+  faceId: 1
+  autoSkipTime: 10
+- id: 241
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "그렇구나! 확실히 교장선생님이라면 사태를 파악하고 계실지도 몰라~!"
+  image: dohyung
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 242
+  autoSkipTime: 10
+- id: 242
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "정말 기특한 생각인걸! 얘들아, 선생님도 함께하게 해주렴!"
+  image: dohyung
+  triggers:
+    - {key: Character, value: 2}
+  next: 243
+  autoSkipTime: 10
+- id: 243
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "쌤 별로 도움 안 될 거 같은데."
+  image: junho
+  faceId: 4
+  next: 244
+  autoSkipTime: 10
+- id: 244
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "준호야……"
+  image: dongjin
+  faceId: 10
+  triggers:
+    - {key: Bubble, value: 2}
+  autoSkipTime: 5
+- id: 245
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "서, 선생님도 도움이 될 수 있어요~!"
+  image: dohyung
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+  autoSkipTime: 10
+- id: 246
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "자, 따라오렴! 카페테리아 지하에 교실동으로 이어지는 길이 있단다."
+  image: dohyung
+  faceId: 2
+  next: 247
+  autoSkipTime: 10
+- id: 247
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "바깥으로 가는 것보다 덜 위험할 거야!"
+  image: dohyung
+  faceId: 2
+  autoSkipTime: 10
+- id: 248
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "어……"
+  image: yeseul
+  faceId: 9
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 249
+  autoSkipTime: 5
+- id: 249
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "예슬아, 왜 그래?"
+  image: dongjin
+  faceId: 1
+  autoSkipTime: 10
+- id: 250
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "체육쌤?!"
+  image: junho
+  faceId: 3
+  triggers:
+    - {key: Character, value: 4}
+  autoSkipTime: 5
+- id: 251
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "…선생님……"
+  image: dongjin
+  faceId: 5
+  next: 252
+  autoSkipTime: 5
+- id: 252
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "얘들아, 물러서!"
+  image: yuri
+  faceId: 3
+  autoSkipTime: 5
+- id: 253
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "큭…! 야, 다들 정신차려! 저건 좀비라고!"
+  image: junho
+  faceId: 3
+  triggers:
+    - {key: Character, value: 4}
+  next: 254
+  autoSkipTime: 10
+- id: 254
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "쌤한테 뭐라는거야, 김준호……!"
+  image: yeseul
+  faceId: 10
+  triggers:
+    - {key: Character, value: 4}
+  autoSkipTime: 10
+- id: 255
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "여기서… 물러날 순 없어. 우린… 교실동으로 가야 해!"
+  image: dongjin
+  faceId: 11
+  triggers:
+    - {key: Character, value: 1}
+  next: 256
+  autoSkipTime: 10
+- id: 256
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "선생님… 죄송해요!"
+  image: dongjin
+  faceId: 11
+  autoSkipTime: 10
+- id: 257
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "선생님… 학생들을 해치지 않으려고 팔을 기계에 끼워 두셨던 걸까……."
+  image: yuri
+  faceId: 5
+  next: 258
+  autoSkipTime: 10
+- id: 258
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "하, 씨……."
+  image: junho
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 259
+  autoSkipTime: 5
+- id: 259
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "대한쌤… 내가 현지 얘기만 안 했어도… "
+  image: yeseul
+  faceId: 11
+  next: 260
+  autoSkipTime: 10
+- id: 260
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "아냐, 예슬아. 선생님은 항상 학생들을 생각하셨으니까…"
+  image: dongjin
+  faceId: 4
+  triggers:
+    - {key: Bubble, value: 3}
+  autoSkipTime: 10
+- id: 261
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "얘들아, 여기는 선생님이 정리할 테니 너희는 교실동으로 가보렴."
+  image: dohyung
+  faceId: 2
+  next: 262
+  autoSkipTime: 10
+- id: 262
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "선생님… "
+  image: yeseul
+  faceId: 8
+  next: 263
+  autoSkipTime: 5
+- id: 263
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "괜찮아! 대한쌤이라면 분명 잘 했다고 칭찬했을 걸?"
+  image: dohyung
+  next: 264
+  autoSkipTime: 10
+- id: 264
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: "대신 너희들이 대한쌤의 몫까지 친구들을 구하면 되는 거야!"
+  image: dohyung
+  faceId: 2
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 265
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "…네! 저희가… 학교를 구할게요!"
+  image: dongjin
+  faceId: 8
+  autoSkipTime: 10
+- id: 266
+  type: Dialog
+  name: "한도형"
+  subName: "수학선생님"
+  content: …….
+  image: dohyung
+  triggers:
+    - {key: Character, value: 1}
+  autoSkipTime: 5
+- id: 267
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "만약 교장선생님이 정말 좀비 사태와 관련되어 있다면, 자료 같은 게 있을 거야."
+  image: yuri
+  faceId: 2
+  next: 268
+  autoSkipTime: 10
+- id: 268
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "그게 아니라면, 교장선생님과 연락할 수단을 찾아보자."
+  image: yuri
+  faceId: 2
+  next: 269
+  autoSkipTime: 10
+- id: 269
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "응, 그렇게 하자!"
+  image: dongjin
+  faceId: 6
+  autoSkipTime: 5
+- id: 270
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "야, 뭐 없는데?"
+  image: junho
+  faceId: 5
+  autoSkipTime: 5
+- id: 271
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "김준호! 좀 더 빠릿빠릿하게 찾아봐!"
+  image: yeseul
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+  autoSkipTime: 10
+- id: 272
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "이건… 학교 지하에 연구시설이 갖춰져 있다는 내용이야. 그것도 아주 오래전부터……."
+  image: yuri
+  faceId: 3
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 273
+  autoSkipTime: 10
+- id: 273
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "…융합물 주사 결과, 피실험체의 의식이 사라지고, 신체가 변이된 것으로 확인된다……"
+  image: dongjin
+  faceId: 3
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 274
+  autoSkipTime: 10
+- id: 274
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "와 씨, 진짜 좀비잖아!"
+  image: junho
+  faceId: 6
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  next: 275
+  autoSkipTime: 10
+- id: 275
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "실험 대상은… 좀비고등학교 재학생 전원?!"
+  image: yeseul
+  faceId: 7
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  next: 276
+  autoSkipTime: 10
+- id: 276
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "동석이의 말이 맞았어……."
+  image: dongjin
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 277
+  autoSkipTime: 10
+- id: 277
+  type: Dialog
+  name: ???
+  content: "이런, 손님이 있을 줄이야……."
+  autoSkipTime: 10
+- id: 278
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: "아직까지 살아남은 학생들이 있었다니, 교장으로서 반갑고 기쁘네요."
+  next: 279
+  autoSkipTime: 10
+- id: 279
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "교장쌤…! 이게 다 뭐예요!?"
+  image: yeseul
+  faceId: 2
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 280
+  autoSkipTime: 10
+- id: 280
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: "아, 그걸 찾아낼 줄이야. 정예슬 학생, 정말 대단한 걸요? 칭찬해드리죠."
+  next: 281
+  autoSkipTime: 10
+- id: 281
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "…교장선생님께서 학생들에게 보이셨던 인자한 태도들, 관심들…… 전부 기억하고 있어요."
+  image: yuri
+  faceId: 1
+  next: 294
+  autoSkipTime: 10
+- id: 294
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "지금까지의 그런 모습들은 다… 거짓말이었던 건가요?"
+  image: yuri
+  faceId: 2
+  next: 282
+  autoSkipTime: 10
+- id: 282
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: "물론 저는 모든 학생들을 아끼고 있답니다, 이유리 학생."
+  next: 283
+  autoSkipTime: 10
+- id: 283
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: "그러니 여러분을 다치게 하고 싶지 않군요. 순순히 협조해주지 않겠어요?"
+  next: 284
+  autoSkipTime: 10
+- id: 284
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "뭐를, 인체실험을요?"
+  image: junho
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 3}
+  autoSkipTime: 10
+- id: 285
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "교장선생님께서 진심으로 학생들을 아끼고 있다면……"
+  image: dongjin
+  faceId: 8
+  triggers:
+    - {key: Character, value: 1}
+  next: 286
+  autoSkipTime: 10
+- id: 286
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "여기서 멈춰주세요!"
+  image: dongjin
+  faceId: 11
+  next: 287
+  autoSkipTime: 10
+- id: 287
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: "…어쩔 수 없군요."
+  image: samuel
+  triggers:
+    - {key: Character, value: 1}
+    - {key: Bubble, value: 3}
+  autoSkipTime: 10
+- id: 288
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: "멈추기엔 이미 늦었습니다."
+  image: samuel
+  faceId: 1
+  autoSkipTime: 10
+- id: 289
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "공격이… 하나도 안 통하잖아!"
+  image: yeseul
+  faceId: 7
+  triggers:
+    - {key: Character, value: 4}
+  next: 290
+  autoSkipTime: 10
+- id: 290
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "뭐 저런 사기캐가……"
+  image: junho
+  faceId: 6
+  autoSkipTime: 10
+- id: 291
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: "최선을 다하는 모습, 정말 자랑스럽습니다."
+  image: samuel
+  faceId: 1
+  next: 292
+  autoSkipTime: 10
+- id: 292
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: "그럼 이제 여러분을 위해서라도 마무리를 해 볼까요."
+  image: samuel
+  faceId: 1
+  autoSkipTime: 10
+- id: 293
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "혀, 현지야!!"
+  image: yeseul
+  faceId: 6
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 5
+- id: 301
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "혀, 현지야!!"
+  image: yeseul
+  faceId: 6
+  next: 302
+  autoSkipTime: 5
+- id: 302
+  type: Dialog
+  name: "사무엘"
+  subName: "교장선생님"
+  content: ……!
+  image: samuel
+  faceId: 2
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 5
+- id: 303
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "임사장! 현지야~!! 정신차려봐!"
+  image: yeseul
+  faceId: 8
+  triggers:
+    - {key: Character, value: 4}
+  next: 304
+  autoSkipTime: 10
+- id: 304
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "준형아, 정신이 들어? 일어나봐."
+  image: yuri
+  faceId: 4
+  autoSkipTime: 10
+- id: 305
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "꺄악! 정여사~~! 나 넘 무서웠어~~ 엉엉엉~"
+  image: hyunji
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  next: 306
+  autoSkipTime: 10
+- id: 306
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "끄응~~ 아파라… 여기가 어디야? 엥?"
+  image: junhyung
+  faceId: 3
+  triggers:
+    - {key: Character, value: 1}
+    - {key: Bubble, value: 2}
+  autoSkipTime: 10
+- id: 307
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "푸하하! 김준호 소화기 뭐야?? 소방관인줄~"
+  image: junhyung
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+  next: 308
+  autoSkipTime: 10
+- id: 308
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "하여튼 곽초딩 일어나자마자 한다는 소리가……"
+  image: junho
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 2}
+  autoSkipTime: 10
+- id: 309
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "무사해서 다행이야. 준형아, 현지야!"
+  image: dongjin
+  faceId: 7
+  autoSkipTime: 10
+- id: 310
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "근데 여기 교장실 아냐? 우리 왜 여기있어?"
+  image: junhyung
+  next: 311
+  autoSkipTime: 10
+- id: 311
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "그게… 말하자면 긴데…"
+  image: dongjin
+  faceId: 2
+  next: 312
+  autoSkipTime: 10
+- id: 312
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "천천히 알려줄게. 가면서 이야기하자."
+  image: yuri
+  autoSkipTime: 10
+- id: 313
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "에이~ 교장이 좀비라는 게 뭔 소리야? 말도 안 돼!"
+  image: junhyung
+  triggers:
+    - {key: Character, value: 3}
+  next: 314
+  autoSkipTime: 10
+- id: 314
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "아니 교장이 좀비가 아니라 좀비 사태를 일으켰다니까? "
+  image: junho
+  faceId: 5
+  next: 315
+  autoSkipTime: 10
+- id: 315
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "맞아. 전부 사실이야…. 그래서 우리가 교장 선생님을 쫓아가는 거고."
+  image: yuri
+  faceId: 1
+  autoSkipTime: 10
+- id: 316
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "생태학습공원이 이렇게 엉망진창이 되어 있는 걸 보면 여기로 튄 게 분명해!"
+  image: yeseul
+  faceId: 1
+  next: 317
+  autoSkipTime: 10
+- id: 317
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "흐규… 내사랑 카페테리아에 그런 시설들이 있었다는 게 믿기지 않아……."
+  image: hyunji
+  faceId: 2
+  autoSkipTime: 10
+- id: 318
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "교장 선생님이 왜 그랬는지, 어떻게 해결할 수 있는지… 아직 모르는 게 많아."
+  image: dongjin
+  faceId: 1
+  triggers:
+    - {key: Character, value: 1}
+    - {key: Bubble, value: 3}
+  next: 319
+  autoSkipTime: 10
+- id: 319
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "그러니까 교장 선생님을 찾아서 다시 대화를 해 봐야 해!"
+  image: dongjin
+  faceId: 8
+  autoSkipTime: 10
+- id: 320
+  type: Dialog
+  name: ???
+  content: "얘들아, 잠깐만!"
+  autoSkipTime: 5
+- id: 321
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "공격하지 마! 해치지 않아!"
+  image: narsha
+  faceId: 1
+  triggers:
+    - {key: Character, value: 1}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 322
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "어! 너 그, E반에 그, 걔……"
+  image: yeseul
+  faceId: 5
+  next: 323
+  autoSkipTime: 10
+- id: 323
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "나르샤! 여기서 동물들과 숨어있었던 거야?"
+  image: dongjin
+  next: 324
+  autoSkipTime: 10
+- id: 324
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "잡아먹히고 있던 거 아냐?"
+  image: junho
+  triggers:
+    - {key: Bubble, value: 2}
+  next: 325
+  autoSkipTime: 10
+- id: 325
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "친구들이 날 지켜주고 있었어. 생태학습공원에 이상한 오염물질 같은 게 퍼져서…"
+  image: narsha
+  faceId: 1
+  next: 326
+  autoSkipTime: 15
+- id: 326
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "오염물질이라니, 혹시 동물들도 좀비가 된 거야?"
+  image: yuri
+  faceId: 1
+  next: 327
+  autoSkipTime: 10
+- id: 327
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "그런 거 아냐! 그냥, 그냥 아픈 거야…! 시간이 지나면 돌아올 거야! "
+  image: narsha
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+  next: 328
+  autoSkipTime: 10
+- id: 328
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "지금은 오염물질을 퍼뜨리는 시설들 때문에 그런 거야. 그것만… 그것만 없어지면 돼…!"
+  image: narsha
+  faceId: 2
+  next: 329
+  autoSkipTime: 15
+- id: 329
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "부탁이야, 얘들아… 같이 저 시설들을 멈춰줘! 친구들이 더 이상 다치지 않게 도와줘…! "
+  image: narsha
+  faceId: 3
+  autoSkipTime: 20
+- id: 330
+  type: Dialog
+  name: ???
+  content: "잠시 기다리세요!"
+  autoSkipTime: 5
+- id: 331
+  type: Dialog
+  name: "계세윤"
+  subName: "생물선생님"
+  content: "공격하지 마세요! 아직 실험중입니다!"
+  image: seyoon
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  next: 332
+  autoSkipTime: 10
+- id: 332
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "생물쌤!?"
+  image: yeseul
+  faceId: 4
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  next: 333
+  autoSkipTime: 5
+- id: 333
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "뭔 실험? 이거 좀비잖아요!"
+  image: junho
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 2}
+  next: 334
+  autoSkipTime: 10
+- id: 334
+  type: Dialog
+  name: "계세윤"
+  subName: "생물선생님"
+  content: "그런 거 아닙니다! 그냥 신체 능력이 강화된 생물들의 세포를 서로 이식하여 조합하고 있었던 것 뿐, 위험한 것이 아니…"
+  image: seyoon
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+  autoSkipTime: 20
+- id: 335
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "세윤 선생님…! 여기서 뭘…?"
+  image: narsha
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 336
+  autoSkipTime: 10
+- id: 336
+  type: Dialog
+  name: "계세윤"
+  subName: "생물선생님"
+  content: "이럴 수가… 나의 역작이…"
+  image: seyoon
+  faceId: 2
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 337
+  autoSkipTime: 10
+- id: 337
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "역작은 무슨 역작이에요! 쌤 죽을뻔했거든요?"
+  image: yeseul
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+  next: 338
+  autoSkipTime: 10
+- id: 338
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "선생님도… 이 사태에 관여하셨던 건가요?"
+  image: yuri
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 339
+  autoSkipTime: 10
+- id: 339
+  type: Dialog
+  name: "계세윤"
+  subName: "생물선생님"
+  content: "아니, 아닙니다. 저도 휘말린 거예요. 그냥 이 기회를 틈타 개인적인 연구를 살짝…"
+  image: seyoon
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 340
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "그럼, 이제부터는 나르샤를 도와 동물들을 보살펴주세요. 나르샤에게는 선생님의 도움이 필요해요."
+  image: dongjin
+  faceId: 8
+  autoSkipTime: 20
+- id: 341
+  type: Dialog
+  name: "계세윤"
+  subName: "생물선생님"
+  content: "알겠습니다. 약속하지요."
+  image: seyoon
+  next: 342
+  autoSkipTime: 10
+- id: 342
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "저, 정말요?"
+  image: narsha
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  next: 343
+  autoSkipTime: 5
+- id: 343
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "흑… 선생님, 동진아…! 정말 고마워! 덕분에 친구들을 지켰어…! 우아앙…!"
+  image: narsha
+  faceId: 4
+  triggers:
+    - {key: Character, value: 2}
+  next: 344
+  autoSkipTime: 15
+- id: 344
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "나르샤, 여기까지밖에 도와줄 수 없어서 미안해. 우리는 교장선생님을 쫓아가야 하거든."
+  image: dongjin
+  faceId: 3
+  next: 345
+  autoSkipTime: 15
+- id: 345
+  type: Dialog
+  name: "나르샤"
+  subName: "생태학습공원 담당"
+  content: "앗! 교장선생님이라면 어디로 갔는지 봤어!"
+  image: narsha
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 346
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "대박~ 나 학교에 쓰레기 처리장이 있는지도 몰랐어!"
+  image: junhyung
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 4}
+  next: 347
+  autoSkipTime: 10
+- id: 347
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "숨만 쉬어도 나오는 게 쓰레긴데 당연히 있겠지."
+  image: junho
+  next: 348
+  autoSkipTime: 10
+- id: 348
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "교장쌤은 그럼 좀비한테 쫓기면서도 쓰레기버리러 여기까지 온 거야??"
+  image: hyunji
+  faceId: 3
+  next: 349
+  autoSkipTime: 10
+- id: 349
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "그, 글쎄…? 일단 들어가보자."
+  image: dongjin
+  faceId: 9
+  triggers:
+    - {key: Bubble, value: 2}
+  autoSkipTime: 10
+- id: 350
+  type: Dialog
+  name: ???
+  content: "큭, 사무엘이 제대로만 했어도 일이 이렇게까지 꼬이진 않았을 텐데!"
+  next: 351
+  autoSkipTime: 10
+- id: 351
+  type: Dialog
+  name: ????
+  content: "…심박수 정상… 인지능력 정상… 문제 없어, 선배. 이대로만 가면…"
+  autoSkipTime: 10
+- id: 352
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "뭐야?! 학생들이 여긴 어떻게 알고 온 거지?!"
+  image: drgoo
+  faceId: 2
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  next: 353
+  autoSkipTime: 10
+- id: 353
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "학교니까 학생이 있지! 그쪽은 뭐야!?"
+  image: yeseul
+  faceId: 6
+  triggers:
+    - {key: Character, value: 2}
+  next: 354
+  autoSkipTime: 10
+- id: 354
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "교장이랑 한 패 아냐?"
+  image: junho
+  faceId: 1
+  next: 355
+  autoSkipTime: 10
+- id: 355
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "흥! 대답해 줄 이유는 없지."
+  image: drgoo
+  autoSkipTime: 10
+- id: 356
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "방해꾼은… 제거해버려!"
+  autoSkipTime: 10
+- id: 357
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "이런 젠장…! 왜 제대로 안 움직이는 거야!"
+  image: drgoo
+  faceId: 2
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  next: 358
+  autoSkipTime: 10
+- id: 358
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "다 끝났다구! 이제 항복하시지!"
+  image: yeseul
+  faceId: 1
+  autoSkipTime: 10
+- id: 359
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "헉… 보건쌤!! 왜 여기 계세여!?"
+  image: hyunji
+  faceId: 2
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  next: 360
+  autoSkipTime: 10
+- id: 360
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "보건이라고?"
+  image: junho
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 361
+  type: Dialog
+  name: "이하나"
+  subName: "보건선생님"
+  content: "……임현지… 신체능력 우수, 체질변환성분 섭취 빈도 높음, 종합 등급 A… 내가 점찍어두었던 샘플…"
+  image: hana
+  faceId: 1
+  triggers:
+    - {key: Character, value: 1}
+    - {key: Bubble, value: 3}
+  next: 362
+  autoSkipTime: 20
+- id: 362
+  type: Dialog
+  name: "이하나"
+  subName: "보건선생님"
+  content: "네가 도망친 덕분에… 내 실험은 실패하고… 난 선배를 실망시켰어……."
+  image: hana
+  faceId: 1
+  next: 363
+  autoSkipTime: 10
+- id: 363
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "실험?!"
+  image: junhyung
+  faceId: 2
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  next: 364
+  autoSkipTime: 5
+- id: 364
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "현지를 보건실에 불렀던 게 설마…!"
+  image: yeseul
+  faceId: 2
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  next: 365
+  autoSkipTime: 10
+- id: 365
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "하나선생님… 언제부터 교장 선생님의 연구를 돕고 계셨던 건가요?"
+  image: yuri
+  faceId: 3
+  autoSkipTime: 10
+- id: 366
+  type: Dialog
+  name: "이하나"
+  subName: "보건선생님"
+  content: "훗… 으훗훗훗…… 언제부터?"
+  image: hana
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 3}
+  autoSkipTime: 10
+- id: 367
+  type: Dialog
+  name: "이하나"
+  subName: "전임 연구원"
+  content: "그건 바로 처음부터야! 이 학교가 세워진 순간부터, 너희들은 실험체가 될 운명이었단다!"
+  image: hana
+  triggers:
+    - {key: Character, value: 1}
+  autoSkipTime: 15
+- id: 368
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "…무슨 계획이 있었던, 저희가 교장선생님을 멈추겠어요!"
+  image: dongjin
+  faceId: 11
+  next: 369
+  autoSkipTime: 10
+- id: 369
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "큭큭큭! 꼬맹이들… 뭘 좀 알아낸 게 있나본데……"
+  image: drgoo
+  next: 370
+  autoSkipTime: 10
+- id: 370
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "그런다고 달라지는 게 있을까?"
+  image: drgoo
+  next: 371
+  autoSkipTime: 10
+- id: 371
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "아무리 발버둥쳐봤자… 너희는 한낱 실험체일 뿐이다!"
+  image: drgoo
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+  autoSkipTime: 10
+- id: 401
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "얘들아, 괜찮아?"
+  image: dongjin
+  faceId: 1
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 5
+- id: 402
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "어쩐지 기시감이 드는데…"
+  image: junho
+  faceId: 2
+  autoSkipTime: 10
+- id: 403
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "얼마나 밑으로 떨어진 걸까?"
+  image: yuri
+  faceId: 1
+  next: 404
+  autoSkipTime: 10
+- id: 404
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "잘 모르겠어… 일단 바깥으로 나갈 길을 찾아보자."
+  image: dongjin
+  faceId: 2
+  autoSkipTime: 10
+- id: 405
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "저쪽에 길이 있는 것 같아. 저기로 가보자!"
+  image: yuri
+  autoSkipTime: 10
+- id: 406
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "여기 백설현이라는 사람이 치료받고 있었대!"
+  image: yeseul
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 407
+  autoSkipTime: 10
+- id: 407
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "어디서 들어본 이름 같기도 하고…"
+  image: junho
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 408
+  autoSkipTime: 10
+- id: 408
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "김준호는 여자 이름만 기억한대요~"
+  image: junhyung
+  faceId: 1
+  triggers:
+    - {key: Character, value: 3}
+    - {key: Bubble, value: 4}
+  next: 409
+  autoSkipTime: 10
+- id: 409
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "뭔소리야, 난 니 이름이 곽초딩인 것도 기억하는데."
+  image: junho
+  faceId: 7
+  next: 410
+  autoSkipTime: 10
+- id: 410
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "내 이름 초딩 아니거든~!"
+  image: junhyung
+  faceId: 3
+  triggers:
+    - {key: Character, value: 2}
+  autoSkipTime: 10
+- id: 411
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "어, 기억났다! 그 사람 교장 아내야. 교장실 뒤질 때 봤어."
+  image: junho
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 412
+  autoSkipTime: 10
+- id: 412
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "아 진짜? 백설현이??"
+  image: yeseul
+  faceId: 5
+  next: 413
+  autoSkipTime: 10
+- id: 413
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "그러면… 사무엘 교장선생님은 아픈 아내를 위해 이런 연구에 손을 댄 걸까?"
+  image: yuri
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 3}
+  next: 414
+  autoSkipTime: 10
+- id: 414
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "바보 아냐? 결과적으로는 더 위험해졌잖아!"
+  image: yeseul
+  faceId: 1
+  triggers:
+    - {key: Character, value: 2}
+  next: 415
+  autoSkipTime: 10
+- id: 415
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "아내분도 좀비들의 위협을 받고 있을지도 모르는데…"
+  image: hyunji
+  faceId: 4
+  autoSkipTime: 10
+- id: 416
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "우리가 그 분을 찾아보자. 그 분이라면 교장선생님을 설득해주실 수 있을지도 몰라."
+  image: dongjin
+  faceId: 1
+  next: 417
+  autoSkipTime: 15
+- id: 417
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "맞아. 사랑하는 상대의 이야기라면…!"
+  image: yuri
+  autoSkipTime: 10
+- id: 418
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "아니!! 저 꼬맹이들, 어떻게 빠져나온거지!?"
+  image: drgoo
+  faceId: 3
+  triggers:
+    - {key: Bubble, value: 1}
+  next: 419
+  autoSkipTime: 10
+- id: 419
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "그정도는 식은 죽 먹기라구~"
+  image: junhyung
+  faceId: 1
+  next: 420
+  autoSkipTime: 10
+- id: 420
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "이제 정말로 끝났어요. 실험을 멈춰요!"
+  image: dongjin
+  faceId: 11
+  next: 421
+  autoSkipTime: 10
+- id: 421
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "아니면… 우리가 멈추게 해주겠어!"
+  image: yeseul
+  faceId: 6
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 10
+- id: 422
+  type: Dialog
+  name: "이하나"
+  subName: "전임 연구원"
+  content: "서, 선배, 어떡하지?"
+  image: hana
+  faceId: 2
+  triggers:
+    - {key: Character, value: 4}
+  next: 423
+  autoSkipTime: 10
+- id: 423
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "이익…이이익……!!"
+  image: drgoo
+  faceId: 3
+  triggers:
+    - {key: Character, value: 4}
+  next: 424
+  autoSkipTime: 5
+- id: 424
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "여기까지 와서… 물러설 순 없어!!"
+  image: drgoo
+  faceId: 3
+  autoSkipTime: 10
+- id: 425
+  type: Dialog
+  name: "이하나"
+  subName: "전임 연구원"
+  content: "어??? 서…선배…… 이건…?"
+  image: hana
+  faceId: 3
+  next: 426
+  autoSkipTime: 5
+- id: 426
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "자, 내 명령에 따라! 날 위해 희생해!!"
+  image: drgoo
+  faceId: 4
+  next: 427
+  autoSkipTime: 5
+- id: 427
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "야 잠깐, 저거 설마…!!"
+  image: junho
+  faceId: 1
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 5
+- id: 428
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "어떻게 자기 편을…! "
+  image: yeseul
+  faceId: 7
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  autoSkipTime: 5
+- id: 429
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "칫, 그 연구원… 사라졌어."
+  image: junho
+  faceId: 1
+  next: 430
+  autoSkipTime: 10
+- id: 430
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "보건쌤…… "
+  image: hyunji
+  faceId: 4
+  next: 431
+  autoSkipTime: 5
+- id: 431
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "으으, 열받긴 했지만… 이렇게 되길 바란 건 아니었다구!"
+  image: yeseul
+  faceId: 7
+  next: 432
+  autoSkipTime: 10
+- id: 432
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "마음이 무거워……. "
+  image: yuri
+  faceId: 5
+  triggers:
+    - {key: Bubble, value: 3}
+  autoSkipTime: 5
+- id: 433
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "…우리가 할 수 있는 건 하나뿐이야. 이런 일이 또 일어나게 둬선 안 된다는 거. 그렇지?"
+  image: dongjin
+  faceId: 1
+  triggers:
+    - {key: Character, value: 1}
+  autoSkipTime: 15
+- id: 434
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "이 꼬맹이들… 여기까지 다다르다니… "
+  next: 435
+  autoSkipTime: 10
+- id: 435
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "더 이상 도망칠 곳은 없어요."
+  image: dongjin
+  faceId: 8
+  autoSkipTime: 10
+- id: 436
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "이제 말해주세요… 당신과 사무엘 선생님은 뭘 꾸미고 있는 거죠?"
+  image: dongjin
+  faceId: 1
+  autoSkipTime: 10
+- id: 437
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "사무엘… 사무엘…! 그 빌어먹을 사무엘만 아니었어도…!"
+  image: drgoo
+  faceId: 2
+  triggers:
+    - {key: Character, value: 4}
+  next: 438
+  autoSkipTime: 10
+- id: 438
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "내가 어떤 사람인데! 이런 곳에서 실패할 사람이 아닌데!"
+  image: drgoo
+  faceId: 3
+  triggers:
+    - {key: Character, value: 4}
+  next: 439
+  autoSkipTime: 10
+- id: 439
+  type: Dialog
+  name: "닥터 구"
+  subName: "선임 연구원"
+  content: "다 필요 없어… 성공하는 건 나다!"
+  image: drgoo
+  faceId: 4
+  triggers:
+    - {key: Character, value: 4}
+  autoSkipTime: 10
+- id: 440
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "헉, 아까 그 괴물…!"
+  image: hyunji
+  faceId: 2
+  triggers:
+    - {key: Character, value: 2}
+    - {key: Bubble, value: 1}
+  next: 441
+  autoSkipTime: 5
+- id: 441
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "이런… 도망칠 곳이 없어! 싸우자!"
+  image: dongjin
+  faceId: 2
+  autoSkipTime: 10
+- id: 442
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "유리야!!!"
+  image: dongjin
+  faceId: 5
+  triggers:
+    - {key: Character, value: 4}
+    - {key: Bubble, value: 1}
+  next: 443
+  autoSkipTime: 2
+- id: 443
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "다쳤어?!"
+  image: yeseul
+  faceId: 7
+  triggers:
+    - {key: Bubble, value: 1}
+  autoSkipTime: 2
+- id: 444
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "아……!"
+  image: yuri
+  faceId: 1
+  autoSkipTime: 5
+- id: 445
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "엘리베이터가… 멈추고 있어."
+  image: junho
+  faceId: 6
+  autoSkipTime: 10
+- id: 446
+  type: Dialog
+  name: "누군가의 목소리"
+  content: "…용서해달라고는 하지 않을게."
+  next: 447
+  autoSkipTime: 10
+- id: 447
+  type: Dialog
+  name: "누군가의 목소리"
+  content: "하지만 난… …를 위해서라면 무슨 짓이든 해야만 해."
+  autoSkipTime: 10
+- id: 448
+  type: Dialog
+  name: "누군가의 목소리"
+  content: "가족이란 건…… 그런 거니까."
+  autoSkipTime: 10
+- id: 501
+  type: Dialog
+  name: ???
+  content: "…보다시피, 그분은 지금 위험에 빠졌어요. 누군가 도와주지 않으면 파멸하고 말테죠."
+- id: 502
+  type: Dialog
+  name: ???
+  content: "여러분은 어떻게 할 건가요?"
+- id: 503
+  type: Dialog
+  name: ???
+  content: …
+- id: 504
+  type: Dialog
+  name: ???
+  content: "그래요, 그럴 거라고 생각했어요."
+- id: 505
+  type: Dialog
+  name: ???
+  content: "그런 여러분에게 도움이 될 만한 걸 선물해주도록 하죠…"
+- id: 506
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "유리야, 괜찮아? 걸을 수 있겠어?"
+  image: dongjin
+  faceId: 3
+- id: 507
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "으음... 밀쳐지면서 발목을 삔 거 같아. 조금만 부축해줄래?"
+  image: yuri
+  faceId: 3
+- id: 508
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "너네 뒤로 빠져서 좀 쉬고 있어!"
+  image: yeseul
+  faceId: 1
+- id: 509
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "근데~ 무슨 소리 안 들려? 사람 목소리 같은데…"
+  image: junhyung
+- id: 510
+  type: Dialog
+  name: "우연"
+  subName: "패션부장"
+  content: "…믿을 수가 없군. 그분의 학교에 이런 불결한 것들이 있었다는 게…"
+- id: 511
+  type: Dialog
+  name: "신가희"
+  subName: "미용부장"
+  content: "꺄핫~ 이런 짓을 한 게 누군지 몰라도 어떻게 잘라야 할지 기대되네?"
+- id: 512
+  type: Dialog
+  name: "박찬영"
+  subName: "1학년 B반"
+  content: "위기 상황에서 아무것도 하지 못하다니… 크윽… 용사로서의 수치가…"
+- id: 513
+  type: Dialog
+  name: "남선지"
+  subName: "1학년 D반"
+  content: "괜찮아, 찬영아! 힘을 아껴뒀다가 위험한 순간에 활약하면 되지!"
+- id: 514
+  type: Dialog
+  name: "마용규"
+  subName: "2학년 야구부"
+  content: "야! 아무도 없냐고! 사람을 하루종일 가둬놨으면 밥이라도 줘야 할 거 아냐!"
+- id: 515
+  type: Dialog
+  name: "박수빈"
+  subName: "2학년 D반"
+  content: "히익..!"
+- id: 516
+  type: Dialog
+  name: "빈진호"
+  subName: "1학년 D반"
+  content: "선배, 시끄러워요. 소리쳐봤자 해결되는 것도 없는데."
+- id: 517
+  type: Dialog
+  name: "마용규"
+  subName: "2학년 야구부"
+  content: "야 1학년, 그럼 어쩌라고? 가만히 있으라고?"
+- id: 518
+  type: Dialog
+  name: "홍산하"
+  subName: "2학년 양궁부장"
+  content: '...'
+- id: 519
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "앗! 친구들이…! "
+  image: dongjin
+- id: 520
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "2학년 3학년 선배들도 있어!"
+  image: hyunji
+- id: 521
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "뭐 이렇게 많아? 여기 정모중이냐?"
+  image: junho
+- id: 522
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "일단… 가서 잠금을 풀어주자. 밖에서는 열 수 있는 구조 같아."
+  image: yuri
+- id: 523
+  type: Dialog
+  name: "박찬영"
+  subName: "1학년 B반"
+  content: "신세를 졌군! 지금부턴 용사 박찬영이 앞장서도록 하지!\n이런 순간이야말로 나같은 용사의 활약이 필요한 법 아니겠는가!"
+- id: 524
+  type: Dialog
+  name: "남선지"
+  subName: "1학년 D반"
+  content: "여기까지 오느라 고생했어~! 이제부턴 나도 힘을 보탤게!\n다함께 힘을 합치면 여기서 빠져나갈 수 있을 거야! 아자아자!"
+- id: 525
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "이렇게 바글바글하니까 꼭 소풍 나온 거 같아~ 히히!\n엘베 타고 한참 올라왔는데 곧 밖으로 나갈 수 있지 않을까?"
+  image: junhyung
+- id: 526
+  type: Dialog
+  name: "임현지"
+  subName: "1학년 B반"
+  content: "그 커다란 괴물은… 아래로 떨어져버린 거겠지?\n쫓아오진 않아서 다행이지만… 어쩐지 마음이 무거워… 흐유… "
+  image: hyunji
+- id: 527
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "유리가 다쳤어. 잠시 쉬면서 살펴봐야 할 것 같은데… 우선 내가 보고 있을게."
+  image: dongjin
+- id: 528
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "그 좀비… 분명 교장선생님을 쫓아 갔었어. 그럼 선생님은 어디로 간 걸까?"
+  image: dongjin
+- id: 529
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "괜찮아. 심각한 건 아니라서, 조금 쉬면 나을 거 같아."
+  image: yuri
+- id: 530
+  type: Dialog
+  name: "이유리"
+  subName: "1학년 A반"
+  content: "…왠지… 나에게 상처를 입히고서 놀란 것 같았어. 기분탓일까?"
+  image: yuri
+- id: 531
+  type: Dialog
+  name: "김준호"
+  subName: "1학년 A반"
+  content: "사람 왜이렇게 많아? 교장은 또 어디로 사라진 거고…\n아, 기 빨려. 진심 눕고 싶다."
+  image: junho
+- id: 532
+  type: Dialog
+  name: "정예슬"
+  subName: "1학년 A반"
+  content: "우리 말고도 멀쩡한 애들 많잖아? 딴데도 더 찾아봐야하는 거 아냐?"
+  image: yeseul
+- id: 533
+  type: Dialog
+  name: "신가희"
+  subName: "미용부장"
+  content: "두 사람에게 무슨 일이 생긴다면 말이지… 절대 용서하지 않겠어! 꺄하핫!"
+- id: 534
+  type: Dialog
+  name: "우연"
+  subName: "패션부장"
+  content: "두 분이 오랫동안 공들인 장소다. 우리에게도 뜻깊을 수밖에 없어. "
+- id: 535
+  type: Dialog
+  name: "우연"
+  subName: "패션부장"
+  content: "그런데 이런 바퀴벌레들이 잔뜩 있다니… 전부 치워버려야겠군."
+- id: 536
+  type: Dialog
+  name: "마용규"
+  subName: "2학년 야구부"
+  content: "휴! 이제야 좀 살 것 같네! 갑갑해 미치는 줄 알았잖아."
+- id: 537
+  type: Dialog
+  name: "마용규"
+  subName: "2학년 야구부"
+  content: "다른애들은 태풍이가 잘 데리고 있겠지?"
+- id: 538
+  type: Dialog
+  name: "홍산하"
+  subName: "2학년 양궁부장"
+  content: "…양궁부 연습 시간이 지났는데…\n아, 그럴 때가 아닌가."
+- id: 539
+  type: Dialog
+  name: "박수빈"
+  subName: "2학년 D반"
+  content: "무… 무서워… 여기서 나가고 싶어…\n슬이는… 어제부터 어딜 간 걸까… 나만 두고… 흑…"
+- id: 540
+  type: Dialog
+  name: "송현우"
+  subName: "1학년 D반"
+  content: "친구들이랑 같이 있다가 이상한 거인한테 붙잡혀왔지 뭐야~\n난감한 심정을 담아 노래라도 부를까~?"
+- id: 541
+  type: Dialog
+  name: "강우빈"
+  subName: "1학년 D반"
+  content: "구해줘서 고맙다. 이제부터는 나도 무사 탈출을 위해 협력하지!\n일단 함부로 자리를 이탈하지 말도록!"
+- id: 542
+  type: Dialog
+  name: "케빈"
+  subName: "1학년 D반"
+  content: "하하.. 우릴 위해 이런 깜짝쇼를 다 준비하다니, 감동적인걸?\n재밌었으니까 이제 돌려보내주면 좋겠는데."
+- id: 543
+  type: Dialog
+  name: "빈진호"
+  subName: "1학년 D반"
+  content: "너희는 어디서 나타난 거야? 난 여기가 어딘지도 모르겠다.\n애초에 학교에 이런 시설이 있다는 게 말이 되냐고… "
+- id: 544
+  type: Dialog
+  name: "곽준형"
+  subName: "1학년 B반"
+  content: "이게 무슨 소리지?"
+  image: junhyung
+- id: 545
+  type: Dialog
+  name: "남동진"
+  subName: "1학년 A반"
+  content: "도, 도망쳐!"
+  image: dongjin
+- id: 546
+  type: Dialog
+  name: "송현우"
+  subName: "1학년 D반"
+  content: "우와아아~ 죽을 뻔했네~"
+- id: 547
+  type: Dialog
+  name: "빈진호"
+  subName: "1학년 D반"
+  content: "학교에 저런 게 돌아다닌다니…"
+- id: 548
+  type: Dialog
+  name: "박수빈"
+  subName: "2학년 D반"
+  content: "…여기… 학교… 맞아…? 우리… 어디에 있는 건지… 무서워…"
+- id: 549
+  type: Dialog
+  name: "홍산하"
+  subName: "2학년 양궁부장"
+  content: "기숙사에서 얼마 안 걸렸으니까, 학교 내부는 맞을 거야."

@@ -8,6 +8,7 @@ using System.IO;
 using System.Security.Cryptography;
 using ExcelToYamlAddin.Domain.Entities;
 using ExcelToYamlAddin.Domain.ValueObjects;
+using ExcelToYamlAddin.Infrastructure.Excel;
 
 namespace ExcelToYamlAddin.Application.Services
 {
@@ -91,15 +92,16 @@ namespace ExcelToYamlAddin.Application.Services
                         }
 
                         // 데이터 파싱을 위한 스키마 파서와 생성기
-                        var scheme = new Scheme(sheet);
+                        var schemeParser = new SchemeParser(sheet);
+                        var parsingResult = schemeParser.Parse();
+                        
+                        // Scheme 객체 생성
+                        var scheme = Scheme.Create(
+                            sheetName,
+                            parsingResult.Root,
+                            parsingResult.ContentStartRowNum,
+                            parsingResult.EndRowNum);
 
-                        if (config.OutputFormat == OutputFormat.Json)
-                        {
-                            // JSON 생성 및 저장
-                            string jsonStr = Generator.GenerateJson(scheme, config.IncludeEmptyFields);
-                            File.WriteAllText(sheetOutputPath, jsonStr);
-                        }
-                        else
                         {
                             // YAML 생성 및 저장
                             Debug.WriteLine($"[ExcelReader] YAML 생성 전 config.IncludeEmptyFields 값: {config.IncludeEmptyFields}");
@@ -131,6 +133,7 @@ namespace ExcelToYamlAddin.Application.Services
 
                             string yamlStr = YamlGenerator.Generate(
                                 scheme,
+                                sheet,
                                 config.YamlStyle,
                                 config.YamlIndentSize,
                                 config.YamlPreserveQuotes,

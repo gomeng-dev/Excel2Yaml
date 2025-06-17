@@ -1,18 +1,8 @@
 namespace ExcelToYamlAddin.Domain.ValueObjects
 {
-    public enum OutputFormat
-    {
-        Json,
-        Yaml,
-        Xml
-    }
-
-    public enum YamlStyle
-    {
-        Block,     // 블록 스타일 (기본값)
-        Flow       // 플로우 스타일 (한 줄로 컴팩트하게)
-    }
-
+    /// <summary>
+    /// Excel to YAML 변환 설정을 나타내는 값 객체
+    /// </summary>
     public class ExcelToYamlConfig
     {
         public bool EnableHashGen { get; set; }
@@ -27,10 +17,10 @@ namespace ExcelToYamlAddin.Domain.ValueObjects
         {
             EnableHashGen = false;
             WorkingDirectory = System.IO.Directory.GetCurrentDirectory();
-            OutputFormat = OutputFormat.Json;
+            OutputFormat = OutputFormat.Json;  // 이미 정적 필드로 정의됨
             YamlIndentSize = 2;
             YamlPreserveQuotes = false;
-            YamlStyle = YamlStyle.Block;
+            YamlStyle = YamlStyle.Block;  // 이미 정적 필드로 정의됨
             IncludeEmptyFields = false;
         }
     }

@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 빌드는 항상 내가 직접 할게
 - 새로운 파일을 추가하면 항상 ExcelToYamlAddin.csproj에 반영해줘
 - 리팩토링 작업을 할 때는 Docs/Excel2Yaml_리팩토링_계획서.md 를 참고하고 업데이트 하면서 작업해줘
+- 하드코딩하지말고 Domain/Constants의 상수로 작업해줘
 
 ## Build Commands
 

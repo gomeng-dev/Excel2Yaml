@@ -46,6 +46,46 @@ namespace ExcelToYamlAddin.Domain.Constants
             /// 중첩 배열 경고
             /// </summary>
             public const string NestedArrayWarning = "배열 안에 직접 배열을 추가하는 것은 일부 파서에서 문제가 될 수 있습니다. 가능하면 이름 있는 객체로 감싸는 것이 좋습니다.";
+
+            /// <summary>
+            /// 스키마 이름이 비어있음
+            /// </summary>
+            public const string SchemeNameIsEmpty = "스키마 이름이 비어있습니다.";
+
+            /// <summary>
+            /// 루트 노드가 null임
+            /// </summary>
+            public const string RootNodeIsNull = "루트 노드가 null입니다.";
+
+            /// <summary>
+            /// 컨텐츠 시작 행이 잘못됨
+            /// </summary>
+            public const string InvalidContentStartRow = "컨텐츠 시작 행은 1 이상이어야 합니다.";
+
+            /// <summary>
+            /// 종료 행이 시작 행보다 작음
+            /// </summary>
+            public const string EndRowLessThanStartRow = "종료 행은 시작 행보다 커야 합니다.";
+
+            /// <summary>
+            /// 스키마가 유효하지 않음
+            /// </summary>
+            public const string SchemaIsInvalid = "스키마가 유효하지 않습니다.";
+
+            /// <summary>
+            /// 스키마에 노드가 없음
+            /// </summary>
+            public const string NoNodesInSchema = "스키마에 노드가 없습니다.";
+
+            /// <summary>
+            /// 순환 참조 발견
+            /// </summary>
+            public const string CircularReferenceFound = "스키마에 순환 참조가 있습니다.";
+
+            /// <summary>
+            /// 중복된 키 발견
+            /// </summary>
+            public const string DuplicateKeysFound = "중복된 키가 있습니다: {0}";
         }
 
         /// <summary>
@@ -210,6 +250,61 @@ namespace ExcelToYamlAddin.Domain.Constants
             /// 잘못된 파일 경로
             /// </summary>
             public const string InvalidFilePath = "잘못된 파일 경로입니다: ";
+
+            /// <summary>
+            /// 행 번호가 1보다 작음
+            /// </summary>
+            public const string RowLessThanOne = "행 번호는 1 이상이어야 합니다.";
+
+            /// <summary>
+            /// 열 번호가 1보다 작음
+            /// </summary>
+            public const string ColumnLessThanOne = "열 번호는 1 이상이어야 합니다.";
+
+            /// <summary>
+            /// 셀 주소가 비어있음
+            /// </summary>
+            public const string CellAddressIsEmpty = "셀 주소가 비어있습니다.";
+
+            /// <summary>
+            /// 잘못된 셀 주소 형식
+            /// </summary>
+            public const string InvalidCellAddressFormat = "잘못된 셀 주소 형식입니다: {0}";
+
+            /// <summary>
+            /// 노드 타입 값이 비어있음
+            /// </summary>
+            public const string NodeTypeValueIsEmpty = "노드 타입 값이 비어있습니다.";
+
+            /// <summary>
+            /// 노드 타입이 없음
+            /// </summary>
+            public const string NodeTypeIsNull = "노드 타입이 없습니다.";
+
+            /// <summary>
+            /// 노드 위치가 없음
+            /// </summary>
+            public const string NodePositionIsNull = "노드 위치가 없습니다.";
+
+            /// <summary>
+            /// 컨테이너 노드에 자식이 없음
+            /// </summary>
+            public const string ContainerNodeHasNoChildren = "컨테이너 노드에 자식이 없습니다: {0}";
+
+            /// <summary>
+            /// VALUE 노드에 자식 추가 불가
+            /// </summary>
+            public const string CannotAddChildToValueNode = "VALUE 노드에는 자식을 추가할 수 없습니다: {0}";
+
+            /// <summary>
+            /// IGNORE 노드에 자식 추가 불가
+            /// </summary>
+            public const string CannotAddChildToIgnoreNode = "IGNORE 노드에는 자식을 추가할 수 없습니다: {0}";
+
+            /// <summary>
+            /// 잘못된 자식 노드 타입
+            /// </summary>
+            public const string InvalidChildNodeType = "{0} 노드에는 {1} 노드를 추가할 수 없습니다: {2} -> {3}";
         }
 
         /// <summary>

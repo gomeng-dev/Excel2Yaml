@@ -6,6 +6,8 @@ using ClosedXML.Excel;
 using ExcelToYamlAddin.Domain.Entities;
 using ExcelToYamlAddin.Infrastructure.Logging;
 using YamlDotNet.RepresentationModel;
+using ExcelToYamlAddin.Application.Services;
+using ExcelToYamlAddin.Domain.ValueObjects;
 
 namespace ExcelToYamlAddin.Core.YamlToExcel
 {
@@ -618,31 +620,29 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
             }
             
             // 노드 타입별 색상 적용 (HTML 디버그 파일과 동일)
-            switch (node.NodeType)
+            if (node.NodeType == SchemeNodeType.Array)
             {
-                case SchemeNode.SchemeNodeType.ARRAY:
-                    // 배열 마커: 밝은 녹색 (#00CC00)
-                    range.Style.Fill.BackgroundColor = XLColor.LimeGreen;
-                    range.Style.Font.Bold = true;
-                    Logger.Information($"배열 마커 색상 적용: [{row},{col}] '{node.Key}{node.SchemeMarker}'");
-                    break;
-                    
-                case SchemeNode.SchemeNodeType.MAP:
-                    // 객체 마커: 연한 녹색 (#CCFFCC)
-                    range.Style.Fill.BackgroundColor = XLColor.FromArgb(204, 255, 204);
-                    range.Style.Font.Bold = true;
-                    Logger.Information($"객체 마커 색상 적용: [{row},{col}] '{node.Key}{node.SchemeMarker}'");
-                    break;
-                    
-                case SchemeNode.SchemeNodeType.PROPERTY:
-                    // 속성: 기본 배경 (흰색)
-                    Logger.Information($"속성 기본 색상: [{row},{col}] '{node.Key}'");
-                    break;
-                    
-                case SchemeNode.SchemeNodeType.IGNORE:
-                    // ^ 마커: 기본 배경
-                    Logger.Information($"무시 마커: [{row},{col}] '{node.Key}'");
-                    break;
+                // 배열 마커: 밝은 녹색 (#00CC00)
+                range.Style.Fill.BackgroundColor = XLColor.LimeGreen;
+                range.Style.Font.Bold = true;
+                Logger.Information($"배열 마커 색상 적용: [{row},{col}] '{node.Key}{node.SchemeMarker}'");
+            }
+            else if (node.NodeType == SchemeNodeType.Map)
+            {
+                // 객체 마커: 연한 녹색 (#CCFFCC)
+                range.Style.Fill.BackgroundColor = XLColor.FromArgb(204, 255, 204);
+                range.Style.Font.Bold = true;
+                Logger.Information($"객체 마커 색상 적용: [{row},{col}] '{node.Key}{node.SchemeMarker}'");
+            }
+            else if (node.NodeType == SchemeNodeType.Property)
+            {
+                // 속성: 기본 배경 (흰색)
+                Logger.Information($"속성 기본 색상: [{row},{col}] '{node.Key}'");
+            }
+            else if (node.NodeType == SchemeNodeType.Ignore)
+            {
+                // ^ 마커: 기본 배경
+                Logger.Information($"무시 마커: [{row},{col}] '{node.Key}'");
             }
             
             // 병합된 셀인 경우 병합 처리
@@ -652,7 +652,7 @@ namespace ExcelToYamlAddin.Core.YamlToExcel
                 {
                     range.Merge();
                     // 병합된 셀 배경: 연한 파란색 (#e8f4fc)
-                    if (node.NodeType == SchemeNode.SchemeNodeType.ARRAY || node.NodeType == SchemeNode.SchemeNodeType.MAP)
+                    if (node.NodeType == SchemeNodeType.Array || node.NodeType == SchemeNodeType.Map)
                     {
                         // 마커는 이미 색상이 적용되어 있으므로 추가 배경색 적용하지 않음
                     }

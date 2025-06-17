@@ -127,6 +127,42 @@ namespace ExcelToYamlAddin.Domain.Constants
         }
 
         /// <summary>
+        /// 위치 관련 상수
+        /// </summary>
+        public static class Position
+        {
+            /// <summary>
+            /// 루트 노드의 기본 행 위치
+            /// </summary>
+            public const int RootNodeRow = 1;
+            
+            /// <summary>
+            /// 루트 노드의 기본 열 위치
+            /// </summary>
+            public const int RootNodeColumn = 1;
+            
+            /// <summary>
+            /// 루트 컨테이너 판별을 위한 열 위치
+            /// </summary>
+            public const int RootContainerColumn = 1;
+            
+            /// <summary>
+            /// 첫 번째 열 인덱스 (1-based)
+            /// </summary>
+            public const int FirstColumnIndex = 1;
+            
+            /// <summary>
+            /// 데이터 행 오프셋 (스키마 종료 행에서 데이터 시작까지)
+            /// </summary>
+            public const int DataRowOffset = 1;
+            
+            /// <summary>
+            /// 다음 행 오프셋
+            /// </summary>
+            public const int NextRowOffset = 1;
+        }
+
+        /// <summary>
         /// 설정 관련 상수
         /// </summary>
         public static class Configuration
