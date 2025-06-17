@@ -28,7 +28,6 @@ namespace ExcelToYamlAddin
         private static readonly ISimpleLogger Logger = SimpleLoggerFactory.CreateLogger<Ribbon>();
         
         // 옵션 설정
-        private bool includeEmptyFields = false;
         private bool enableHashGen = false;
         private bool addEmptyYamlFields = false;
 
@@ -41,8 +40,14 @@ namespace ExcelToYamlAddin
             : base(Globals.Factory.GetRibbonFactory())
         {
             InitializeComponent();
+            LoadDefaultSettings();
+        }
 
-            // 설정 불러오기
+        /// <summary>
+        /// 기본 설정값을 로드합니다.
+        /// </summary>
+        private void LoadDefaultSettings()
+        {
             try
             {
                 // 초기값은 false로 설정(Ribbon_Load에서 시트별 설정을 로드)
@@ -56,6 +61,178 @@ namespace ExcelToYamlAddin
             {
                 Debug.WriteLine($"[Ribbon] 설정 로드 중 오류 발생: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 현재 활성 시트의 설정과 전역 설정을 조합하여 최종 빈 필드 포함 설정을 반환합니다.
+        /// </summary>
+        /// <param name="configKey">Excel 설정에서 조회할 키 이름</param>
+        /// <returns>시트별 설정 또는 전역 설정 중 하나라도 true이면 true, 그렇지 않으면 false</returns>
+        private bool GetEffectiveEmptyFieldsSetting(string configKey)
+        {
+            bool sheetSpecificSetting = false;
+            string currentSheetName = string.Empty;
+
+            try
+            {
+                // 현재 활성 시트의 설정 확인
+                if (Globals.ThisAddIn.Application.ActiveSheet != null)
+                {
+                    currentSheetName = Globals.ThisAddIn.Application.ActiveSheet.Name;
+                    sheetSpecificSetting = ExcelConfigManager.Instance.GetConfigBool(currentSheetName, configKey, false);
+                    Debug.WriteLine($"[GetEffectiveEmptyFieldsSetting] 시트 '{currentSheetName}'의 {configKey} 설정: {sheetSpecificSetting}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GetEffectiveEmptyFieldsSetting] 시트별 설정 확인 중 오류: {ex.Message}");
+            }
+
+            // 시트별 설정이나 전역 설정 중 하나라도 true이면 빈 필드 포함
+            bool result = sheetSpecificSetting || addEmptyYamlFields;
+            Debug.WriteLine($"[GetEffectiveEmptyFieldsSetting] 최종 설정 (시트별: {sheetSpecificSetting}, 전역: {addEmptyYamlFields}, 결과: {result})");
+            
+            return result;
+        }
+
+        /// <summary>
+        /// 임시 디렉토리를 안전하게 삭제합니다.
+        /// </summary>
+        /// <param name="tempDir">삭제할 임시 디렉토리 경로</param>
+        /// <param name="methodName">호출한 메소드 이름 (로깅용)</param>
+        private void CleanupTempDirectory(string tempDir, string methodName)
+        {
+            try
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                    Debug.WriteLine($"[{methodName}] 임시 디렉토리 정리 완료: {tempDir}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{methodName}] 임시 디렉토리 정리 중 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 진행 상태를 보고합니다.
+        /// </summary>
+        /// <param name="progress">진행 상태 보고 객체</param>
+        /// <param name="percentage">진행률 (0-100)</param>
+        /// <param name="message">상태 메시지</param>
+        /// <param name="isCompleted">완료 여부</param>
+        /// <param name="hasError">오류 발생 여부</param>
+        /// <param name="errorMessage">오류 메시지</param>
+        private void ReportProgress(IProgress<Forms.ProgressForm.ProgressInfo> progress, int percentage, string message, bool isCompleted = false, bool hasError = false, string errorMessage = null)
+        {
+            progress.Report(new Forms.ProgressForm.ProgressInfo
+            {
+                Percentage = percentage,
+                StatusMessage = message,
+                IsCompleted = isCompleted,
+                HasError = hasError,
+                ErrorMessage = errorMessage
+            });
+        }
+
+        /// <summary>
+        /// 시트 이름에서 '!' 접두사를 제거합니다.
+        /// </summary>
+        /// <param name="sheetName">원본 시트 이름</param>
+        /// <returns>'!' 접두사가 제거된 시트 이름</returns>
+        private string GetCleanSheetName(string sheetName)
+        {
+            return sheetName?.StartsWith("!") == true ? sheetName.Substring(1) : sheetName ?? string.Empty;
+        }
+
+        /// <summary>
+        /// 활성 워크북의 유효성을 검사하고 초기화합니다.
+        /// </summary>
+        /// <returns>워크북이 유효하면 true, 그렇지 않으면 false</returns>
+        private bool ValidateAndInitializeWorkbook()
+        {
+            var app = Globals.ThisAddIn.Application;
+            var activeWorkbook = app.ActiveWorkbook;
+
+            if (activeWorkbook == null)
+            {
+                MessageBox.Show("활성 워크북이 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+
+            string workbookPath = activeWorkbook.FullName;
+            SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
+            ExcelConfigManager.Instance.SetCurrentWorkbook(workbookPath);
+            
+            return true;
+        }
+
+        /// <summary>
+        /// YAML 변환을 위한 공통 설정을 초기화합니다.
+        /// </summary>
+        /// <param name="methodName">호출한 메소드 이름 (로깅용)</param>
+        /// <returns>초기화된 ExcelToYamlConfig 객체</returns>
+        private ExcelToYamlConfig InitializeYamlConfig(string methodName)
+        {
+            var yamlConfig = new ExcelToYamlConfig
+            {
+                OutputFormat = OutputFormat.Yaml,
+                IncludeEmptyFields = GetEffectiveEmptyFieldsSetting("YamlEmptyFields"),
+                EnableHashGen = enableHashGen
+            };
+
+            SheetPathManager.Instance.Initialize();
+            Debug.WriteLine($"[{methodName}] 변환 전 SheetPathManager 재초기화 완료");
+            Debug.WriteLine($"[{methodName}] YAML 변환 설정 - 빈 필드 포함: {yamlConfig.IncludeEmptyFields}, 해시 생성: {yamlConfig.EnableHashGen}");
+
+            return yamlConfig;
+        }
+
+        /// <summary>
+        /// YAML 변환 결과를 담는 구조체
+        /// </summary>
+        private class YamlConversionResult
+        {
+            public List<string> YamlFiles { get; set; } = new List<string>();
+            public string TempDirectory { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// Excel을 YAML로 변환하는 공통 로직을 수행합니다.
+        /// </summary>
+        /// <param name="convertibleSheets">변환할 시트 목록</param>
+        /// <param name="useTemporaryFiles">임시 파일을 사용할지 여부</param>
+        /// <param name="methodName">호출한 메소드 이름 (로깅용)</param>
+        /// <returns>변환된 YAML 파일 경로 목록과 임시 디렉토리 경로</returns>
+        private YamlConversionResult ConvertToYaml(List<Excel.Worksheet> convertibleSheets, bool useTemporaryFiles, string methodName)
+        {
+            var config = InitializeYamlConfig(methodName);
+            var result = new YamlConversionResult();
+            
+            if (useTemporaryFiles)
+            {
+                // 임시 디렉토리 생성
+                string tempDir = Path.Combine(Path.GetTempPath(), $"Excel2YamlTemp_{Guid.NewGuid().ToString().Substring(0, 8)}");
+                Directory.CreateDirectory(tempDir);
+                config.WorkingDirectory = tempDir;
+                
+                Debug.WriteLine($"[{methodName}] 임시 디렉토리 생성: {tempDir}");
+                result.TempDirectory = tempDir;
+                result.YamlFiles = ConvertExcelFileToTemp(config, tempDir, convertibleSheets);
+            }
+            else
+            {
+                // 일반 변환
+                this.config.OutputFormat = config.OutputFormat;
+                this.config.IncludeEmptyFields = config.IncludeEmptyFields;
+                this.config.EnableHashGen = config.EnableHashGen;
+                
+                result.YamlFiles = ConvertExcelFile(this.config);
+            }
+            
+            return result;
         }
 
         // 리본 로드 시 호출
@@ -158,21 +335,12 @@ namespace ExcelToYamlAddin
             SheetPathManager.Instance.Initialize();
             Debug.WriteLine("[PrepareAndValidateSheets] SheetPathManager 초기화 완료");
 
-            var addIn = Globals.ThisAddIn;
-            var app = addIn.Application;
-            var activeWorkbook = app.ActiveWorkbook;
-
-            if (activeWorkbook == null)
+            if (!ValidateAndInitializeWorkbook())
             {
-                MessageBox.Show("활성 워크북이 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
 
-            string workbookPath = activeWorkbook.FullName;
-            SheetPathManager.Instance.SetCurrentWorkbook(workbookPath);
-            ExcelConfigManager.Instance.SetCurrentWorkbook(workbookPath);
-
-            var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(activeWorkbook);
+            var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(Globals.ThisAddIn.Application.ActiveWorkbook);
 
             if (convertibleSheets.Count == 0)
             {
@@ -384,53 +552,9 @@ namespace ExcelToYamlAddin
                     return;
                 }
 
-                // YAML 변환 설정
-                config.OutputFormat = OutputFormat.Yaml;
-
-                // 설정 적용 (포맷에 따라 다른 옵션 적용)
-                if (config.OutputFormat == OutputFormat.Yaml)
-                {
-                    // YAML 변환 시 시트별 설정과 전역 설정을 모두 고려합니다
-                    // 현재 활성화된 시트의 시트별 설정 확인
-                    bool sheetSpecificSetting = false;
-
-                    try
-                    {
-                        // 현재 활성 시트의 설정 확인
-                        if (Globals.ThisAddIn.Application.ActiveSheet != null)
-                        {
-                            string currentSheetName = Globals.ThisAddIn.Application.ActiveSheet.Name;
-                            sheetSpecificSetting = ExcelConfigManager.Instance.GetConfigBool(currentSheetName, "YamlEmptyFields", false);
-                            Debug.WriteLine($"[OnConvertToYamlClick] 현재 시트 '{currentSheetName}'의 YamlEmptyFields 설정: {sheetSpecificSetting}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[OnConvertToYamlClick] 시트별 설정 확인 중 오류: {ex.Message}");
-                    }
-
-                    // 시트별 설정이나 전역 설정 중 하나라도 true이면 빈 필드 포함
-                    bool includeEmptySettings = sheetSpecificSetting || addEmptyYamlFields;
-                    config.IncludeEmptyFields = includeEmptySettings;
-
-                    Debug.WriteLine($"[OnConvertToYamlClick] YAML 변환 시 빈 필드 포함 설정: {config.IncludeEmptyFields} (시트별 설정: {sheetSpecificSetting}, 전역 설정: {addEmptyYamlFields})");
-                    Debug.WriteLine($"[OnConvertToYamlClick] 최종 설정값 추적: 리본 변수값={addEmptyYamlFields}, 시트별 설정값={sheetSpecificSetting}, Config 최종 설정값={config.IncludeEmptyFields}");
-                }
-                else
-                {
-                    // JSON 변환 시에는 includeEmptyFields 옵션만 사용
-                    config.IncludeEmptyFields = includeEmptyFields;
-                    Debug.WriteLine($"[OnConvertToJsonClick] JSON 변환 시 빈 필드 포함 설정: {config.IncludeEmptyFields} (includeEmptyFields: {includeEmptyFields})");
-                }
-
-                config.EnableHashGen = enableHashGen;
-
-                // 변환 전 설정 다시 로드 및 동기화
-                SheetPathManager.Instance.Initialize();
-                Debug.WriteLine("[OnConvertToYamlClick] 변환 전 SheetPathManager 재초기화 완료");
-
-                // 변환 처리
-                List<string> convertedFiles = ConvertExcelFile(config);
+                // YAML 변환 처리
+                var yamlResult = ConvertToYaml(convertibleSheets, useTemporaryFiles: false, "OnConvertToYamlClick");
+                List<string> convertedFiles = yamlResult.YamlFiles;
 
                 // 변환 결과 추적
                 int successCount = 0;
@@ -547,22 +671,9 @@ namespace ExcelToYamlAddin
                 config.OutputFormat = OutputFormat.Yaml;
 
                 // 현재 활성 시트 또는 전역 설정에 따라 빈 필드 포함 여부 결정
-                bool sheetSpecificEmptyFieldSetting = false;
-                try
-                {
-                    if (Globals.ThisAddIn.Application.ActiveSheet != null)
-                    {
-                        string currentSheetName = Globals.ThisAddIn.Application.ActiveSheet.Name;
-                        sheetSpecificEmptyFieldSetting = ExcelConfigManager.Instance.GetConfigBool(currentSheetName, "YamlEmptyFields", false);
-                        Debug.WriteLine($"[OnConvertToXmlClick] 현재 시트 '{currentSheetName}'의 YamlEmptyFields 설정 (YAML 단계용): {sheetSpecificEmptyFieldSetting}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[OnConvertToXmlClick] 시트별 YamlEmptyFields 설정 확인 중 오류 (YAML 단계용): {ex.Message}");
-                }
-                config.IncludeEmptyFields = sheetSpecificEmptyFieldSetting || addEmptyYamlFields;
-                Debug.WriteLine($"[OnConvertToXmlClick] YAML 변환 시 빈 필드 포함 설정: {config.IncludeEmptyFields} (시트별: {sheetSpecificEmptyFieldSetting}, 전역: {addEmptyYamlFields})");
+                // 현재 시트의 빈 필드 포함 설정 결정 (YAML 단계용)
+                config.IncludeEmptyFields = GetEffectiveEmptyFieldsSetting("YamlEmptyFields");
+                Debug.WriteLine($"[OnConvertToXmlClick] YAML 변환 시 빈 필드 포함 설정: {config.IncludeEmptyFields}");
 
                 config.EnableHashGen = enableHashGen; // 해시 생성 옵션 (YAML 단계용)
 
@@ -575,49 +686,29 @@ namespace ExcelToYamlAddin
                     List<string> finalXmlFiles = new List<string>();
                     progressForm.RunOperation((progress, cancellationToken) =>
                     {
-                        progress.Report(new Forms.ProgressForm.ProgressInfo
-                        {
-                            Percentage = 0,
-                            StatusMessage = "Excel → YAML 변환 준비 중..."
-                        });
+                        ReportProgress(progress, 0, "Excel → YAML 변환 준비 중...");
 
                         // 1단계: Excel을 YAML로 변환 (임시 파일에 저장)
-                        string tempDir = Path.Combine(Path.GetTempPath(), "ExcelToXmlTemp_" + Guid.NewGuid().ToString().Substring(0, 8));
-                        Directory.CreateDirectory(tempDir);
-
-                        ExcelToYamlConfig yamlConfig = new ExcelToYamlConfig
-                        {
-                            IncludeEmptyFields = config.IncludeEmptyFields,
-                            EnableHashGen = config.EnableHashGen, // YAML 단계에서 해시 생성은 선택사항
-                            OutputFormat = OutputFormat.Yaml,
-                            WorkingDirectory = tempDir // 임시 YAML 파일 저장 경로
-                        };
-
-                        List<string> tempYamlFiles = new List<string>();
+                        var yamlResult = ConvertToYaml(convertibleSheets, useTemporaryFiles: true, "OnConvertToXmlClick");
+                        List<string> tempYamlFiles = yamlResult.YamlFiles;
+                        string tempDir = yamlResult.TempDirectory;
 
                         try
                         {
-                            progress.Report(new Forms.ProgressForm.ProgressInfo
-                            {
-                                Percentage = 10,
-                                StatusMessage = "Excel → YAML 파일 생성 중..."
-                            });
-
-                            // Excel을 임시 YAML 파일로 변환
-                            tempYamlFiles = ConvertExcelFileToTemp(yamlConfig, tempDir, convertibleSheets);
+                            ReportProgress(progress, 10, "Excel → YAML 파일 생성 중...");
 
                             if (tempYamlFiles.Count == 0)
                             {
-                                progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 100, StatusMessage = "변환할 YAML 파일이 없습니다.", IsCompleted = true });
+                                ReportProgress(progress, 100, "변환할 YAML 파일이 없습니다.", isCompleted: true);
                                 return;
                             }
 
                             // 2단계: YAML 후처리 (MergeKeyPaths, FlowStyle 등)
-                            progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 30, StatusMessage = "YAML 후처리 진행 중..." });
+                            ReportProgress(progress, 30, "YAML 후처리 진행 중...");
                             ApplyYamlPostProcessing(tempYamlFiles, convertibleSheets, progress, cancellationToken, 30, 30, isForJsonConversion: false); // isForJsonConversion = false로 모든 후처리 적용
 
                             // 3단계: 후처리된 YAML을 XML로 변환
-                            progress.Report(new Forms.ProgressForm.ProgressInfo { Percentage = 60, StatusMessage = "YAML → XML 변환 중..." });
+                            ReportProgress(progress, 60, "YAML → XML 변환 중...");
 
                             var yamlParser = new YamlDotNet.Serialization.DeserializerBuilder().Build();
                             int processedXmlCount = 0;
@@ -700,8 +791,7 @@ namespace ExcelToYamlAddin
                         }
                         finally
                         {
-                            try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
-                            catch (Exception ex) { Debug.WriteLine($"[OnConvertToXmlClick] 임시 디렉토리 정리 중 오류: {ex.Message}"); }
+                            CleanupTempDirectory(tempDir, "OnConvertToXmlClick");
                         }
                     }, "Excel → YAML → XML 변환 중...");
 
@@ -738,100 +828,34 @@ namespace ExcelToYamlAddin
                     return;
                 }
 
-                // 설정 적용 - YAML 변환으로 설정
-                config.IncludeEmptyFields = addEmptyYamlFields;
-                config.EnableHashGen = enableHashGen;
-                config.OutputFormat = OutputFormat.Yaml;
-
-                // YAML 변환 시 시트별 설정과 전역 설정을 모두 고려
-                bool sheetSpecificSetting = false;
-
-                try
-                {
-                    // 현재 활성 시트의 설정 확인
-                    if (Globals.ThisAddIn.Application.ActiveSheet != null)
-                    {
-                        string currentSheetName = Globals.ThisAddIn.Application.ActiveSheet.Name;
-                        sheetSpecificSetting = ExcelConfigManager.Instance.GetConfigBool(currentSheetName, "YamlEmptyFields", false);
-                        Debug.WriteLine($"[OnConvertYamlToJsonClick] 현재 시트 '{currentSheetName}'의 YamlEmptyFields 설정: {sheetSpecificSetting}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[OnConvertYamlToJsonClick] 시트별 설정 확인 중 오류: {ex.Message}");
-                }
-
-                // 시트별 설정이나 전역 설정 중 하나라도 true이면 빈 필드 포함
-                bool includeEmptySettings = sheetSpecificSetting || addEmptyYamlFields;
-                config.IncludeEmptyFields = includeEmptySettings;
-
-                // 변환 전 설정 다시 로드 및 동기화
-                SheetPathManager.Instance.Initialize();
-                Debug.WriteLine("[OnConvertYamlToJsonClick] 변환 전 SheetPathManager 재초기화 완료");
-
                 // 프로그레스 바 표시 및 변환 작업 수행
                 using (var progressForm = new Forms.ProgressForm())
                 {
                     progressForm.RunOperation((progress, cancellationToken) =>
                     {
-                        progress.Report(new Forms.ProgressForm.ProgressInfo
-                        {
-                            Percentage = 0,
-                            StatusMessage = "YAML 파일 변환 준비 중..."
-                        });
+                        ReportProgress(progress, 0, "YAML 파일 변환 준비 중...");
 
                         // 1단계: YAML로 변환 (임시 파일에 저장)
-                        // 임시 디렉토리 생성
-                        string tempDir = Path.Combine(Path.GetTempPath(), "Excel2YamlTemp_" + Guid.NewGuid().ToString().Substring(0, 8));
-                        Directory.CreateDirectory(tempDir);
-
-                        // 설정 복제
-                        ExcelToYamlConfig yamlConfig = new ExcelToYamlConfig
-                        {
-                            IncludeEmptyFields = config.IncludeEmptyFields,
-                            EnableHashGen = config.EnableHashGen,
-                            OutputFormat = OutputFormat.Yaml,
-                            WorkingDirectory = tempDir
-                        };
-
-                        List<string> yamlFiles = new List<string>();
+                        var yamlResult = ConvertToYaml(convertibleSheets, useTemporaryFiles: true, "OnConvertYamlToJsonClick");
+                        List<string> yamlFiles = yamlResult.YamlFiles;
+                        string tempDir = yamlResult.TempDirectory;
                         List<Tuple<string, string>> convertPairs = new List<Tuple<string, string>>();
 
                         try
                         {
-                            progress.Report(new Forms.ProgressForm.ProgressInfo
-                            {
-                                Percentage = 10,
-                                StatusMessage = "YAML 파일 생성 중..."
-                            });
-
-                            // YAML 파일 생성
-                            yamlFiles = ConvertExcelFileToTemp(yamlConfig, tempDir, convertibleSheets); // convertibleSheets 전달
+                            ReportProgress(progress, 10, "YAML 파일 생성 완료...");
 
                             if (yamlFiles.Count == 0)
                             {
-                                progress.Report(new Forms.ProgressForm.ProgressInfo
-                                {
-                                    Percentage = 100,
-                                    StatusMessage = "변환할 YAML 파일이 없습니다.",
-                                    IsCompleted = true
-                                });
+                                ReportProgress(progress, 100, "변환할 YAML 파일이 없습니다.", isCompleted: true);
                                 return;
                             }
 
-                            progress.Report(new Forms.ProgressForm.ProgressInfo
-                            {
-                                Percentage = 30,
-                                StatusMessage = "YAML 후처리 진행 중..."
-                            });
+                            ReportProgress(progress, 30, "YAML 후처리 진행 중...");
                             ApplyYamlPostProcessing(yamlFiles, convertibleSheets, progress, cancellationToken, 30, 20, isForJsonConversion: true);
 
                             // 3단계: JSON 변환 준비
-                            progress.Report(new ProgressForm.ProgressInfo
-                            {
-                                Percentage = 50,
-                                StatusMessage = $"{yamlFiles.Count}개 YAML 파일 JSON 변환 준비 중..."
-                            });
+                            ReportProgress(progress, 50, $"{yamlFiles.Count}개 YAML 파일 JSON 변환 준비 중...");
 
                             // YAML 파일을 JSON으로 변환할 쌍 생성
                             foreach (var yamlFile in yamlFiles)
@@ -886,17 +910,7 @@ namespace ExcelToYamlAddin
                         finally
                         {
                             // 임시 디렉토리 정리
-                            try
-                            {
-                                if (Directory.Exists(tempDir))
-                                {
-                                    Directory.Delete(tempDir, true);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"[OnConvertYamlToJsonClick] 임시 디렉토리 정리 중 오류: {ex.Message}");
-                            }
+                            CleanupTempDirectory(tempDir, "OnConvertYamlToJsonClick");
                         }
                     }, "YAML → JSON 변환 중...");
 
@@ -915,80 +929,6 @@ namespace ExcelToYamlAddin
                     "변환 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Debug.WriteLine($"[OnConvertYamlToJsonClick] 오류: {ex.Message}\n{ex.StackTrace}");
             }
-        }
-
-
-        // 빈 필드 포함 옵션 체크박스 상태 가져오기
-        public bool GetEmptyFieldsState(IRibbonControl control)
-        {
-            return includeEmptyFields;
-        }
-
-        // 빈 필드 포함 옵션 체크박스 클릭
-        public void OnEmptyFieldsClicked(IRibbonControl control, bool pressed)
-        {
-            includeEmptyFields = pressed;
-        }
-
-        // MD5 해시 생성 옵션 체크박스 상태 가져오기
-        public bool GetHashGenState(IRibbonControl control)
-        {
-            return enableHashGen;
-        }
-
-        // MD5 해시 생성 옵션 체크박스 클릭
-        public void OnHashGenClicked(IRibbonControl control, bool pressed)
-        {
-            enableHashGen = pressed;
-        }
-
-        // YAML 선택적 필드 처리 옵션 체크박스 상태 가져오기
-        public bool GetAddEmptyYamlState(IRibbonControl control)
-        {
-            return addEmptyYamlFields;
-        }
-
-        // YAML 선택적 필드 처리 옵션 체크박스 클릭
-        public void OnAddEmptyYamlClicked(IRibbonControl control, bool pressed)
-        {
-            addEmptyYamlFields = pressed;
-            Debug.WriteLine($"[Ribbon] YAML 빈 배열 필드 추가 옵션 변경: {addEmptyYamlFields}");
-
-            try
-            {
-                // Properties.Settings.Default에 설정 저장
-                Properties.Settings.Default.AddEmptyYamlFields = pressed;
-                Properties.Settings.Default.Save();
-                Debug.WriteLine($"[Ribbon] YAML 기본 설정 저장: {pressed}");
-
-                // Globals.ThisAddIn이 초기화되었는지 확인 후 시트별 설정 저장
-                if (Globals.ThisAddIn != null && Globals.ThisAddIn.Application != null &&
-                    Globals.ThisAddIn.Application.ActiveSheet != null)
-                {
-                    // 체크박스 상태가 변경되면 Excel Config에도 저장 (현재 선택된 시트에만 적용)
-                    var activeWorksheet = Globals.ThisAddIn.Application.ActiveSheet as Excel.Worksheet;
-                    if (activeWorksheet != null)
-                    {
-                        string sheetName = activeWorksheet.Name;
-                        Debug.WriteLine($"[Ribbon] 현재 시트 '{sheetName}'에 YAML 빈 배열 필드 설정 저장: {addEmptyYamlFields}");
-                        ExcelConfigManager.Instance.SetConfigValue(sheetName, "YamlEmptyFields", addEmptyYamlFields.ToString().ToLower());
-                    }
-                }
-                else
-                {
-                    Debug.WriteLine("[Ribbon] ThisAddIn이 초기화되지 않았거나 활성 시트가 없어 시트별 설정을 저장하지 않습니다.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Ribbon] 설정 저장 중 오류 발생: {ex.Message}");
-            }
-        }
-
-        // 고급 설정 버튼 클릭
-        public void OnSettingsClick(IRibbonControl control)
-        {
-            OnSheetPathSettingsClick(null, null);
         }
 
         // 도움말 버튼 클릭 이벤트 핸들러
@@ -1115,68 +1055,6 @@ namespace ExcelToYamlAddin
             }
         }
 
-        // 시트별 경로 설정 대화상자 표시
-        private void ManageSheetPathsButton_Click(object sender, RibbonControlEventArgs e)
-        {
-            try
-            {
-                // 현재 워크북 가져오기
-                var addIn = Globals.ThisAddIn;
-                var app = addIn.Application;
-
-                if (app.ActiveWorkbook == null)
-                {
-                    MessageBox.Show("활성 워크북이 없습니다.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
-                // 변환 가능한 시트 가져오기
-                var convertibleSheets = SheetAnalyzer.GetConvertibleSheets(app.ActiveWorkbook);
-
-                if (convertibleSheets.Count == 0)
-                {
-                    if (MessageBox.Show("변환 가능한 시트(이름이 !로 시작하는 시트)가 없습니다. 시트 설정 화면을 여시겠습니까?",
-                        "알림", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                    {
-                        // 빈 목록으로 폼 열기
-                        convertibleSheets = new List<Worksheet>();
-                        foreach (Worksheet sheet in app.ActiveWorkbook.Sheets)
-                        {
-                            convertibleSheets.Add(sheet);
-                        }
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-
-                // 워크북 경로 설정
-                SheetPathManager.Instance.SetCurrentWorkbook(app.ActiveWorkbook.FullName);
-
-                // 이미 열려있는 설정 폼이 있으면 활성화
-                if (settingsForm != null && !settingsForm.IsDisposed)
-                {
-                    settingsForm.Activate();
-                    return;
-                }
-
-                // 시트별 경로 설정 대화상자 표시 (비모달)
-                settingsForm = new Forms.SheetPathSettingsForm(convertibleSheets);
-                settingsForm.FormClosed += (s, args) => { HandleSettingsFormClosed(convertibleSheets); settingsForm = null; };
-                settingsForm.StartPosition = FormStartPosition.CenterScreen;
-                settingsForm.Show();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    $"도움말을 표시하는 중 오류가 발생했습니다: {ex.Message}",
-                    "오류",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-        }
-
         /// <summary>
         /// SheetPathSettingsForm이 닫힐 때 호출되는 안전한 핸들러입니다.
         /// </summary>
@@ -1197,40 +1075,6 @@ namespace ExcelToYamlAddin
             if (enabledSheetsCount == 0) { /* MessageBox.Show("활성화된 시트가 없어 변환을 취소합니다.", "변환 취소", MessageBoxButtons.OK, MessageBoxIcon.Information); */ }
         }
 
-        /// <summary>
-        /// SheetPathSettingsForm이 닫힐 때 호출되는 공통 핸들러입니다.
-        /// </summary>
-        /// <param name="convertibleSheets">설정 폼에 전달되었던 시트 목록입니다.</param>
-        private void HandleSettingsFormClosed(List<Excel.Worksheet> convertibleSheets)
-        {
-            // 설정 후 다시 활성화된 시트 수 확인
-            int enabledSheetsCount = 0;
-            foreach (var sheet in convertibleSheets)
-            {
-                try
-                {
-                    // Excel COM 객체에 안전하게 접근
-                    string sheetName = sheet.Name;
-                    if (SheetPathManager.Instance.IsSheetEnabled(sheetName))
-                    {
-                        enabledSheetsCount++;
-                    }
-                }
-                catch (System.Runtime.InteropServices.COMException ex)
-                {
-                    // COM 객체가 무효한 경우 로그만 남기고 건너뛰기
-                    Debug.WriteLine($"워크시트 접근 실패 (COM Exception: {ex.ErrorCode:X}): 시트가 삭제되었거나 무효한 상태입니다.");
-                }
-                catch (Exception ex)
-                {
-                    // 기타 예외 처리
-                    Debug.WriteLine($"워크시트 접근 중 예외 발생: {ex.Message}");
-                }
-            }
-
-            // 활성화된 시트가 없으면 변환 취소 메시지 (선택적)
-            if (enabledSheetsCount == 0) { /* MessageBox.Show("활성화된 시트가 없어 변환을 취소합니다.", "변환 취소", MessageBoxButtons.OK, MessageBoxIcon.Information); */ }
-        }
 
         // Excel 파일 변환 처리 (수정: 변환된 파일 목록 반환)
         private List<string> ConvertExcelFile(ExcelToYamlConfig config)
@@ -1541,69 +1385,43 @@ namespace ExcelToYamlAddin
         {
             try
             {
-                // 파일 선택 대화상자
-                var openFileDialog = new OpenFileDialog
-                {
-                    Title = "XML 파일 선택",
-                    Filter = "XML 파일 (*.xml)|*.xml|모든 파일 (*.*)|*.*",
-                    FilterIndex = 1,
-                    RestoreDirectory = true
-                };
+                // 파일 선택
+                string xmlFilePath = ShowImportFileDialog("XML", "*.xml");
+                if (xmlFilePath == null) return;
 
-                if (openFileDialog.ShowDialog() != DialogResult.OK)
-                {
-                    return;
-                }
+                // 워크북 유효성 검사
+                var currentWorkbook = ValidateWorkbookForImport();
+                if (currentWorkbook == null) return;
 
-                string xmlFilePath = openFileDialog.FileName;
                 string xmlContent = File.ReadAllText(xmlFilePath);
                 string fileName = Path.GetFileNameWithoutExtension(xmlFilePath);
 
-                // XML을 Excel로 변환 (새로운 방식: XML → YAML → Excel)
+                // XML을 Excel로 변환 (XML → YAML → Excel)
                 var converter = new Core.XmlToExcelViaYamlConverter();
                 var workbook = converter.ConvertToExcel(xmlContent, fileName);
 
-                // 현재 워크북 가져오기
-                var app = Globals.ThisAddIn.Application;
-                var currentWorkbook = app.ActiveWorkbook;
-                
-                if (currentWorkbook == null)
-                {
-                    MessageBox.Show("활성 워크북이 없습니다. Excel 파일을 먼저 열어주세요.",
-                        "오류", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // 변환된 시트 복사
-                var convertedSheet = workbook.Worksheets.First();
-                
                 // ClosedXML 워크북을 임시 파일로 저장
                 string tempFile = Path.Combine(Path.GetTempPath(), $"temp_{Guid.NewGuid()}.xlsx");
                 workbook.SaveAs(tempFile);
-                
-                // 임시 파일을 Excel에서 열기
-                var tempWorkbook = app.Workbooks.Open(tempFile);
-                var sourceSheet = tempWorkbook.Worksheets[1];
-                
-                // 현재 워크북의 마지막에 시트 복사
-                sourceSheet.Copy(After: currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count]);
-                
-                // 새로 추가된 시트 선택
-                var newSheet = currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count];
-                newSheet.Activate();
-                
-                // 임시 워크북 닫기
-                tempWorkbook.Close(false);
-                
-                // 임시 파일 삭제
-                try
-                {
-                    File.Delete(tempFile);
-                }
-                catch { }
 
-                MessageBox.Show($"XML 파일이 성공적으로 Excel로 변환되었습니다.\n\n파일: {fileName}.xml",
-                    "변환 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // 시트 이름 생성 (XML은 '!' 접두사 없이)
+                string newSheetName = GenerateUniqueSheetName(currentWorkbook, fileName, addExclamation: false);
+
+                // 임시 파일을 새 시트로 복사
+                bool success = CopyTempFileToNewSheet(tempFile, newSheetName, "OnImportXmlClick");
+                
+                // 임시 파일 정리
+                CleanupTempFile(tempFile, "OnImportXmlClick");
+
+                if (success)
+                {
+                    // 새로 추가된 시트 활성화
+                    var newSheet = currentWorkbook.Worksheets[newSheetName];
+                    newSheet.Activate();
+
+                    MessageBox.Show($"XML 파일이 성공적으로 Excel로 변환되었습니다.\n\n파일: {fileName}.xml\n시트: {newSheetName}",
+                        "변환 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
             catch (Exception ex)
             {
@@ -1617,33 +1435,15 @@ namespace ExcelToYamlAddin
         {
             try
             {
-                // 파일 선택 대화상자
-                var openFileDialog = new OpenFileDialog
-                {
-                    Title = "YAML 파일 선택",
-                    Filter = "YAML 파일 (*.yaml;*.yml)|*.yaml;*.yml|모든 파일 (*.*)|*.*",
-                    FilterIndex = 1,
-                    RestoreDirectory = true
-                };
+                // 파일 선택
+                string yamlFilePath = ShowImportFileDialog("YAML", "*.yaml;*.yml");
+                if (yamlFilePath == null) return;
 
-                if (openFileDialog.ShowDialog() != DialogResult.OK)
-                {
-                    return;
-                }
+                // 워크북 유효성 검사
+                var currentWorkbook = ValidateWorkbookForImport();
+                if (currentWorkbook == null) return;
 
-                string yamlFilePath = openFileDialog.FileName;
                 string fileName = Path.GetFileNameWithoutExtension(yamlFilePath);
-
-                // 현재 워크북 가져오기
-                var app = Globals.ThisAddIn.Application;
-                var currentWorkbook = app.ActiveWorkbook;
-                
-                if (currentWorkbook == null)
-                {
-                    MessageBox.Show("활성 워크북이 없습니다. Excel 파일을 먼저 열어주세요.",
-                        "오류", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
 
                 // YAML 파일 읽기
                 string yamlContent;
@@ -1658,61 +1458,15 @@ namespace ExcelToYamlAddin
                         "파일 읽기 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
-                
-                // 루트 요소가 있는 경우 제거 (XML에서 변환된 경우 처리)
-                try
-                {
-                    Debug.WriteLine("[OnImportYamlClick] YAML 구조 분석 시작");
-                    var yaml = new YamlDotNet.RepresentationModel.YamlStream();
-                    yaml.Load(new StringReader(yamlContent));
-                    
-                    if (yaml.Documents.Count > 0 && yaml.Documents[0].RootNode is YamlDotNet.RepresentationModel.YamlMappingNode rootMapping)
-                    {
-                        // 루트가 단일 키를 가진 매핑이면, 그 값을 직접 사용
-                        if (rootMapping.Children.Count == 1)
-                        {
-                            var rootKey = rootMapping.Children.Keys.First();
-                            var rootValue = rootMapping.Children[rootKey];
-                            
-                            Debug.WriteLine($"[OnImportYamlClick] 루트 요소 '{rootKey}' 감지, 제거 중...");
-                            
-                            // 루트 값을 새로운 YAML 문서로 변환
-                            var newYamlDoc = new YamlDotNet.RepresentationModel.YamlDocument(rootValue);
-                            var newYamlStream = new YamlDotNet.RepresentationModel.YamlStream(newYamlDoc);
-                            var writer = new StringWriter();
-                            newYamlStream.Save(writer, false);
-                            yamlContent = writer.ToString();
-                            
-                            Debug.WriteLine($"[OnImportYamlClick] 루트 요소 제거 완료");
-                        }
-                    }
-                    Debug.WriteLine("[OnImportYamlClick] YAML 구조 분석 완료");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[OnImportYamlClick] 루트 요소 처리 중 오류 (무시하고 계속): {ex.Message}");
-                }
+                // 루트 요소 처리 (XML에서 변환된 경우)
+                yamlContent = ProcessYamlRootElement(yamlContent, "OnImportYamlClick");
                 
                 // YAML을 Excel로 변환
-                Core.YamlToExcel.YamlToExcelConverter converter;
-                try
-                {
-                    Debug.WriteLine("[OnImportYamlClick] YamlToExcelConverter 생성 시작");
-                    converter = new Core.YamlToExcel.YamlToExcelConverter();
-                    Debug.WriteLine("[OnImportYamlClick] YamlToExcelConverter 생성 완료");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"YAML 변환기 생성 중 오류가 발생했습니다:\n\n{ex.Message}",
-                        "변환기 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-                
-                // 임시 파일로 변환
                 string tempFile = Path.Combine(Path.GetTempPath(), $"temp_{Guid.NewGuid()}.xlsx");
                 try
                 {
                     Debug.WriteLine($"[OnImportYamlClick] YAML to Excel 변환 시작: {tempFile}");
+                    var converter = new Core.YamlToExcel.YamlToExcelConverter();
                     converter.ConvertFromContent(yamlContent, tempFile);
                     Debug.WriteLine($"[OnImportYamlClick] YAML to Excel 변환 완료: {tempFile}");
                 }
@@ -1723,74 +1477,18 @@ namespace ExcelToYamlAddin
                     return;
                 }
                 
-                // 임시 파일을 Excel에서 열기
-                dynamic tempWorkbook;
-                dynamic sourceSheet;
-                try
-                {
-                    Debug.WriteLine($"[OnImportYamlClick] 임시 파일 열기 시작: {tempFile}");
-                    tempWorkbook = app.Workbooks.Open(tempFile);
-                    sourceSheet = tempWorkbook.Worksheets[1];
-                    Debug.WriteLine($"[OnImportYamlClick] 임시 파일 열기 완료");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"변환된 파일을 여는 중 오류가 발생했습니다:\n\n{ex.Message}",
-                        "파일 열기 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    try { File.Delete(tempFile); } catch { }
-                    return;
-                }
+                // 새 시트 이름 생성 및 복사
+                string newSheetName = GenerateUniqueSheetName(currentWorkbook, fileName, addExclamation: true);
+                bool success = CopyTempFileToNewSheet(tempFile, newSheetName, "OnImportYamlClick");
                 
-                // 새 시트 이름 생성 (중복 방지)
-                string newSheetName = $"!{fileName}";
-                int suffix = 1;
-                while (WorksheetExists(currentWorkbook, newSheetName))
-                {
-                    newSheetName = $"!{fileName}_{suffix++}";
-                }
+                // 임시 파일 정리
+                CleanupTempFile(tempFile, "OnImportYamlClick");
                 
-                // 현재 워크북에 시트 복사
-                try
+                if (success)
                 {
-                    Debug.WriteLine($"[OnImportYamlClick] 시트 복사 시작: {newSheetName}");
-                    sourceSheet.Copy(After: currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count]);
-                    var newSheet = currentWorkbook.ActiveSheet;
-                    newSheet.Name = newSheetName;
-                    Debug.WriteLine($"[OnImportYamlClick] 시트 복사 완료: {newSheetName}");
+                    MessageBox.Show($"YAML 파일이 성공적으로 가져와졌습니다.\n\n시트 이름: {newSheetName}",
+                        "가져오기 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"시트를 복사하는 중 오류가 발생했습니다:\n\n{ex.Message}",
-                        "시트 복사 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    tempWorkbook.Close(false);
-                    try { File.Delete(tempFile); } catch { }
-                    return;
-                }
-                
-                // 임시 워크북 닫기
-                try
-                {
-                    Debug.WriteLine("[OnImportYamlClick] 임시 워크북 닫기");
-                    tempWorkbook.Close(false);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[OnImportYamlClick] 임시 워크북 닫기 중 오류 (무시): {ex.Message}");
-                }
-                
-                // 임시 파일 삭제
-                try 
-                { 
-                    File.Delete(tempFile); 
-                    Debug.WriteLine($"[OnImportYamlClick] 임시 파일 삭제 완료: {tempFile}");
-                } 
-                catch (Exception ex) 
-                { 
-                    Debug.WriteLine($"[OnImportYamlClick] 임시 파일 삭제 실패 (무시): {ex.Message}");
-                }
-                
-                MessageBox.Show($"YAML 파일이 성공적으로 가져와졌습니다.\n\n시트 이름: {newSheetName}",
-                    "가져오기 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -1808,6 +1506,177 @@ namespace ExcelToYamlAddin
                     return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Import 작업을 위한 파일 선택 대화상자를 표시합니다.
+        /// </summary>
+        /// <param name="fileType">파일 형식 (예: "XML", "YAML", "JSON")</param>
+        /// <param name="fileExtensions">파일 확장자 (예: "*.xml", "*.yaml;*.yml")</param>
+        /// <returns>선택된 파일 경로, 취소 시 null</returns>
+        private string ShowImportFileDialog(string fileType, string fileExtensions)
+        {
+            using (var openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Title = $"{fileType} 파일 선택";
+                openFileDialog.Filter = $"{fileType} 파일 ({fileExtensions})|{fileExtensions}|모든 파일 (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
+
+                return openFileDialog.ShowDialog() == DialogResult.OK ? openFileDialog.FileName : null;
+            }
+        }
+
+        /// <summary>
+        /// Import 작업을 위한 워크북 유효성을 검사합니다.
+        /// </summary>
+        /// <returns>유효한 워크북 객체, 없으면 null</returns>
+        private dynamic ValidateWorkbookForImport()
+        {
+            var app = Globals.ThisAddIn.Application;
+            var currentWorkbook = app.ActiveWorkbook;
+
+            if (currentWorkbook == null)
+            {
+                MessageBox.Show("활성 워크북이 없습니다. Excel 파일을 먼저 열어주세요.",
+                    "오류", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            return currentWorkbook;
+        }
+
+        /// <summary>
+        /// 중복되지 않는 새 시트 이름을 생성합니다.
+        /// </summary>
+        /// <param name="workbook">워크북 객체</param>
+        /// <param name="baseName">기본 시트 이름</param>
+        /// <param name="addExclamation">시트 이름 앞에 '!' 추가 여부</param>
+        /// <returns>중복되지 않는 시트 이름</returns>
+        private string GenerateUniqueSheetName(dynamic workbook, string baseName, bool addExclamation = true)
+        {
+            string prefix = addExclamation ? "!" : "";
+            string newSheetName = $"{prefix}{baseName}";
+            int suffix = 1;
+            
+            while (WorksheetExists(workbook, newSheetName))
+            {
+                newSheetName = $"{prefix}{baseName}_{suffix++}";
+            }
+            
+            return newSheetName;
+        }
+
+        /// <summary>
+        /// 임시 파일을 현재 워크북의 새 시트로 복사합니다.
+        /// </summary>
+        /// <param name="tempFilePath">임시 Excel 파일 경로</param>
+        /// <param name="sheetName">새 시트 이름</param>
+        /// <param name="methodName">호출한 메소드 이름 (로깅용)</param>
+        /// <returns>복사 성공 여부</returns>
+        private bool CopyTempFileToNewSheet(string tempFilePath, string sheetName, string methodName)
+        {
+            var app = Globals.ThisAddIn.Application;
+            var currentWorkbook = app.ActiveWorkbook;
+            
+            try
+            {
+                Debug.WriteLine($"[{methodName}] 임시 파일 열기 시작: {tempFilePath}");
+                var tempWorkbook = app.Workbooks.Open(tempFilePath);
+                var sourceSheet = tempWorkbook.Worksheets[1];
+                Debug.WriteLine($"[{methodName}] 임시 파일 열기 완료");
+
+                Debug.WriteLine($"[{methodName}] 시트 복사 시작: {sheetName}");
+                sourceSheet.Copy(After: currentWorkbook.Worksheets[currentWorkbook.Worksheets.Count]);
+                var newSheet = currentWorkbook.ActiveSheet;
+                newSheet.Name = sheetName;
+                Debug.WriteLine($"[{methodName}] 시트 복사 완료: {sheetName}");
+
+                // 임시 워크북 닫기
+                try
+                {
+                    Debug.WriteLine($"[{methodName}] 임시 워크북 닫기");
+                    tempWorkbook.Close(false);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[{methodName}] 임시 워크북 닫기 중 오류 (무시): {ex.Message}");
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"시트를 복사하는 중 오류가 발생했습니다:\n\n{ex.Message}",
+                    "시트 복사 오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Debug.WriteLine($"[{methodName}] 시트 복사 실패: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 임시 파일을 안전하게 삭제합니다.
+        /// </summary>
+        /// <param name="tempFilePath">삭제할 임시 파일 경로</param>
+        /// <param name="methodName">호출한 메소드 이름 (로깅용)</param>
+        private void CleanupTempFile(string tempFilePath, string methodName)
+        {
+            try
+            {
+                if (File.Exists(tempFilePath))
+                {
+                    File.Delete(tempFilePath);
+                    Debug.WriteLine($"[{methodName}] 임시 파일 삭제 완료: {tempFilePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{methodName}] 임시 파일 삭제 실패 (무시): {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// YAML 루트 요소를 처리합니다 (XML에서 변환된 경우 단일 루트 키 제거).
+        /// </summary>
+        /// <param name="yamlContent">원본 YAML 콘텐츠</param>
+        /// <param name="methodName">호출한 메소드 이름 (로깅용)</param>
+        /// <returns>처리된 YAML 콘텐츠</returns>
+        private string ProcessYamlRootElement(string yamlContent, string methodName)
+        {
+            try
+            {
+                Debug.WriteLine($"[{methodName}] YAML 구조 분석 시작");
+                var yaml = new YamlDotNet.RepresentationModel.YamlStream();
+                yaml.Load(new StringReader(yamlContent));
+                
+                if (yaml.Documents.Count > 0 && yaml.Documents[0].RootNode is YamlDotNet.RepresentationModel.YamlMappingNode rootMapping)
+                {
+                    // 루트가 단일 키를 가진 매핑이면, 그 값을 직접 사용
+                    if (rootMapping.Children.Count == 1)
+                    {
+                        var rootKey = rootMapping.Children.Keys.First();
+                        var rootValue = rootMapping.Children[rootKey];
+                        
+                        Debug.WriteLine($"[{methodName}] 루트 요소 '{rootKey}' 감지, 제거 중...");
+                        
+                        // 루트 값을 새로운 YAML 문서로 변환
+                        var newYamlDoc = new YamlDotNet.RepresentationModel.YamlDocument(rootValue);
+                        var newYamlStream = new YamlDotNet.RepresentationModel.YamlStream(newYamlDoc);
+                        var writer = new StringWriter();
+                        newYamlStream.Save(writer, false);
+                        yamlContent = writer.ToString();
+                        
+                        Debug.WriteLine($"[{methodName}] 루트 요소 제거 완료");
+                    }
+                }
+                Debug.WriteLine($"[{methodName}] YAML 구조 분석 완료");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{methodName}] 루트 요소 처리 중 오류 (무시하고 계속): {ex.Message}");
+            }
+            
+            return yamlContent;
         }
 
 
@@ -1886,133 +1755,45 @@ namespace ExcelToYamlAddin
             {
                 Logger.Information("JSON 가져오기 버튼 클릭");
 
-                // JSON 파일 선택
-                using (var openFileDialog = new OpenFileDialog())
+                // 파일 선택
+                string jsonPath = ShowImportFileDialog("JSON", "*.json");
+                if (jsonPath == null) return;
+
+                Logger.Information($"선택된 JSON 파일: {jsonPath}");
+
+                // JSON을 YAML로 변환 후 Excel로 변환
+                string jsonContent = File.ReadAllText(jsonPath);
+                
+                // JSON을 YAML로 변환 (Newtonsoft.Json 사용)
+                var jsonObject = Newtonsoft.Json.JsonConvert.DeserializeObject(jsonContent);
+                var serializer = new YamlDotNet.Serialization.SerializerBuilder().Build();
+                string yamlContent = serializer.Serialize(jsonObject);
+
+                // YAML을 Excel로 변환
+                var yamlToExcel = new Core.YamlToExcel.YamlToExcelConverter();
+                string fileName = Path.GetFileNameWithoutExtension(jsonPath);
+                string excelPath = Path.Combine(Path.GetDirectoryName(jsonPath), $"{fileName}.xlsx");
+
+                yamlToExcel.ConvertFromContent(yamlContent, excelPath);
+
+                Logger.Information($"JSON → Excel 변환 완료: {excelPath}");
+
+                // 결과 알림
+                var result = MessageBox.Show(
+                    $"JSON 파일을 Excel로 변환했습니다.\n\n생성된 파일: {excelPath}\n\n파일을 열어보시겠습니까?",
+                    "변환 완료",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information);
+
+                if (result == DialogResult.Yes)
                 {
-                    openFileDialog.Title = "JSON 파일 선택";
-                    openFileDialog.Filter = "JSON 파일 (*.json)|*.json|모든 파일 (*.*)|*.*";
-                    openFileDialog.FilterIndex = 1;
-
-                    if (openFileDialog.ShowDialog() == DialogResult.OK)
-                    {
-                        string jsonPath = openFileDialog.FileName;
-                        Logger.Information($"선택된 JSON 파일: {jsonPath}");
-
-                        // JSON을 YAML로 변환 후 Excel로 변환
-                        string jsonContent = File.ReadAllText(jsonPath);
-                        
-                        // JSON을 YAML로 변환 (Newtonsoft.Json 사용)
-                        var jsonObject = Newtonsoft.Json.JsonConvert.DeserializeObject(jsonContent);
-                        var serializer = new YamlDotNet.Serialization.SerializerBuilder().Build();
-                        string yamlContent = serializer.Serialize(jsonObject);
-
-                        // YAML을 Excel로 변환
-                        var yamlToExcel = new Core.YamlToExcel.YamlToExcelConverter();
-                        string fileName = Path.GetFileNameWithoutExtension(jsonPath);
-                        string excelPath = Path.Combine(Path.GetDirectoryName(jsonPath), $"{fileName}.xlsx");
-
-                        yamlToExcel.ConvertFromContent(yamlContent, excelPath);
-
-                        Logger.Information($"JSON → Excel 변환 완료: {excelPath}");
-
-                        // 결과 알림
-                        var result = MessageBox.Show(
-                            $"JSON 파일을 Excel로 변환했습니다.\n\n생성된 파일: {excelPath}\n\n파일을 열어보시겠습니까?",
-                            "변환 완료",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Information);
-
-                        if (result == DialogResult.Yes)
-                        {
-                            System.Diagnostics.Process.Start(excelPath);
-                        }
-                    }
+                    System.Diagnostics.Process.Start(excelPath);
                 }
             }
             catch (Exception ex)
             {
                 Logger.Error($"JSON 가져오기 중 오류 발생: {ex.Message}", ex);
                 MessageBox.Show($"JSON 가져오기 중 오류가 발생했습니다:\n{ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-
-        // 리소스 텍스트 가져오기
-        private static string GetResourceText(string resourceName)
-        {
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-
-            foreach (string name in assembly.GetManifestResourceNames())
-            {
-                if (string.Compare(resourceName, name, StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    using (var stream = assembly.GetManifestResourceStream(name))
-                    {
-                        if (stream != null)
-                        {
-                            using (var reader = new StreamReader(stream))
-                            {
-                                return reader.ReadToEnd();
-                            }
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// 테스트 실행 버튼 클릭 이벤트 핸들러
-        /// </summary>
-        private void OnRunTestsClick(object sender, RibbonControlEventArgs e)
-        {
-            try
-            {
-                Logger.Information("테스트 실행 시작");
-                
-                var runner = new Tests.TestRunner();
-                
-                // 테스트 시트 생성 및 실행 옵션
-                var result = MessageBox.Show(
-                    "테스트 시트를 생성하고 테스트를 실행하시겠습니까?\n" +
-                    "'예'를 클릭하면 테스트 시트를 생성합니다.\n" +
-                    "'아니오'를 클릭하면 현재 시트로만 테스트합니다.",
-                    "테스트 실행",
-                    MessageBoxButtons.YesNoCancel,
-                    MessageBoxIcon.Question);
-                
-                if (result == DialogResult.Cancel)
-                {
-                    return;
-                }
-                
-                if (result == DialogResult.Yes)
-                {
-                    // 테스트 시트 생성 및 테스트 실행
-                    runner.GenerateTestSheetsAndRun();
-                }
-                else
-                {
-                    // 현재 시트로만 테스트 실행
-                    runner.RunIntegrationTests();
-                }
-                
-                var summary = runner.GetResultSummary();
-                MessageBox.Show(
-                    summary,
-                    "테스트 완료",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "테스트 실행 중 오류");
-                MessageBox.Show(
-                    $"테스트 실행 중 오류가 발생했습니다:\n{ex.Message}",
-                    "오류",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
             }
         }
     }

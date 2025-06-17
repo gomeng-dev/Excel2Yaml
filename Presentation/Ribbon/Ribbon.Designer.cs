@@ -161,17 +161,6 @@ namespace ExcelToYamlAddin
             this.btnExportToHtml.SuperTip = "현재 시트를 HTML 파일로 내보내서 브라우저에서 확인할 수 있습니다.";
             this.btnExportToHtml.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnExportToHtmlClick);
             // 
-            // btnRunTests
-            // 
-            this.btnRunTests.ControlSize = Microsoft.Office.Core.RibbonControlSize.RibbonControlSizeLarge;
-            this.btnRunTests.Image = global::ExcelToYamlAddin.Properties.Resources.help;
-            this.btnRunTests.Label = "테스트 실행";
-            this.btnRunTests.Name = "btnRunTests";
-            this.btnRunTests.ScreenTip = "SchemeParser 테스트 실행";
-            this.btnRunTests.ShowImage = true;
-            this.btnRunTests.SuperTip = "리팩토링된 SchemeParser의 테스트를 실행합니다.";
-            this.btnRunTests.Click += new Microsoft.Office.Tools.Ribbon.RibbonControlEventHandler(this.OnRunTestsClick);
-            // 
             // groupSettings
             // 
             this.groupSettings.Items.Add(this.btnSheetPathSettings);
