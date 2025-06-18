@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 오류를 수정할때는 요청한 오류만 수정하고 추가 수정을 할때는 나에게 물어보고 수정해
 - 오류를 수정하기 전에 어떤게 원인이고 무엇을 수정해야 하는지 나에게 설명하고 수정해
 - 코드를 작성할 때, 다른 코드를 참조할 경우 실제 있는 함수인지, 실제로 있는 인터페이스인지 확인하고 작성해
+- C# 7.3이하 에서 사용 가능한 기능만 사용해줘
 
 ## Build Commands
 

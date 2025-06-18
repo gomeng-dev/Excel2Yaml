@@ -21,6 +21,7 @@ using ExcelToYamlAddin.Domain.ValueObjects;
 using ExcelToYamlAddin.Application.Services;
 using ExcelToYamlAddin.Infrastructure.Excel;
 using ExcelToYamlAddin.Presentation.Helpers;
+using System.Threading.Tasks;
 
 namespace ExcelToYamlAddin
 {
@@ -31,7 +32,7 @@ namespace ExcelToYamlAddin
         // 서비스 필드
         private readonly Presentation.Services.ConversionService _conversionService;
         private readonly Presentation.Services.ImportExportService _importExportService;
-        private readonly Presentation.Services.PostProcessingService _postProcessingService;
+        private readonly Presentation.Services.PostProcessingServiceV2 _postProcessingService;
         
         // 옵션 설정
         private bool enableHashGen = false;
@@ -51,7 +52,7 @@ namespace ExcelToYamlAddin
             // 서비스 초기화
             _conversionService = new Presentation.Services.ConversionService();
             _importExportService = new Presentation.Services.ImportExportService();
-            _postProcessingService = new Presentation.Services.PostProcessingService();
+            _postProcessingService = new Presentation.Services.PostProcessingServiceV2();
         }
 
         /// <summary>
@@ -296,17 +297,18 @@ namespace ExcelToYamlAddin
         /// <param name="progressRange">이 후처리 단계가 전체 진행률에서 차지하는 범위입니다.</param>
         /// <param name="isForJsonConversion">JSON으로 변환하기 위한 중간 단계의 YAML 파일에 대한 후처리인 경우 true로 설정합니다. 이 경우 일부 후처리 단계가 생략될 수 있습니다.</param>
         /// <returns>키 경로 병합 및 Flow 스타일 처리 성공 횟수를 포함하는 튜플을 반환합니다.</returns>
-        private (int mergeKeyPathsSuccessCount, int flowStyleSuccessCount) ApplyYamlPostProcessing(
+        private async Task<(int mergeKeyPathsSuccessCount, int flowStyleSuccessCount)> ApplyYamlPostProcessingAsync(
             List<string> yamlFilePaths,
             List<Excel.Worksheet> convertibleSheets,
             IProgress<Forms.ProgressForm.ProgressInfo> progress,
             CancellationToken cancellationToken,
             int initialProgressPercentage,
             int progressRange,
-            bool isForJsonConversion = false)
+            bool isForJsonConversion,
+            OutputFormat outputFormat)
         {
-            // PostProcessingService를 사용하여 후처리 적용
-            return _postProcessingService.ApplyYamlPostProcessing(
+            // PostProcessingServiceV2를 사용하여 후처리 적용
+            var (successCount, results) = await _postProcessingService.ApplyPostProcessingAsync(
                 yamlFilePaths,
                 convertibleSheets,
                 progress,
@@ -314,7 +316,12 @@ namespace ExcelToYamlAddin
                 initialProgressPercentage,
                 progressRange,
                 isForJsonConversion,
-                addEmptyYamlFields);
+                addEmptyYamlFields,
+                outputFormat);
+            
+            // 기존 코드와의 호환성을 위해 성공 횟수를 반환
+            // V2에서는 통합된 성공 횟수만 제공하므로 같은 값을 두 번 반환
+            return (successCount, 0);
         }
 
 
@@ -637,7 +644,9 @@ namespace ExcelToYamlAddin
                 string stage3Message = "";
                 string stage4Message = "";
                 string completionMessage = "";
+#pragma warning disable CS0219 // 변수가 할당되었지만 해당 값이 사용되지 않았습니다.
                 string errorMessage = "";
+#pragma warning restore CS0219 // 변수가 할당되었지만 해당 값이 사용되지 않았습니다.
                 Func<string, Excel.Workbook, bool> importFunction = null;
                 bool isJsonImport = false;
 
@@ -887,9 +896,12 @@ namespace ExcelToYamlAddin
                                     
                                     // 2단계: YAML 후처리
                                     Presentation.Helpers.RibbonHelpers.ReportProgress(progress, 30, "YAML 후처리 진행 중...");
-                                    (currentPostProcessMergeSuccessCount, currentPostProcessFlowSuccessCount) = ApplyYamlPostProcessing(
+                                    var postProcessingTask = ApplyYamlPostProcessingAsync(
                                         convertedFiles, convertibleSheets, progress, cancellationToken, 30, 30, 
-                                        isForJsonConversion: (targetFormat == "JSON"));
+                                        isForJsonConversion: (targetFormat == "JSON"),
+                                        outputFormat: targetFormat == "JSON" ? OutputFormat.Json : targetFormat == "XML" ? OutputFormat.Xml : OutputFormat.Yaml);
+                                    postProcessingTask.Wait(cancellationToken);
+                                    (currentPostProcessMergeSuccessCount, currentPostProcessFlowSuccessCount) = postProcessingTask.Result;
                                     
                                     // 3단계: 최종 형식으로 변환
                                     if (targetFormat == "XML")
@@ -918,7 +930,7 @@ namespace ExcelToYamlAddin
                             {
                                 // YAML 후처리 (70% ~ 100%)
                                 Debug.WriteLine($"[Ribbon] YAML 후처리 확인: {convertedFiles.Count}개 파일");
-                                (currentPostProcessMergeSuccessCount, currentPostProcessFlowSuccessCount) = ApplyYamlPostProcessing(
+                                var postProcessingTask2 = ApplyYamlPostProcessingAsync(
                                     convertedFiles, convertibleSheets, 
                                     new Progress<Forms.ProgressForm.ProgressInfo>(info =>
                                     {
@@ -931,7 +943,12 @@ namespace ExcelToYamlAddin
                                         });
                                     }),
                                     cancellationToken,
-                                    initialProgressPercentage: 0, progressRange: 100, isForJsonConversion: false);
+                                    initialProgressPercentage: 0, 
+                                    progressRange: 100, 
+                                    isForJsonConversion: false,
+                                    outputFormat: OutputFormat.Yaml);
+                                postProcessingTask2.Wait(cancellationToken);
+                                (currentPostProcessMergeSuccessCount, currentPostProcessFlowSuccessCount) = postProcessingTask2.Result;
                             }
                             
                             Presentation.Helpers.RibbonHelpers.ReportProgress(progress, 100, "모든 파일 처리 완료", isCompleted: true);

@@ -376,10 +376,22 @@
     <Compile Include="Presentation\Forms\ProgressForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <!-- PostProcessing Pipeline -->
+    <Compile Include="Application\Interfaces\IPostProcessor.cs" />
+    <Compile Include="Application\Interfaces\IProcessingPipeline.cs" />
+    <Compile Include="Application\PostProcessing\ProcessingContext.cs" />
+    <Compile Include="Application\PostProcessing\ProcessingResult.cs" />
+    <Compile Include="Application\PostProcessing\PostProcessorBase.cs" />
+    <Compile Include="Application\PostProcessing\ProcessingPipeline.cs" />
+    <Compile Include="Application\PostProcessing\Processors\YamlMergeProcessor.cs" />
+    <Compile Include="Application\PostProcessing\Processors\YamlFlowStyleProcessor.cs" />
+    <Compile Include="Application\PostProcessing\Processors\JsonFormatterProcessor.cs" />
+    <Compile Include="Application\PostProcessing\Processors\XmlFormatterProcessor.cs" />
     <!-- Presentation Services -->
     <Compile Include="Presentation\Services\ConversionService.cs" />
     <Compile Include="Presentation\Services\ImportExportService.cs" />
     <Compile Include="Presentation\Services\PostProcessingService.cs" />
+    <Compile Include="Presentation\Services\PostProcessingServiceV2.cs" />
     <!-- Presentation Helpers -->
     <Compile Include="Presentation\Helpers\RibbonHelpers.cs" />
     <!-- Domain Interfaces -->
