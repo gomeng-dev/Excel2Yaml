@@ -376,6 +376,12 @@
     <Compile Include="Presentation\Forms\ProgressForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <!-- Presentation Services -->
+    <Compile Include="Presentation\Services\ConversionService.cs" />
+    <Compile Include="Presentation\Services\ImportExportService.cs" />
+    <Compile Include="Presentation\Services\PostProcessingService.cs" />
+    <!-- Presentation Helpers -->
+    <Compile Include="Presentation\Helpers\RibbonHelpers.cs" />
     <!-- Domain Interfaces -->
     <Compile Include="Domain\Interfaces\IRepository.cs" />
     <Compile Include="Domain\Interfaces\ISchemeRepository.cs" />
