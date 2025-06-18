@@ -390,33 +390,11 @@
     <!-- Presentation Services -->
     <Compile Include="Presentation\Services\ConversionService.cs" />
     <Compile Include="Presentation\Services\ImportExportService.cs" />
-    <Compile Include="Presentation\Services\PostProcessingService.cs" />
     <Compile Include="Presentation\Services\PostProcessingServiceV2.cs" />
     <!-- Presentation Helpers -->
     <Compile Include="Presentation\Helpers\RibbonHelpers.cs" />
-    <!-- Domain Interfaces -->
-    <Compile Include="Domain\Interfaces\IRepository.cs" />
-    <Compile Include="Domain\Interfaces\ISchemeRepository.cs" />
-    <Compile Include="Domain\Interfaces\IDomainService.cs" />
-    <Compile Include="Domain\Interfaces\ISchemeValidationService.cs" />
     <!-- Application Interfaces -->
-    <Compile Include="Application\Interfaces\IExcelReaderService.cs" />
     <Compile Include="Application\Interfaces\IYamlGeneratorService.cs" />
-    <Compile Include="Application\Interfaces\IJsonGeneratorService.cs" />
-    <Compile Include="Application\Interfaces\IPostProcessingService.cs" />
-    <Compile Include="Application\Interfaces\ISchemeBuilderService.cs" />
-    <!-- Infrastructure Interfaces -->
-    <Compile Include="Infrastructure\Interfaces\IFileSystemService.cs" />
-    <Compile Include="Infrastructure\Interfaces\IExcelService.cs" />
-    <Compile Include="Infrastructure\Interfaces\IConfigurationService.cs" />
-    <Compile Include="Infrastructure\Interfaces\ILoggingService.cs" />
-    <!-- Application DTOs -->
-    <Compile Include="Application\DTOs\ExcelConversionRequest.cs" />
-    <Compile Include="Application\DTOs\ExcelConversionResponse.cs" />
-    <Compile Include="Application\DTOs\SchemeValidationRequest.cs" />
-    <Compile Include="Application\DTOs\SchemeValidationResponse.cs" />
-    <Compile Include="Application\DTOs\PostProcessingRequest.cs" />
-    <Compile Include="Application\DTOs\PostProcessingResponse.cs" />
     <Content Include="Docs\Excel2YamlExample.xlsx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
